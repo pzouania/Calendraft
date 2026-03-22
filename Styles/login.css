@@ -166,7 +166,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: -3px;
     margin-bottom: 5px;
 }
 
