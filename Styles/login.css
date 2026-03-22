@@ -105,9 +105,47 @@ body {
     background: #e2e8f0;
 }
 
+/* RESPONSIVE */
+@media (max-width: 480px) {
+    
+    body {
+        padding: 20px;
+        align-items: center;
+    }
+
+    .login-card {
+        padding: 25px 20px;
+        border-radius: 18px;
+    }
+
+    .login-card h1 {
+        font-size: 1.5rem;
+    }
+
+    .login-title {
+        font-size: 1.2rem;
+    }
+}
+/* LOGO */
+.logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+
+.logo img {
+    width: 40px;
+    height: 40px;
+}
+
 /* FOOTER */
-.forgot {
-    margin-top: 15px;
+.footer {
+    position: absolute;
+    bottom: 15px;
+    width: 100%;
+    text-align: center;
+    font-size: 0.85rem;
     color: #64748b;
-    font-size: 0.9rem;
 }
