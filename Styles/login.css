@@ -1,6 +1,6 @@
 /* BACKGROUND GLOBAL */
 body {
-    background: url("image/bg-login.png") no-repeat center center;
+    background: url("../image/bg-login.png") no-repeat center center;
     background-size: cover;
     
     height: 100vh;
