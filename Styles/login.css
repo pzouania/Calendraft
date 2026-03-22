@@ -166,13 +166,18 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: -3px;
+    gap: -5px; /* réduit l'espace */
     margin-bottom: 5px;
 }
 
 .logo img {
-    width: 90px;
-    height: 60px;
+    width: 40px;
+    height: 40px;
+}
+
+.logo h1 {
+    font-size: 1.8rem;
+    margin: 0; /* on supprime les marges par défaut */
 }
 
 /* FOOTER */
