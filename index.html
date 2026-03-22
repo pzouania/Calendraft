@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Calendraft</title>
+<link rel="stylesheet" href="Styles/main.css">
+<link rel="stylesheet" href="Styles/login.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="container">
+    <div class="login-card">
+  
+      <h1>📅 Calendraft</h1>
+      <div class="subtitle">Calendar Forge</div>
+  
+      <div class="separator"></div>
+  
+      <h2 class="login-title">Connexion</h2>
+  
+      <div class="input-group">
+        <span>📧</span>
+        <input id="userEmail" placeholder="Email">
+      </div>
+  
+      <div class="input-group">
+        <span>🔒</span>
+        <input id="userPassword" type="password" placeholder="Mot de passe">
+      </div>
+  
+      <button class="primary-btn" onclick="loginUser()">Connexion</button>
+      <button class="secondary-btn" onclick="registerUser()">Créer un compte</button>
+  
+      <div class="forgot">Mot de passe oublié ?</div>
+  
+    </div>
+  </div>
+    <script type="module" src="Scripts/auth.js"></script>
+  </body>
+</html>
+
+

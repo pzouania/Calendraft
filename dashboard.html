@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mes calendriers</title>
+    <link rel="stylesheet" href="Styles/main.css">
+    <link rel="stylesheet" href="Styles/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="container">
+
+    <!-- Header avec titre et bouton création -->
+    <div class="dashboard-header">
+        <h1>Mes calendriers</h1>
+        <button onclick="createCalendar()">+ Nouveau calendrier</button>
+    </div>
+
+    <!-- Grille qui sera remplie dynamiquement -->
+    <div id="calendarList" class="calendar-grid">
+        <!-- Les cartes des calendriers seront générées ici via dashboard.js -->
+    </div>
+
+    <!-- Bouton déconnexion -->
+    <div style="margin-top: 20px;">
+        <button onclick="logoutUser()">Déconnexion</button>
+    </div>
+
+</div>
+
+<script type="module" src="Scripts/dashboard.js"></script>
+</body>
+</html>

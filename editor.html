@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendraft</title>
+    <link rel="stylesheet" href="Styles/editor.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <button onclick="window.location.href='dashboard.html'">
+        ← Retour aux calendriers
+        </button>
+    <div class="container">
+        <div class="controls no-print">
+            <h1>Calendrier Annuel</h1>
+
+            <div class="year-selector">
+                <label for="yearSelect">Année :</label>
+                <input type="number" id="yearSelect" value="2026" min="2020" max="2050">
+                <button id="generateBtn">Générer</button>
+            </div>
+
+            <div class="event-form">
+                <h2>Créer un événement récurrent</h2>
+                <div class="form-grid">
+                    <div>
+                        <label for="eventName">Nom :</label>
+                        <input type="text" id="eventName" placeholder="Nom de l'événement">
+                    </div>
+                    <div>
+                        <label for="eventColor">Couleur :</label>
+                        <input type="color" id="eventColor" value="#ff5733">
+                    </div>
+                    <div>
+                        <label for="eventDuration">Durée (jours) :</label>
+                        <input type="number" id="eventDuration" value="1" min="1">
+                    </div>
+                    <div>
+                        <label for="eventYear">Année de départ :</label>
+                        <input type="number" id="eventYear" value="2026" min="2020" max="2050">
+                    </div>
+                    <div>
+                        <label for="eventWeek">Semaine ISO :</label>
+                        <input type="number" id="eventWeek" value="1" min="1" max="53">
+                    </div>
+                    <div>
+                        <label for="eventDay">Jour :</label>
+                        <select id="eventDay">
+                            <option value="1">Lundi</option>
+                            <option value="2">Mardi</option>
+                            <option value="3">Mercredi</option>
+                            <option value="4">Jeudi</option>
+                            <option value="5">Vendredi</option>
+                            <option value="6">Samedi</option>
+                            <option value="7">Dimanche</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="eventFrequency">Fréquence :</label>
+                        <select id="eventFrequency">
+                            <option value="day">Jour</option>
+                            <option value="week">Semaine</option>
+                            <option value="month">Mois</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="eventRepeat">Répéter toutes les :</label>
+                        <input type="number" id="eventRepeat" value="1" min="1">
+                    </div>
+                </div>
+                <button id="addEventBtn">Ajouter l'événement</button>
+            </div>
+
+            <div class="events-list">
+                <h2>Événements</h2>
+                <div id="eventsList"></div>
+            </div>
+
+            <div class="export-controls">
+                <h2>Export PDF</h2>
+                <label for="pdfFormat">Format :</label>
+                <select id="pdfFormat">
+                    <option value="a4">A4 Paysage</option>
+                    <option value="a3">A3 Paysage</option>
+                </select>
+                <button id="exportBtn">Exporter en PDF</button>
+            </div>
+        </div>
+
+        <div id="printArea">
+            <h1 class="calendar-title">Calendrier <span id="calendarYear">2026</span></h1>
+            <div id="calendar" class="calendar-grid"></div>
+            <div id="legend" class="legend">
+                <h2>Légende</h2>
+                <div id="legendContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script type="module" src="Styles/script.js"></script>
+</body>
+
+</html>

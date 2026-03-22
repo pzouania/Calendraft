@@ -1,0 +1,327 @@
+:root {
+    --primary: #2563eb;
+    --primary-dark: #1e40af;
+    --danger: #dc2626;
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --text: #1f2933;
+    --muted: #6b7280;
+}
+
+/* ===============================
+   RESET
+================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+}
+
+/* ===============================
+   STRUCTURE
+================================ */
+.container {
+    max-width: 1600px;
+    margin: auto;
+}
+
+.controls,
+#printArea {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 10px 25px rgba(0,0,0,.06);
+    margin-bottom: 24px;
+}
+
+/* ===============================
+   TITRES
+================================ */
+h1 {
+    font-size: 1.8rem;
+    margin-bottom: 16px;
+}
+
+h2 {
+    font-size: 1.2rem;
+    margin: 20px 0 12px;
+    color: var(--muted);
+}
+
+/* ===============================
+   FORMULAIRES
+================================ */
+.year-selector,
+.export-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+label {
+    font-size: .85rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--muted);
+}
+
+input,
+select {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: .9rem;
+}
+
+input:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* ===============================
+   BOUTONS
+================================ */
+button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s;
+}
+
+button:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+
+.event-item-delete {
+    background: var(--danger);
+}
+
+.event-item-delete:hover {
+    background: #b91c1c;
+}
+
+/* ===============================
+   LISTE ÉVÉNEMENTS
+================================ */
+#eventsList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.event-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border-left: 5px solid;
+}
+
+.event-item-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+}
+
+/* ===============================
+   CALENDRIER – LISIBILITÉ
+================================ */
+.calendar-title {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 24px;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 8px; /* (5) mois plus séparés */
+}
+
+.month {
+    border: 1px solid var(--border);
+    border-radius: 12px; /* (5) */
+    overflow: hidden;
+    background: white;
+}
+
+.month-header {
+    background: linear-gradient(135deg, #2563eb, #1e3a8a);
+    color: white;
+    text-align: center;
+    padding: 9px; /* (5) */
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.day {
+    display: flex;
+    align-items: center;
+    padding: 4px 6px;
+    font-size: 11px;
+    border-bottom: 1px solid #f1f1f1;
+    min-height: 26px; /* (1) + d’air */
+}
+
+.day.weekend {
+    background: #eef2ff; /* (2) week-end visible */
+}
+
+/* ✅ AJOUT : style lettre du jour */
+.day-letter {
+    width: 14px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: #777;
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.day-number {
+    min-width: 18px;
+    font-weight: 500;
+}
+
+.week-number {
+    font-size: 9px; /* (4) discret */
+    color: #9ca3af;
+    margin-left: 4px;
+    font-weight: 400;
+}
+
+.day-events {
+    margin-left: auto;
+    display: flex;
+    gap: 4px; /* (3) */
+}
+
+.event-dot {
+    width: 9px; /* (3) */
+    height: 9px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px white;
+}
+
+.event-count {
+    font-size: 9px;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* ===============================
+   LÉGENDE
+================================ */
+.legend {
+    margin-top: 24px;
+    border-top: 2px solid var(--border);
+    padding-top: 16px;
+}
+
+#legendContent {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border-left: 5px solid currentColor;
+}
+
+.legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: currentColor;
+    box-shadow:
+        0 0 0 2px white,
+        0 0 0 3px rgba(0,0,0,.15);
+}
+
+/* ===============================
+   PRINT
+================================ */
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    #printArea {
+        box-shadow: none;
+        padding: 10px;
+    }
+
+    .calendar-grid {
+        gap: 4px;
+    }
+}
+
+/* ===============================
+   RESPONSIVE
+================================ */
+@media (max-width: 1200px) {
+    .calendar-grid { grid-template-columns: repeat(6, 1fr); }
+}
+@media (max-width: 768px) {
+    .calendar-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 480px) {
+    .calendar-grid { grid-template-columns: repeat(2, 1fr); }
+}
+/* ======================================
+   STEP 3 – Overlay SVG lignes continues
+====================================== */
+
+/* Ancrage SVG par mois */
+.month {
+    position: relative;
+}
+
+/* SVG placé au-dessus des jours */
+.month-svg {
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+}
+
+/* Style des lignes */
+.month-svg line {
+    stroke-width: 4;
+    stroke-linecap: round;
+}

@@ -1,0 +1,113 @@
+/* BACKGROUND GLOBAL */
+body {
+    background: url("image/bg-login.png") no-repeat center center;
+    background-size: cover;
+    
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* CONTAINER */
+.container {
+    max-width: 420px;
+    width: 100%;
+}
+
+/* CARTE */
+.login-card {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(10px);
+    border-radius: 24px;
+    padding: 30px 30px 25px;
+    box-shadow: 0 25px 60px rgba(0,0,0,.15);
+    text-align: center;
+}
+
+/* HEADER */
+.login-card h1 {
+    font-size: 1.8rem;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: #6b7280;
+    margin-bottom: 20px;
+}
+
+/* SEPARATION */
+.separator {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 15px 0 20px;
+}
+
+/* TITRE */
+.login-title {
+    font-size: 1.4rem;
+    margin-bottom: 15px;
+}
+
+/* INPUTS */
+.input-group {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px 14px 12px 40px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+
+.input-group span {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.6;
+}
+
+/* BOUTONS */
+.primary-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    background: linear-gradient(135deg,#3b82f6,#2563eb);
+    color: white;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.primary-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(37,99,235,.4);
+}
+
+.secondary-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #334155;
+    border: none;
+    cursor: pointer;
+}
+
+.secondary-btn:hover {
+    background: #e2e8f0;
+}
+
+/* FOOTER */
+.forgot {
+    margin-top: 15px;
+    color: #64748b;
+    font-size: 0.9rem;
+}
