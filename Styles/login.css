@@ -69,6 +69,7 @@ body {
     background: linear-gradient(135deg,#3b82f6,#2563eb);
     color: white;
     font-weight: 600;
+    font-size: 18px;
     border: none;
     cursor: pointer;
     transition: 0.2s;
@@ -86,6 +87,7 @@ body {
     padding: 12px;
     border-radius: 12px;
     background: #f1f5f9;
+    font-size: 16px;
     color: #334155;
     border: none;
     cursor: pointer;
@@ -148,7 +150,7 @@ body {
     /* FOOTER */
     .footer {
         font-size: 0.75rem;
-        bottom: 10px;
+        bottom: 15px;
     }
 }
 /* LOGO */
@@ -161,13 +163,13 @@ body {
 .logo img {
     width: 240px;
     height: 160px;
-    transform: translate(0px, 40px);
+    transform: translate(0px, 30px);
 }
 
 /* FOOTER */
 .footer {
     position: absolute;
-    bottom: 15px;
+    bottom: 35px;
     width: 100%;
     text-align: center;
     font-size: 0.85rem;
