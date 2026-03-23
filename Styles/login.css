@@ -166,7 +166,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: -5px; /* réduit l'espace */
     margin-bottom: 5px;
 }
 
