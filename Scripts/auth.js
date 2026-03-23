@@ -37,24 +37,41 @@ alert(error.message);
 
 }
 
-window.registerUser = function(){
+function registerUser() {
+    const email = document.getElementById("registerEmail").value;
+    const password = document.getElementById("registerPassword").value;
+    const confirmPassword = document.getElementById("confirmPassword").value;
 
-const email = document.getElementById("userEmail").value;
-const password = document.getElementById("userPassword").value;
+    // ✅ Vérification des champs
+    if (!email || !password || !confirmPassword) {
+        alert("Veuillez remplir tous les champs.");
+        return;
+    }
 
-createUserWithEmailAndPassword(auth,email,password)
-.then(()=>{
+    // ✅ Vérification mot de passe identique
+    if (password !== confirmPassword) {
+        alert("Les mots de passe ne correspondent pas.");
+        return;
+    }
 
-window.location.href = "dashboard.html";
+    // ✅ Vérification longueur minimale (option mais recommandé)
+    if (password.length < 6) {
+        alert("Le mot de passe doit contenir au moins 6 caractères.");
+        return;
+    }
 
-})
-.catch(error=>{
-
-alert(error.message);
-
-});
-
+    // 👉 Si tout est OK → création du compte
+    // (Firebase ou autre logique existante)
+    createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+            alert("Compte créé avec succès !");
+            window.location.href = "index.html";
+        })
+        .catch((error) => {
+            alert(error.message);
+        });
 }
+
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 onAuthStateChanged(auth, (user) => {
