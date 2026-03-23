@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-
+import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { 
 getAuth,
 signInWithEmailAndPassword,
@@ -83,3 +83,23 @@ window.location.href = "dashboard.html";
 }
 
 });
+
+window.sendReset = function() {
+    const email = document.getElementById("resetEmail").value;
+    const message = document.getElementById("reset-message");
+
+    if (!email) {
+        message.textContent = "Veuillez entrer votre email.";
+        return;
+    }
+
+    sendPasswordResetEmail(auth, email)
+        .then(() => {
+            message.style.color = "green";
+            message.textContent = "Email envoyé ! Vérifiez votre boîte de réception.";
+        })
+        .catch((error) => {
+            message.style.color = "red";
+            message.textContent = error.message;
+        });
+}
