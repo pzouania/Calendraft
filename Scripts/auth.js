@@ -63,7 +63,7 @@ window.registerUser = function(){
     // 👉 Si tout est OK → création du compte
     // (Firebase ou autre logique existante)
     createUserWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
+        .then(() => {
             alert("Compte créé avec succès !");
             window.location.href = "index.html";
         })
