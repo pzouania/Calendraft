@@ -37,7 +37,7 @@ alert(error.message);
 
 }
 
-function registerUser() {
+window.registerUser = function(){
     const email = document.getElementById("registerEmail").value;
     const password = document.getElementById("registerPassword").value;
     const confirmPassword = document.getElementById("confirmPassword").value;
