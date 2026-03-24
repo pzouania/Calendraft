@@ -51,7 +51,7 @@ async function loadCalendars(){
 const user = auth.currentUser;
 const q = query(
 collection(db,"calendars"),
-where("userId","==",user.uid)
+where("ownerId","==",user.uid)
 );
 const querySnapshot = await getDocs(q);
 const list = document.getElementById("calendarList");
