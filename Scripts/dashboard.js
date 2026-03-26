@@ -58,11 +58,13 @@ const list = document.getElementById("calendarList");
 querySnapshot.forEach((doc)=>{
 const data = doc.data();
 const div = document.createElement("div");
-div.style.cursor="pointer";
-div.style.border="1px solid #ccc";
-div.style.padding="10px";
-div.style.margin="10px";
-div.innerText=data.name;
+div.classList.add("calendar-card");
+
+const title = document.createElement("div");
+title.classList.add("calendar-card-title");
+title.innerText = data.name;
+
+div.appendChild(title);
 div.onclick=()=>{
 window.location.href="editor.html?id="+doc.id;
 }
