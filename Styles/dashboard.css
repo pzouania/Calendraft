@@ -38,3 +38,9 @@ body {
 .calendar-card-title {
     font-weight: 600;
 }
+
+.empty-message {
+    text-align: center;
+    color: #64748b;
+    margin-top: 40px;
+}
