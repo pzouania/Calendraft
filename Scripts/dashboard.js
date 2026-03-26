@@ -25,9 +25,11 @@ const db = getFirestore(app);
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 onAuthStateChanged(auth,(user)=>{
-if(!user){
-window.location.href="index.html";
-}
+    if(!user){
+        window.location.href="index.html";
+    } else {
+        document.getElementById("userEmail").innerText = user.email;
+    }
 });
 
 window.logoutUser = function(){
