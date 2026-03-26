@@ -59,7 +59,10 @@ querySnapshot.forEach((doc)=>{
 const data = doc.data();
 const div = document.createElement("div");
 div.classList.add("calendar-card");
-
+if (querySnapshot.empty) {
+    list.innerHTML = "<p>Aucun calendrier pour le moment.</p>";
+    return;
+}
 const title = document.createElement("div");
 title.classList.add("calendar-card-title");
 title.innerText = data.name;
