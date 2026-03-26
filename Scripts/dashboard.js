@@ -54,15 +54,18 @@ collection(db,"calendars"),
 where("ownerId","==",user.uid)
 );
 const querySnapshot = await getDocs(q);
+
 const list = document.getElementById("calendarList");
+
+if (querySnapshot.empty) {
+    list.innerHTML = "<p class='empty-message'>Aucun calendrier pour le moment.</p>";
+    return;
+}
+    
 querySnapshot.forEach((doc)=>{
 const data = doc.data();
 const div = document.createElement("div");
 div.classList.add("calendar-card");
-if (querySnapshot.empty) {
-    list.innerHTML = "<p>Aucun calendrier pour le moment.</p>";
-    return;
-}
 const title = document.createElement("div");
 title.classList.add("calendar-card-title");
 title.innerText = data.name;
