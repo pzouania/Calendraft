@@ -27,10 +27,12 @@ body {
     cursor: pointer;
     transition: .2s;
     box-shadow: 0 10px 25px rgba(0,0,0,.05);
+    border: 1px solid #f1f5f9;
 }
 
 .calendar-card:hover {
     transform: translateY(-4px);
+    box-shadow: 0 15px 35px rgba(0,0,0,.1);
 }
 
 .calendar-card-title {
