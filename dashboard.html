@@ -12,7 +12,7 @@
 <div class="topbar">
     <div class="topbar-left">
         <img src="image/calendraft-logo.png" class="logo">
-        <span>Calendraft</span>
+        <h1>Calendraft</h1>
     </div>
 
     <div class="topbar-right">
@@ -26,20 +26,15 @@
 </div>
 <div class="container">
 
-    <!-- Header avec titre et bouton création -->
-    <div class="dashboard-header">
-        <div>
-            <p class="subtitle">Mes calendriers</p>     
-        </div>
-            <button class="primary-btn" onclick="createCalendar()">
-                + Nouveau calendrier
-            </button>
+    <h2>Mes calendriers</h2>
+    <p class="subtitle">Sélectionne un calendrier pour continuer</p>
+
+    <div class="actions">
+        <button class="primary-btn" onclick="createCalendar()">+ Nouveau calendrier</button>
+        <input type="text" placeholder="Rechercher..." class="search">
     </div>
 
-    <!-- Grille qui sera remplie dynamiquement -->
-    <div id="calendarList" class="calendar-grid">
-        <!-- Les cartes des calendriers seront générées ici via dashboard.js -->
-    </div>
+    <div id="calendarList" class="calendar-grid"></div>
 
 </div>
 
