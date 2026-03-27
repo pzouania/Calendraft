@@ -1,5 +1,5 @@
 body {
-    background: #f5f7fb;
+    background: linear-gradient(to bottom, #f8fafc, #eef2f7);
 }
 
 .subtitle {
@@ -21,22 +21,54 @@ body {
 }
 
 .calendar-card {
-    background: white;
-    padding: 20px;
     border-radius: 16px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 10px 25px rgba(0,0,0,.06);
     cursor: pointer;
     transition: .2s;
-    box-shadow: 0 10px 25px rgba(0,0,0,.05);
-    border: 1px solid #f1f5f9;
+    border: 1px solid #e5e7eb;
 }
 
 .calendar-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 15px 35px rgba(0,0,0,.1);
+    transform: translateY(-6px);
+    box-shadow: 0 15px 35px rgba(0,0,0,.12);
 }
 
-.calendar-card-title {
+.card-top {
+    height: 6px;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+.card-content {
+    padding: 20px;
+}
+
+.card-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.card-title {
     font-weight: 600;
+    font-size: 1.05rem;
+    margin-bottom: 5px;
+}
+
+.card-date {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 25px;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 40px auto;
+    padding: 0 20px;
 }
 
 .empty-message {
@@ -45,12 +77,35 @@ body {
     margin-top: 40px;
 }
 
+.primary-btn {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border: none;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3);
+}
+
+.primary-btn:hover {
+    transform: translateY(-2px);
+}
+
+.search {
+    flex: 1;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    background: white;
+}
+
 .topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 30px;
-    background: linear-gradient(135deg,#3b82f6,#2563eb);
+    padding: 15px 40px;
+    background: linear-gradient(135deg, #2563eb, #1e40af);
     color: white;
 }
 
@@ -60,9 +115,15 @@ body {
     gap: 10px;
 }
 
+.topbar-left span {
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
 .logo {
-    width: 261px;
-    height: 174px;
+    width: 240px;
+    height: 160px;
+    filter: brightness(1.2);
 }
 
 .topbar-right {
@@ -90,47 +151,11 @@ body {
     cursor: pointer;
 }
 
-.calendar-card {
-    border-radius: 16px;
-    overflow: hidden;
-    background: white;
-    box-shadow: 0 10px 25px rgba(0,0,0,.08);
-    cursor: pointer;
-    transition: .2s;
-}
-
-.calendar-card:hover {
-    transform: translateY(-5px);
-}
-
-.card-top {
-    height: 6px;
-    background: #3b82f6;
-}
-
-.card-content {
-    padding: 20px;
-}
-
-.card-icon {
-    font-size: 24px;
-    margin-bottom: 10px;
-}
-
-.card-title {
-    font-weight: 600;
-    margin-bottom: 5px;
-}
-
-.card-date {
-    font-size: 0.9rem;
-    color: #64748b;
-}
-
 .stats-card {
-    margin-top: 20px;
-    padding: 20px;
+    margin-top: 25px;
+    padding: 25px;
     border-radius: 16px;
-    background: #f8fafc;
+    background: #f1f5f9;
     text-align: center;
+    border: 1px solid #e2e8f0;
 }
