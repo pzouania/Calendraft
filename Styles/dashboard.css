@@ -1,5 +1,5 @@
 body {
-    background: linear-gradient(to bottom, #f8fafc, #eef2f7);
+    background: #f8fafc;
 }
 
 .subtitle {
@@ -105,8 +105,8 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 15px 40px;
-    background: linear-gradient(135deg, #2563eb, #1e40af);
-    color: white;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .topbar-left {
@@ -118,6 +118,7 @@ body {
 .topbar-left span {
     font-size: 1.3rem;
     font-weight: 600;
+    color: #1e293b;
 }
 
 .logo {
@@ -147,8 +148,13 @@ body {
 .logout-btn {
     background: transparent;
     border: none;
-    color: white;
+    color: #334155;
     cursor: pointer;
+    font-weight: 500;
+}
+
+.logout-btn:hover {
+    color: #3b82f6;
 }
 
 .stats-card {
