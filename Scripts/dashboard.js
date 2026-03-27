@@ -68,14 +68,20 @@ querySnapshot.forEach((doc)=>{
 const data = doc.data();
 const div = document.createElement("div");
 div.classList.add("calendar-card");
-const title = document.createElement("div");
-title.classList.add("calendar-card-title");
-title.innerText = data.name;
 
-div.appendChild(title);
-div.onclick=()=>{
-window.location.href="editor.html?id="+doc.id;
-}
+div.innerHTML = `
+    <div class="card-top"></div>
+    <div class="card-content">
+        <div class="card-icon">📅</div>
+        <div class="card-title">${data.name}</div>
+        <div class="card-date">Modifié aujourd'hui</div>
+    </div>
+`;
+
+div.onclick = () => {
+    window.location.href = "editor.html?id=" + doc.id;
+};
+
 list.appendChild(div);
 });
 }
