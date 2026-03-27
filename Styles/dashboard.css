@@ -1,5 +1,5 @@
 body {
-    background: #f8fafc;
+    background: linear-gradient(to bottom, #f8fafc, #eef2f7);
 }
 
 .subtitle {
@@ -105,8 +105,8 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 15px 40px;
-    background: white;
-    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    color: white;
 }
 
 .topbar-left {
@@ -118,19 +118,12 @@ body {
 .topbar-left span {
     font-size: 1.3rem;
     font-weight: 600;
-    color: #1e293b;
 }
 
 .logo {
     width: 240px;
     height: 160px;
     filter: brightness(1.2);
-}
-
-.topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 15px;
 }
 
 .avatar {
