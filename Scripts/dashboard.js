@@ -56,7 +56,8 @@ collection(db,"calendars"),
 where("ownerId","==",user.uid)
 );
 const querySnapshot = await getDocs(q);
-
+document.getElementById("calendarCount").innerText =
+    querySnapshot.size + " calendriers au total";
 const list = document.getElementById("calendarList");
 
 if (querySnapshot.empty) {
