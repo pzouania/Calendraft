@@ -42,7 +42,7 @@ window.createCalendar = async function(){
 const user = auth.currentUser;
 const docRef = await addDoc(collection(db,"calendars"),{
 name:"Nouveau calendrier",
-ownerId: user.uid, // ✅ IMPORTANT
+ownerId: user.uid,
 events:[],
 created:new Date()
 });
@@ -73,7 +73,9 @@ div.classList.add("calendar-card");
 div.innerHTML = `
     <div class="card-top"></div>
     <div class="card-content">
-        <div class="card-icon">📅</div>
+        <div class="card-icon">
+            <i data-lucide="calendar"></i>
+        </div>
         <div class="card-title">${data.name}</div>
         <div class="card-date">Modifié aujourd'hui</div>
     </div>
