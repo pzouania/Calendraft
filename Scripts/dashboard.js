@@ -32,6 +32,8 @@ onAuthStateChanged(auth,(user)=>{
     }
 });
 
+lucide.createIcons();
+
 window.logoutUser = function(){
 signOut(auth).then(()=>{
 window.location.href = "index.html";
