@@ -100,6 +100,18 @@ body {
     background: white;
 }
 
+.card-icon svg {
+    width: 28px;
+    height: 28px;
+    stroke: #3b82f6;
+}
+
+.topbar svg {
+    width: 20px;
+    height: 20px;
+    stroke: white;
+}
+
 .topbar {
     display: flex;
     justify-content: space-between;
