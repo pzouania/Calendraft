@@ -87,6 +87,7 @@ div.onclick = () => {
 
 list.appendChild(div);
 });
+lucide.createIcons();    
 }
 
 setTimeout(loadCalendars,500);
