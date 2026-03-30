@@ -112,53 +112,72 @@ body {
     stroke: white;
 }
 
+/* Header */
 .topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 15px 40px;
-    background: linear-gradient(135deg, #2563eb, #1e40af);
+    background: linear-gradient(135deg,#2563eb,#1e40af);
     color: white;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
 }
 
+/* Logo + Brand */
 .topbar-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
-
-.topbar-left span {
+.logo {
+    width: 36px;
+    height: 24px;
+    filter: brightness(1.2);
+}
+.brand-name {
     font-size: 1.3rem;
     font-weight: 600;
 }
 
-.logo {
-    width: 240px;
-    height: 160px;
+/* Right section */
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
 
+/* Notification icon */
+.notif-icon svg {
+    width: 20px;
+    height: 20px;
+    stroke: white;
+}
+
+/* User block */
+.user-block {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 .avatar {
     width: 35px;
     height: 35px;
     border-radius: 50%;
     background: white;
     color: #2563eb;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
+/* Logout button */
 .logout-btn {
     background: transparent;
     border: none;
-    color: #334155;
+    color: white;
     cursor: pointer;
     font-weight: 500;
-}
-
-.logout-btn:hover {
-    color: #3b82f6;
 }
 
 .stats-card {
