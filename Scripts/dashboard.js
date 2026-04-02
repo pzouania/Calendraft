@@ -74,10 +74,10 @@ div.classList.add("calendar-card");
 
 div.innerHTML = `
     <div class="card-top"></div>
-    <div class="card-content">
-        <div class="card-icon">
-            <i data-lucide="calendar"></i>
+        <div class="card-top-image">
+            <img src="${data.preview || 'image/default-preview.png'}" alt="Aperçu calendrier" />
         </div>
+    <div class="card-content">
         <div class="card-title">${data.name}</div>
         <div class="card-date">Modifié aujourd'hui</div>
     </div>
