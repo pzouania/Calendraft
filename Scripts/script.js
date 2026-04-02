@@ -520,6 +520,15 @@ function autoCloudSync() {
 
 
 // ===============================
+// PREVIEW FOR DASHBOARD
+// ===============================
+
+html2canvas(document.getElementById('calendar-view')).then(canvas => {
+  const imgData = canvas.toDataURL('image/png');
+  // stocker imgData dans Firestore sous "preview"
+});
+
+// ===============================
 // DETECTION CONNEXION
 // ===============================
 
