@@ -1,4 +1,4 @@
-
+import html2canvas
 const params = new URLSearchParams(window.location.search);
 const calendarId = params.get("id");
 
