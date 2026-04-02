@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendraft</title>
+<link rel="icon" type="image/png" sizes="600x400" href="image/calendraft-logo.ico">
+<link rel="stylesheet" href="Styles/main.css">
+<link rel="stylesheet" href="Styles/login.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+  <div class="container">
+    <div class="login-card">
+  
+<div class="logo">
+  <img src="image/calendraft-banner.png" alt="Calendraft">
+</div>
+  
+      <div class="separator"></div>
+  
+      <h2 class="login-title">Connexion</h2>
+  
+      <div class="input-group">
+        <span><i class="fa-solid fa-envelope"></i></span>
+        <input id="userEmail" placeholder="Email">
+      </div>
+  
+      <div class="input-group">
+        <span><i class="fa-solid fa-lock"></i></span>
+        <input id="userPassword" type="password" placeholder="Mot de passe">
+      </div>
+  
+      <button class="primary-btn" onclick="loginUser()">Connexion</button>
+      <button class="secondary-btn" onclick="window.location.href='register.html'">Créer un compte</button>
+  
+      <div class="forgot">
+        <a href="forgot-password.html">Mot de passe oublié ?</a>
+      </div>
+  
+    </div>
+  </div>
+    <script type="module" src="Scripts/auth.js"></script>
+  <div class="footer">
+    © 2026 Calendraft. Tous droits réservés.
+  </div>
+  </body>
+</html>
+
+

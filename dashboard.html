@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mes calendriers</title>
+    <link rel="icon" type="image/png" sizes="600x400" href="image/calendraft-logo.ico">
+    <link rel="stylesheet" href="Styles/main.css">
+    <link rel="stylesheet" href="Styles/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <img src="image/calendraft-logo-w.png" alt="Logo Calendraft" class="logo">
+    <span class="brand-name">Calendraft</span>
+  </div>
+
+  <div class="topbar-right">
+    <i data-lucide="bell" class="notif-icon"></i>
+    <div class="user-block">
+      <div class="avatar">A</div>
+      <span id="userEmail">user@email.com</span>
+    </div>
+    <button class="logout-btn" onclick="logoutUser()">Déconnexion</button>
+  </div>
+</div>
+<div class="container">
+
+    <h2>Mes calendriers</h2>
+    <p class="subtitle">Sélectionne un calendrier pour continuer</p>
+
+    <div class="actions">
+        <button class="primary-btn" onclick="createCalendar()">
+            <i data-lucide="plus"></i>
+            Nouveau calendrier
+        </button>
+        <input type="text" placeholder="Rechercher..." class="search">
+    </div>
+
+    <div id="calendarList" class="calendar-grid"></div>
+        <div class="stats-card">
+            <p id="calendarCount">0 calendriers au total</p>
+        </div>
+</div>
+
+<script type="module" src="Scripts/dashboard.js"></script>
+</body>
+</html>
