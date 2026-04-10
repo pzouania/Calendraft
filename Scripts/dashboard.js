@@ -42,12 +42,15 @@ window.location.href = "index.html";
 
 window.createCalendar = async function(){
 const user = auth.currentUser;
+
 const docRef = await addDoc(collection(db,"calendars"),{
-name:"Nouveau calendrier",
-ownerId: user.uid,
-events:[],
-created:new Date()
+    name:"Nouveau calendrier",
+    ownerId: user.uid,
+    events:[],
+    created:new Date(),
+    preview: "image/default-preview.png"
 });
+
 window.location.href = "editor.html?id="+docRef.id;
 }
 
