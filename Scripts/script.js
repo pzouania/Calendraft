@@ -1,4 +1,11 @@
-
+import {
+  getStorage,
+  ref,
+  uploadString,
+  getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+const storage = getStorage();
 const params = new URLSearchParams(window.location.search);
 const calendarId = params.get("id");
 
@@ -523,11 +530,47 @@ function autoCloudSync() {
 // PREVIEW FOR DASHBOARD
 // ===============================
 
-html2canvas(document.getElementById('calendar-view')).then(canvas => {
-  const imgData = canvas.toDataURL('image/png');
-  // stocker imgData dans Firestore sous "preview"
-});
+async function generatePreview(calendarId) {
 
+    const calendarElement = document.querySelector("#calendar"); 
+    // ⚠️ adapte à ton vrai ID
+
+    const canvas = await html2canvas(calendarElement, {
+        backgroundColor: "#ffffff",
+        scale: 2 // meilleure qualité
+    });
+
+    const base64Image = canvas.toDataURL("image/png");
+
+    // upload vers Firebase
+    const imageRef = ref(storage, `previews/${calendarId}.png`);
+
+    await uploadString(imageRef, base64Image, "data_url");
+
+    const downloadURL = await getDownloadURL(imageRef);
+
+    return downloadURL;
+}
+
+async function savePreview(calendarId) {
+    const url = await generatePreview(calendarId);
+
+    await updateDoc(doc(db, "calendars", calendarId), {
+        preview: url,
+        updated: new Date()
+    });
+}
+
+let lastSave = 0;
+
+setInterval(() => {
+    const now = Date.now();
+
+    if (calendarId && now - lastSave > 10000) {
+        savePreview(calendarId);
+        lastSave = now;
+    }
+}, 5000);
 // ===============================
 // DETECTION CONNEXION
 // ===============================
