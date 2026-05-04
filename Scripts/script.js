@@ -527,50 +527,72 @@ function autoCloudSync() {
 
 
 // ===============================
-// PREVIEW FOR DASHBOARD
+// 🔥 PREVIEW OPTIMISÉE BASE64
 // ===============================
 
-async function generatePreview(calendarId) {
+import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    const calendarElement = document.querySelector("#calendar"); 
-    // ⚠️ adapte à ton vrai ID
+// 🔹 Génère une miniature légère
+async function generateOptimizedPreview() {
 
-    const canvas = await html2canvas(calendarElement, {
+    const element = document.querySelector("#calendar"); // ⚠️ adapte si besoin
+
+    if (!element) {
+        console.error("❌ Element #calendar introuvable");
+        return null;
+    }
+
+    const canvas = await html2canvas(element, {
+        scale: 0.3, // 🔥 réduction massive
         backgroundColor: "#ffffff",
-        scale: 2 // meilleure qualité
+        useCORS: true
     });
 
-    const base64Image = canvas.toDataURL("image/png");
+    // 🎯 créer une version miniature
+    const smallCanvas = document.createElement("canvas");
+    const ctx = smallCanvas.getContext("2d");
 
-    // upload vers Firebase
-    const imageRef = ref(storage, `previews/${calendarId}.png`);
+    const width = 300;
+    const height = canvas.height * (300 / canvas.width);
 
-    await uploadString(imageRef, base64Image, "data_url");
+    smallCanvas.width = width;
+    smallCanvas.height = height;
 
-    const downloadURL = await getDownloadURL(imageRef);
+    ctx.drawImage(canvas, 0, 0, width, height);
 
-    return downloadURL;
+    // 🔥 compression JPEG
+    return smallCanvas.toDataURL("image/jpeg", 0.5);
 }
 
+
+// 🔹 Anti spam (important)
+let lastPreview = 0;
+
+// 🔹 Sauvegarde dans Firestore
 async function savePreview(calendarId) {
-    const url = await generatePreview(calendarId);
 
-    await updateDoc(doc(db, "calendars", calendarId), {
-        preview: url,
-        updated: new Date()
-    });
-}
-
-let lastSave = 0;
-
-setInterval(() => {
     const now = Date.now();
 
-    if (calendarId && now - lastSave > 10000) {
-        savePreview(calendarId);
-        lastSave = now;
+    // ⛔ évite spam (15 secondes)
+    if (now - lastPreview < 15000) return;
+
+    lastPreview = now;
+
+    const preview = await generateOptimizedPreview();
+
+    if (!preview) return;
+
+    try {
+        await updateDoc(doc(db, "calendars", calendarId), {
+            preview: preview,
+            updated: new Date()
+        });
+
+        console.log("✅ Preview mise à jour");
+    } catch (err) {
+        console.error("❌ Erreur preview :", err);
     }
-}, 5000);
+}
 // ===============================
 // DETECTION CONNEXION
 // ===============================
