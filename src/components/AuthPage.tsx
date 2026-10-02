@@ -71,7 +71,6 @@ export default function AuthPage() {
         flexWrap: 'wrap',
       }}
     >
-      {/* Panneau de présentation — masqué sur petit écran */}
       <div
         className="auth-showcase"
         style={{
@@ -82,15 +81,13 @@ export default function AuthPage() {
           justifyContent: 'center',
           padding: '3rem 4rem',
           color: 'white',
+          background: 'linear-gradient(160deg, var(--blue-main), var(--blue-dark))',
         }}
       >
-        <div style={{ marginBottom: '1.5rem' }}>
-          <Logo height={40} />
-        </div>
         <h1 style={{ fontSize: '2rem', lineHeight: 1.2, margin: '0 0 1rem', maxWidth: 440 }}>
           Vos calendriers personnalisés, enfin simples à créer.
         </h1>
-        <p style={{ fontSize: '1rem', opacity: 0.9, maxWidth: 440, marginBottom: '2.5rem' }}>
+        <p style={{ fontSize: '1rem', color: '#e6f1fb', maxWidth: 440, marginBottom: '2.5rem' }}>
           Définissez vos périodes récurrentes une seule fois, Calendraft génère et met à jour tout le reste.
         </p>
 
@@ -100,19 +97,18 @@ export default function AuthPage() {
               <div
                 style={{
                   width: 8, height: 8, borderRadius: '50%', background: 'white',
-                  marginTop: 7, flexShrink: 0, opacity: 0.9,
+                  marginTop: 7, flexShrink: 0,
                 }}
               />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{f.title}</div>
-                <div style={{ fontSize: '0.85rem', opacity: 0.85 }}>{f.desc}</div>
+                <div style={{ fontSize: '0.85rem', color: '#b5d4f4' }}>{f.desc}</div>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Formulaire */}
       <div
         style={{
           flex: '1 1 380px',
@@ -133,7 +129,7 @@ export default function AuthPage() {
             boxShadow: '0 10px 40px rgba(30, 64, 175, 0.12)',
           }}
         >
-          <div className="auth-mobile-logo" style={{ display: 'none', justifyContent: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
             <Logo height={44} />
           </div>
 
