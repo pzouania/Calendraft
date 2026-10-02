@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Logo from './Logo'
+import Icon from './icons'
 
 type Mode = 'login' | 'signup' | 'forgot'
 
 const FEATURES = [
-  { title: 'Périodes récurrentes', desc: 'Garde alternée, plannings 3x8, horaires personnalisés — configurez une fois, répété automatiquement.' },
-  { title: 'Calendrier annuel', desc: 'Visualisez vos 12 mois en un coup d\'œil, avec une vue détaillée heure par heure.' },
-  { title: 'Export PDF', desc: 'Imprimez ou partagez votre calendrier en un clic, mis en page automatiquement.' },
+  { icon: 'users', title: 'Périodes récurrentes', desc: 'Garde alternée, plannings 3x8, horaires personnalisés — configurez une fois, répété automatiquement.' },
+  { icon: 'calendar', title: 'Calendrier annuel', desc: 'Visualisez vos 12 mois en un coup d\'œil, avec une vue détaillée heure par heure.' },
+  { icon: 'book', title: 'Export PDF', desc: 'Imprimez ou partagez votre calendrier en un clic, mis en page automatiquement.' },
 ]
 
 export default function AuthPage() {
@@ -80,29 +81,46 @@ export default function AuthPage() {
           flexDirection: 'column',
           justifyContent: 'center',
           padding: '3rem 4rem',
-          color: 'white',
-          background: 'linear-gradient(160deg, var(--blue-main), var(--blue-dark))',
         }}
       >
-        <h1 style={{ fontSize: '2rem', lineHeight: 1.2, margin: '0 0 1rem', maxWidth: 440 }}>
+        <h1 style={{ fontSize: '2.2rem', lineHeight: 1.15, margin: '0 0 1rem', maxWidth: 460, color: '#0f172a' }}>
           Vos calendriers personnalisés, enfin simples à créer.
         </h1>
-        <p style={{ fontSize: '1rem', color: '#e6f1fb', maxWidth: 440, marginBottom: '2.5rem' }}>
+        <p style={{ fontSize: '1.05rem', color: '#334155', maxWidth: 460, margin: '0 0 2rem' }}>
           Définissez vos périodes récurrentes une seule fois, Calendraft génère et met à jour tout le reste.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.3rem', maxWidth: 440 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', maxWidth: 460 }}>
           {FEATURES.map((f) => (
-            <div key={f.title} style={{ display: 'flex', gap: '0.9rem', alignItems: 'flex-start' }}>
+            <div
+              key={f.title}
+              style={{
+                display: 'flex',
+                gap: '0.9rem',
+                alignItems: 'flex-start',
+                background: 'rgba(255, 255, 255, 0.75)',
+                borderRadius: 14,
+                padding: '0.9rem 1.1rem',
+                boxShadow: '0 2px 10px rgba(30, 64, 175, 0.08)',
+              }}
+            >
               <div
                 style={{
-                  width: 8, height: 8, borderRadius: '50%', background: 'white',
-                  marginTop: 7, flexShrink: 0,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'var(--gradient-main)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
                 }}
-              />
+              >
+                <Icon name={f.icon} size={18} color="white" />
+              </div>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{f.title}</div>
-                <div style={{ fontSize: '0.85rem', color: '#b5d4f4' }}>{f.desc}</div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{f.title}</div>
+                <div style={{ fontSize: '0.85rem', color: '#334155' }}>{f.desc}</div>
               </div>
             </div>
           ))}
@@ -123,14 +141,14 @@ export default function AuthPage() {
           style={{
             background: 'white',
             borderRadius: 20,
-            padding: '2.5rem 2rem',
+            padding: '2rem 2rem 2.2rem',
             width: '100%',
             maxWidth: 380,
             boxShadow: '0 10px 40px rgba(30, 64, 175, 0.12)',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-            <Logo height={44} />
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
+            <Logo height={72} />
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: '1.5rem', background: '#f1f5f9', padding: 4, borderRadius: 12 }}>
