@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Logo from './Logo'
 import Icon from './icons'
@@ -11,7 +11,23 @@ const FEATURES = [
   { icon: 'book', title: 'Export PDF', desc: 'Imprimez ou partagez votre calendrier en un clic, mis en page automatiquement.' },
 ]
 
+function useIsWide() {
+  const query = '(min-width: 861px)'
+  const [wide, setWide] = useState(() => window.matchMedia(query).matches)
+
+  useEffect(() => {
+    const mql = window.matchMedia(query)
+    const onChange = () => setWide(mql.matches)
+    setWide(mql.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+
+  return wide
+}
+
 export default function AuthPage() {
+  const isWide = useIsWide()
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -72,65 +88,66 @@ export default function AuthPage() {
         flexWrap: 'wrap',
       }}
     >
-      <div
-        className="auth-showcase"
-        style={{
-          flex: '1 1 420px',
-          minWidth: 320,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: '3rem 4rem',
-        }}
-      >
-        <h1 style={{ fontSize: '2.2rem', lineHeight: 1.15, margin: '0 0 1rem', maxWidth: 460, color: '#0f172a' }}>
-          Vos calendriers personnalisés, enfin simples à créer.
-        </h1>
-        <p style={{ fontSize: '1.05rem', color: '#334155', maxWidth: 460, margin: '0 0 2rem' }}>
-          Définissez vos périodes récurrentes une seule fois, Calendraft génère et met à jour tout le reste.
-        </p>
+      {isWide && (
+        <div
+          style={{
+            flex: '1 1 420px',
+            minWidth: 320,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            padding: '3rem 4rem',
+          }}
+        >
+          <h1 style={{ fontSize: '2.2rem', lineHeight: 1.15, margin: '0 0 1rem', maxWidth: 460, color: '#0f172a' }}>
+            Vos calendriers personnalisés, enfin simples à créer.
+          </h1>
+          <p style={{ fontSize: '1.05rem', color: '#334155', maxWidth: 460, margin: '0 0 2rem' }}>
+            Définissez vos périodes récurrentes une seule fois, Calendraft génère et met à jour tout le reste.
+          </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', maxWidth: 460 }}>
-          {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              style={{
-                display: 'flex',
-                gap: '0.9rem',
-                alignItems: 'flex-start',
-                background: 'rgba(255, 255, 255, 0.75)',
-                borderRadius: 14,
-                padding: '0.9rem 1.1rem',
-                boxShadow: '0 2px 10px rgba(30, 64, 175, 0.08)',
-              }}
-            >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', maxWidth: 460 }}>
+            {FEATURES.map((f) => (
               <div
+                key={f.title}
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: 'var(--gradient-main)',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
+                  gap: '0.9rem',
+                  alignItems: 'flex-start',
+                  background: 'rgba(255, 255, 255, 0.75)',
+                  borderRadius: 14,
+                  padding: '0.9rem 1.1rem',
+                  boxShadow: '0 2px 10px rgba(30, 64, 175, 0.08)',
                 }}
               >
-                <Icon name={f.icon} size={18} color="white" />
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: 'var(--gradient-main)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon name={f.icon} size={18} color="white" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{f.title}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#334155' }}>{f.desc}</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{f.title}</div>
-                <div style={{ fontSize: '0.85rem', color: '#334155' }}>{f.desc}</div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div
         style={{
           flex: '1 1 380px',
-          minWidth: 320,
+          minWidth: 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
