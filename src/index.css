@@ -176,4 +176,13 @@ select {
       min-height: 16px !important;
     }
   }
+  @media (max-width: 860px) {
+  .auth-showcase {
+    display: none !important;
+  }
+
+  .auth-mobile-logo {
+    display: flex !important;
+  }
+}
 }
