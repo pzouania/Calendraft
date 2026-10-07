@@ -11,6 +11,8 @@ interface CalendarEditorProps {
   onBack: () => void
 }
 
+type Role = 'owner' | 'editor' | 'viewer'
+
 function formatFrequency(p: Period): string {
   switch (p.frequency) {
     case 'once':
@@ -35,26 +37,43 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
   const [calendarName, setCalendarName] = useState('')
   const [calendarIcon, setCalendarIcon] = useState('calendar')
   const [calendarColor, setCalendarColor] = useState('#2563eb')
-  const [isOwner, setIsOwner] = useState(false)
+  const [role, setRole] = useState<Role | null>(null)
   const [showShare, setShowShare] = useState(false)
   const [periods, setPeriods] = useState<Period[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const isOwner = role === 'owner'
+  const canEdit = role === 'owner' || role === 'editor'
+
   const loadCalendarInfo = async () => {
+    const { data: userData } = await supabase.auth.getUser()
+    const user = userData.user
+
     const { data } = await supabase
       .from('calendars')
       .select('name, icon, color, user_id')
       .eq('id', calendarId)
       .single()
-    const { data: userData } = await supabase.auth.getUser()
-    if (data) {
-      setCalendarName(data.name)
-      setCalendarIcon(data.icon ?? 'calendar')
-      setCalendarColor(data.color ?? '#2563eb')
-      setIsOwner(!!userData.user && data.user_id === userData.user.id)
+    if (!data) return
+
+    setCalendarName(data.name)
+    setCalendarIcon(data.icon ?? 'calendar')
+    setCalendarColor(data.color ?? '#2563eb')
+
+    if (user && data.user_id === user.id) {
+      setRole('owner')
+      return
     }
+
+    const { data: share } = await supabase
+      .from('calendar_shares')
+      .select('role')
+      .eq('calendar_id', calendarId)
+      .eq('email', (user?.email ?? '').toLowerCase())
+      .maybeSingle()
+    setRole(share?.role === 'editor' ? 'editor' : 'viewer')
   }
 
   const loadPeriods = async () => {
@@ -116,6 +135,17 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           <span style={{ color: 'white', fontSize: '1rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {calendarName}
           </span>
+          {(role === 'viewer' || role === 'editor') && (
+            <span
+              style={{
+                background: 'rgba(255,255,255,0.2)', color: 'white', borderRadius: 999,
+                padding: '0.2rem 0.7rem', fontSize: '0.75rem', fontWeight: 600,
+                whiteSpace: 'nowrap', flexShrink: 0,
+              }}
+            >
+              {role === 'editor' ? 'Partagé · éditeur' : 'Partagé · lecture seule'}
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', flexShrink: 0 }}>
           {isOwner && (
@@ -159,7 +189,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
 
         {tab === 'periods' && (
           <>
-            {!showForm && (
+            {canEdit && !showForm && (
               <button
                 onClick={() => setShowForm(true)}
                 style={{
@@ -172,7 +202,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               </button>
             )}
 
-            {showForm && (
+            {canEdit && showForm && (
               <div style={{ marginBottom: '1.5rem' }}>
                 <PeriodForm
                   calendarId={calendarId}
@@ -215,15 +245,17 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                         {p.start_time && ` — ${p.start_time.slice(0, 5)} à ${p.end_time?.slice(0, 5)}`}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDelete(p.id)}
-                      style={{
-                        background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
-                        borderRadius: 8, padding: '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0,
-                      }}
-                    >
-                      Supprimer
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        style={{
+                          background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
+                          borderRadius: 8, padding: '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0,
+                        }}
+                      >
+                        Supprimer
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -237,6 +269,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             calendarName={calendarName}
             calendarIcon={calendarIcon}
             calendarColor={calendarColor}
+            canEdit={canEdit}
           />
         )}
       </main>
