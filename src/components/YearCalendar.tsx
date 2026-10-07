@@ -12,13 +12,14 @@ interface YearCalendarProps {
   calendarIcon: string
   calendarColor: string
   canEdit: boolean
+  staticData?: { periods: Period[]; exceptions: PeriodException[] }
 }
 
-export default function YearCalendar({ calendarId, calendarName, calendarIcon, calendarColor, canEdit }: YearCalendarProps) {
-  const [periods, setPeriods] = useState<Period[]>([])
-  const [exceptions, setExceptions] = useState<PeriodException[]>([])
+export default function YearCalendar({ calendarId, calendarName, calendarIcon, calendarColor, canEdit, staticData }: YearCalendarProps) {
+  const [periods, setPeriods] = useState<Period[]>(staticData?.periods ?? [])
+  const [exceptions, setExceptions] = useState<PeriodException[]>(staticData?.exceptions ?? [])
   const [year, setYear] = useState(new Date().getFullYear())
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!staticData)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const loadData = async () => {
@@ -44,7 +45,7 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
   }
 
   useEffect(() => {
-    loadData()
+    if (!staticData) loadData()
   }, [calendarId])
 
   const exceptionsByPeriod = useMemo(() => {
@@ -182,7 +183,7 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
             canEdit={canEdit}
             onClose={() => setSelectedDate(null)}
             onChanged={() => {
-              loadData()
+              if (!staticData) loadData()
               setSelectedDate(null)
             }}
           />
