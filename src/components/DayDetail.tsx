@@ -5,6 +5,7 @@ import type { Occurrence } from '../types'
 interface DayDetailProps {
   date: string
   occurrences: Occurrence[]
+  canEdit?: boolean
   onClose: () => void
   onChanged: () => void
 }
@@ -99,7 +100,7 @@ function TrashButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-export default function DayDetail({ date, occurrences, onClose, onChanged }: DayDetailProps) {
+export default function DayDetail({ date, occurrences, canEdit = true, onClose, onChanged }: DayDetailProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -200,7 +201,7 @@ export default function DayDetail({ date, occurrences, onClose, onChanged }: Day
                 >
                   <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 600, color: '#0f172a' }}>{occ.name}</span>
                   <span style={{ fontSize: '0.75rem', color: '#475569' }}>Journée entière</span>
-                  <TrashButton onClick={() => handleDeleteLocal(occ)} />
+                  {canEdit && <TrashButton onClick={() => handleDeleteLocal(occ)} />}
                 </div>
               ))}
             </div>
@@ -237,7 +238,7 @@ export default function DayDetail({ date, occurrences, onClose, onChanged }: Day
                         backgroundImage: `linear-gradient(${b.occ.color}26, ${b.occ.color}26)`,
                         borderLeft: `4px solid ${b.occ.color}`,
                         borderRadius: 8,
-                        padding: '4px 32px 4px 8px',
+                        padding: canEdit ? '4px 32px 4px 8px' : '4px 8px',
                         overflow: 'hidden',
                         boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)',
                       }}
@@ -246,9 +247,11 @@ export default function DayDetail({ date, occurrences, onClose, onChanged }: Day
                         {b.occ.name}
                       </div>
                       <div style={{ fontSize: '0.7rem', color: '#334155' }}>{b.subtitle}</div>
-                      <div style={{ position: 'absolute', top: 4, right: 4 }}>
-                        <TrashButton onClick={() => handleDeleteLocal(b.occ)} />
-                      </div>
+                      {canEdit && (
+                        <div style={{ position: 'absolute', top: 4, right: 4 }}>
+                          <TrashButton onClick={() => handleDeleteLocal(b.occ)} />
+                        </div>
+                      )}
                     </div>
                   )
                 })}
