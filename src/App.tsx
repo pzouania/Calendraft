@@ -8,6 +8,7 @@ import ProfilePage from './components/ProfilePage'
 import ResetPasswordForm from './components/ResetPasswordForm'
 import SharedCalendarPage from './components/SharedCalendarPage'
 import PrivacyPage from './components/PrivacyPage'
+import TermsPage from './components/TermsPage'
 
 type View = { screen: 'dashboard' } | { screen: 'calendar'; id: string } | { screen: 'profile' }
 
@@ -28,7 +29,9 @@ function App() {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  if (window.location.pathname.replace(/\/$/, '') === '/confidentialite') return <PrivacyPage />
+  const path = window.location.pathname.replace(/\/$/, '')
+  if (path === '/confidentialite') return <PrivacyPage />
+  if (path === '/conditions') return <TermsPage />
 
   const shareMatch = window.location.pathname.match(SHARE_PATH)
   if (shareMatch) return <SharedCalendarPage token={shareMatch[1]} />
