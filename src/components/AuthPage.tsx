@@ -6,7 +6,7 @@ import Icon from './icons'
 type Mode = 'login' | 'signup' | 'forgot'
 type Provider = 'google' | 'github'
 
-const ENABLED_PROVIDERS: Provider[] = ['github']
+const ENABLED_PROVIDERS: Provider[] = ['github', 'google']
 
 const PROVIDER_LABELS: Record<Provider, string> = {
   google: 'Google',
