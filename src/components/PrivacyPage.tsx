@@ -1,14 +1,14 @@
 import Logo from './Logo'
 
-const PUBLISHER = 'REMPLACEZ PAR VOTRE NOM'
-const CONTACT_EMAIL = 'REMPLACEZ PAR VOTRE EMAIL DE CONTACT'
+const PUBLISHER = 'Peter Zou'
+const CONTACT_EMAIL = 'calendraf.help@gmail.com'
 const LAST_UPDATE = '8 octobre 2026'
 
 const SECTIONS: { title: string; paragraphs: string[] }[] = [
   {
     title: 'Qui édite Calendraft ?',
     paragraphs: [
-      `Calendraft (calendraft.fr) est édité par ${PUBLISHER}. Pour toute question sur vos données, écrivez à ${CONTACT_EMAIL}.`,
+      `Calendraft (calendraft.fr) est édité par ${PUBLISHER}, élève à l'université. Pour toute question sur vos données, écrivez à ${CONTACT_EMAIL}.`,
     ],
   },
   {
