@@ -1,14 +1,14 @@
 import Logo from './Logo'
 
-const PUBLISHER = 'REMPLACEZ PAR VOTRE NOM'
-const CONTACT_EMAIL = 'REMPLACEZ PAR VOTRE EMAIL DE CONTACT'
+const PUBLISHER = 'étudiant '
+const CONTACT_EMAIL = 'calendraft.help@gmail.com'
 const LAST_UPDATE = '8 octobre 2026'
 
 const SECTIONS: { title: string; paragraphs: string[] }[] = [
   {
     title: 'Objet',
     paragraphs: [
-      `Calendraft (calendraft.fr), édité par ${PUBLISHER}, est un service en ligne gratuit qui permet de créer des calendriers personnalisés à partir de périodes récurrentes, de les consulter, de les partager et de les exporter en PDF. En utilisant le service, vous acceptez les présentes conditions.`,
+      `Calendraft (calendraft.fr), édité par un ${PUBLISHER}, est un service en ligne gratuit qui permet de créer des calendriers personnalisés à partir de périodes récurrentes, de les consulter, de les partager et de les exporter en PDF. En utilisant le service, vous acceptez les présentes conditions.`,
     ],
   },
   {
