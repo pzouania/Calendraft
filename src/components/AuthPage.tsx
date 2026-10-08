@@ -292,8 +292,10 @@ export default function AuthPage() {
           {error && <p style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '0.8rem' }}>{error}</p>}
           {message && <p style={{ color: '#16a34a', fontSize: '0.85rem', marginTop: '0.8rem' }}>{message}</p>}
 
-                   <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2rem', marginBottom: 0 }}>
+          <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2rem', marginBottom: 0 }}>
             © {new Date().getFullYear()} Calendraft. Tous droits réservés.
+            {' · '}
+            <a href="/conditions" style={{ color: 'inherit', textDecoration: 'underline' }}>Conditions</a>
             {' · '}
             <a href="/confidentialite" style={{ color: 'inherit', textDecoration: 'underline' }}>Confidentialité</a>
           </p>
