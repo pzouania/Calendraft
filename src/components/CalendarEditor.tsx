@@ -13,6 +13,7 @@ interface CalendarEditorProps {
 }
 
 type Role = 'owner' | 'editor' | 'viewer'
+type Tab = 'calendar' | 'events' | 'import'
 
 function formatFrequency(p: Period): string {
   switch (p.frequency) {
@@ -34,7 +35,7 @@ function formatFrequency(p: Period): string {
 }
 
 export default function CalendarEditor({ calendarId, onBack }: CalendarEditorProps) {
-  const [tab, setTab] = useState<'periods' | 'calendar'>('calendar')
+  const [tab, setTab] = useState<Tab>('calendar')
   const [calendarName, setCalendarName] = useState('')
   const [calendarIcon, setCalendarIcon] = useState('calendar')
   const [calendarColor, setCalendarColor] = useState('#2563eb')
@@ -101,7 +102,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
   }, [calendarId])
 
   const handleDelete = async (id: string) => {
-    const confirmed = window.confirm('Supprimer cette période ?')
+    const confirmed = window.confirm('Supprimer cet événement ?')
     if (!confirmed) return
     const { error } = await supabase.from('periods').delete().eq('id', id)
     if (error) setError(error.message)
@@ -188,15 +189,16 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '1.5rem' }}>
         <div className="no-print" style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <button style={tabButtonStyle(tab === 'calendar')} onClick={() => setTab('calendar')}>Calendrier annuel</button>
-          <button style={tabButtonStyle(tab === 'periods')} onClick={() => setTab('periods')}>Périodes</button>
+          <button style={tabButtonStyle(tab === 'events')} onClick={() => setTab('events')}>Événements</button>
+          {isOwner && (
+            <button style={tabButtonStyle(tab === 'import')} onClick={() => setTab('import')}>Importation calendrier</button>
+          )}
         </div>
 
         {error && <p className="no-print" style={{ color: '#dc2626' }}>{error}</p>}
 
-        {tab === 'periods' && (
+        {tab === 'events' && (
           <>
-            {isOwner && <FeedSettings calendarId={calendarId} />}
-
             {canEdit && !showForm && (
               <button
                 onClick={() => setShowForm(true)}
@@ -206,7 +208,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                   boxShadow: '0 6px 16px rgba(37, 99, 235, 0.35)', marginBottom: '1.5rem',
                 }}
               >
-                + Ajouter une période
+                + Ajouter un événement
               </button>
             )}
 
@@ -232,7 +234,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                   color: 'var(--text-secondary)', boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)',
                 }}
               >
-                Aucune période pour l'instant.
+                Aucun événement pour l'instant.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -270,6 +272,8 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             )}
           </>
         )}
+
+        {tab === 'import' && isOwner && <FeedSettings calendarId={calendarId} />}
 
         {tab === 'calendar' &&
           (infoLoaded ? (
