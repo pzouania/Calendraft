@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import type { Frequency } from '../types'
+import { toDateOnly } from '../lib/dateUtils'
 
 interface PeriodFormProps {
   calendarId: string
@@ -8,160 +8,379 @@ interface PeriodFormProps {
   onCancel: () => void
 }
 
+type Repeat = 'none' | 'weekly' | 'monthly'
+type TimeMode = 'allday' | 'timed'
+
+const COLORS = ['#2563eb', '#0891b2', '#16a34a', '#ca8a04', '#ea580c', '#dc2626', '#db2777', '#7c3aed', '#475569']
+
+const MONTH_WEEKS: { value: number; label: string }[] = [
+  { value: 1, label: '1er' },
+  { value: 2, label: '2e' },
+  { value: 3, label: '3e' },
+  { value: 4, label: '4e' },
+  { value: -1, label: 'dernier' },
+]
+
+const labelStyle: React.CSSProperties = {
+  fontSize: '0.85rem',
+  fontWeight: 600,
+  color: '#0f172a',
+  display: 'block',
+  marginBottom: 6,
+}
+
+const inputStyle: React.CSSProperties = {
+  padding: '0.6rem 0.8rem',
+  borderRadius: 10,
+  border: '1px solid #e2e8f0',
+  fontSize: '0.9rem',
+  outline: 'none',
+  background: 'white',
+  color: '#0f172a',
+  width: '100%',
+}
+
+const hintStyle: React.CSSProperties = {
+  margin: '0.4rem 0 0',
+  fontSize: '0.78rem',
+  color: '#64748b',
+  lineHeight: 1.45,
+}
+
+const sectionStyle: React.CSSProperties = {
+  paddingTop: '1.1rem',
+  borderTop: '1px solid #eef2f7',
+}
+
+function weekdayOf(date: string): string {
+  if (!date) return ''
+  return new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long' })
+}
+
+function formatLong(date: string): string {
+  if (!date) return ''
+  return new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  })
+}
+
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', padding: 4, borderRadius: 12, flexWrap: 'wrap' }}>
+      {options.map((o) => {
+        const active = o.value === value
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            style={{
+              flex: '1 1 110px',
+              padding: '0.55rem 0.6rem',
+              border: 'none',
+              borderRadius: 9,
+              fontSize: '0.84rem',
+              fontWeight: 600,
+              background: active ? 'var(--gradient-main)' : 'transparent',
+              color: active ? 'white' : '#64748b',
+            }}
+          >
+            {o.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFormProps) {
   const [name, setName] = useState('')
-  const [color, setColor] = useState('#2563eb')
-  const [startDate, setStartDate] = useState('')
-  const [frequency, setFrequency] = useState<Frequency>('once')
-  const [durationDays, setDurationDays] = useState(1)
-  const [intervalWeeks, setIntervalWeeks] = useState(2)
+  const [color, setColor] = useState(COLORS[0])
+  const [startDate, setStartDate] = useState(() => toDateOnly(new Date()))
+  const [repeat, setRepeat] = useState<Repeat>('none')
+  const [intervalWeeks, setIntervalWeeks] = useState(1)
   const [weekOfMonth, setWeekOfMonth] = useState(1)
-  const [hasTime, setHasTime] = useState(false)
+  const [durationDays, setDurationDays] = useState(1)
+  const [timeMode, setTimeMode] = useState<TimeMode>('allday')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const timed = timeMode === 'timed'
+  const crossesMidnight = timed && !!startTime && !!endTime && endTime < startTime
+  const weekday = weekdayOf(startDate)
+
+  const chooseTimeMode = (mode: TimeMode) => {
+    setTimeMode(mode)
+    if (mode === 'timed') {
+      if (!startTime) setStartTime('08:00')
+      if (!endTime) setEndTime('17:00')
+    }
+  }
+
+  const summary = useMemo(() => {
+    if (!startDate) return ''
+    const long = formatLong(startDate)
+    const days = durationDays > 1 ? `, pendant ${durationDays} jours` : ''
+
+    let when: string
+    if (repeat === 'none') {
+      when = `${durationDays > 1 ? 'À partir du' : 'Le'} ${long}`
+    } else if (repeat === 'weekly') {
+      const every = intervalWeeks === 1 ? 'Chaque semaine' : `Toutes les ${intervalWeeks} semaines`
+      when = `${every}, à partir du ${long}`
+    } else {
+      const ord = MONTH_WEEKS.find((w) => w.value === weekOfMonth)?.label ?? ''
+      when = `Le ${ord} ${weekday} de chaque mois, à partir du ${long}`
+    }
+
+    let time = ', toute la journée'
+    if (timed) {
+      time = startTime && endTime
+        ? `, de ${startTime} à ${endTime}${crossesMidnight ? ' (jusqu\'au lendemain)' : ''}`
+        : ''
+    }
+
+    return `${when}${days}${time}.`
+  }, [startDate, repeat, intervalWeeks, weekOfMonth, durationDays, timed, startTime, endTime, crossesMidnight, weekday])
+
+  const validate = (): string | null => {
+    if (!name.trim()) return 'Donnez un nom à l\'événement.'
+    if (!startDate) return 'Choisissez une date.'
+    if (!Number.isInteger(durationDays) || durationDays < 1) return 'La durée doit être d\'au moins 1 jour.'
+    if (repeat === 'weekly' && (!Number.isInteger(intervalWeeks) || intervalWeeks < 1)) {
+      return 'L\'intervalle doit être d\'au moins 1 semaine.'
+    }
+    if (timed) {
+      if (!startTime || !endTime) return 'Renseignez l\'heure de début et l\'heure de fin.'
+      if (startTime === endTime) return 'L\'heure de fin doit être différente de l\'heure de début.'
+    }
+    return null
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const problem = validate()
+    if (problem) {
+      setError(problem)
+      return
+    }
+
     setError(null)
     setSaving(true)
 
-    const { error } = await supabase.from('periods').insert({
+    const { error: dbError } = await supabase.from('periods').insert({
       calendar_id: calendarId,
-      name,
+      name: name.trim(),
       color,
       start_date: startDate,
-      frequency,
+      frequency: repeat === 'none' ? 'once' : repeat,
       duration_days: durationDays,
-      interval_weeks: frequency === 'weekly' || frequency === 'alternating' ? intervalWeeks : 1,
-      week_of_month: frequency === 'monthly' ? weekOfMonth : null,
-      start_time: hasTime && startTime ? startTime : null,
-      end_time: hasTime && endTime ? endTime : null,
+      interval_weeks: repeat === 'weekly' ? intervalWeeks : 1,
+      week_of_month: repeat === 'monthly' ? weekOfMonth : null,
+      start_time: timed ? startTime : null,
+      end_time: timed ? endTime : null,
     })
 
     setSaving(false)
-    if (error) {
-      setError(error.message)
+    if (dbError) {
+      setError(dbError.message)
       return
     }
     onCreated()
-  }
-
-  const inputStyle: React.CSSProperties = {
-    padding: '0.6rem 0.8rem',
-    borderRadius: 10,
-    border: '1px solid #e2e8f0',
-    fontSize: '0.9rem',
-    outline: 'none',
-    width: '100%',
-  }
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: '0.85rem',
-    fontWeight: 600,
-    color: 'var(--text-primary)',
-    display: 'block',
-    marginBottom: 4,
   }
 
   return (
     <form
       onSubmit={handleSubmit}
       style={{
-        display: 'flex', flexDirection: 'column', gap: '1rem',
+        display: 'flex', flexDirection: 'column', gap: '1.1rem',
         background: 'white', borderRadius: 16, padding: '1.5rem',
-        boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)', maxWidth: 480,
+        boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)', maxWidth: 640,
       }}
     >
+      <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a' }}>Nouvel événement</h3>
+
       <div>
         <label style={labelStyle}>Nom</label>
-        <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} required />
+        <input
+          style={{ ...inputStyle, fontSize: '1rem' }}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Ex. : Garde des enfants, Poste du matin..."
+          autoFocus
+          required
+        />
       </div>
 
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <div style={{ flex: '0 0 auto' }}>
-          <label style={labelStyle}>Couleur</label>
+      <div>
+        <label style={labelStyle}>Couleur</label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setColor(c)}
+              aria-label={`Couleur ${c}`}
+              style={{
+                width: 30, height: 30, borderRadius: '50%', background: c, border: 'none',
+                outline: color === c ? '2px solid #0f172a' : 'none', outlineOffset: 2,
+              }}
+            />
+          ))}
           <input
             type="color"
             value={color}
             onChange={(e) => setColor(e.target.value)}
-            style={{ width: 48, height: 40, padding: 2, borderRadius: 10, border: '1px solid #e2e8f0', cursor: 'pointer' }}
+            title="Couleur personnalisée"
+            style={{ width: 34, height: 30, padding: 0, border: '1px solid #e2e8f0', borderRadius: 8, background: 'white', cursor: 'pointer' }}
           />
         </div>
-        <div style={{ flex: '1 1 160px' }}>
-          <label style={labelStyle}>Date de départ</label>
-          <input type="date" style={inputStyle} value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-        </div>
       </div>
 
-      <div>
-        <label style={labelStyle}>Fréquence</label>
-        <select style={inputStyle} value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>
-          <option value="once">Une seule fois (sans répétition)</option>
-          <option value="weekly">Toutes les X semaines</option>
-          <option value="alternating">Alternance (ex: 1 semaine sur 2)</option>
-          <option value="custom_days">Chaque semaine, même jour</option>
-          <option value="monthly">Une semaine fixe chaque mois</option>
-        </select>
-      </div>
-
-      <div>
-        <label style={labelStyle}>Durée (en jours)</label>
-        <input
-          type="number"
-          min={1}
-          style={inputStyle}
-          value={durationDays}
-          onChange={(e) => setDurationDays(Number(e.target.value))}
-        />
-      </div>
-
-      {(frequency === 'weekly' || frequency === 'alternating') && (
-        <div>
-          <label style={labelStyle}>Intervalle (en semaines)</label>
-          <input
-            type="number"
-            min={1}
-            style={inputStyle}
-            value={intervalWeeks}
-            onChange={(e) => setIntervalWeeks(Number(e.target.value))}
-          />
-        </div>
-      )}
-
-      {frequency === 'monthly' && (
-        <div>
-          <label style={labelStyle}>Quelle semaine du mois</label>
-          <select style={inputStyle} value={weekOfMonth} onChange={(e) => setWeekOfMonth(Number(e.target.value))}>
-            <option value={1}>1ère semaine</option>
-            <option value={2}>2e semaine</option>
-            <option value={3}>3e semaine</option>
-            <option value={4}>4e semaine</option>
-            <option value={-1}>Dernière semaine</option>
-          </select>
-        </div>
-      )}
-
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-        <input type="checkbox" checked={hasTime} onChange={(e) => setHasTime(e.target.checked)} />
-        Horaire précis (sinon journée entière)
-      </label>
-
-      {hasTime && (
+      <div style={sectionStyle}>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 140px' }}>
-            <label style={labelStyle}>Heure de début</label>
-            <input type="time" style={inputStyle} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          <div style={{ flex: '1 1 200px' }}>
+            <label style={labelStyle}>{repeat === 'none' ? 'Date' : 'À partir du'}</label>
+            <input
+              type="date"
+              style={inputStyle}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+            />
+            {weekday && <p style={{ ...hintStyle, textTransform: 'capitalize' }}>{weekday}</p>}
           </div>
-          <div style={{ flex: '1 1 140px' }}>
-            <label style={labelStyle}>Heure de fin</label>
-            <input type="time" style={inputStyle} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          <div style={{ flex: '1 1 160px' }}>
+            <label style={labelStyle}>Durée</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="number"
+                min={1}
+                max={366}
+                style={{ ...inputStyle, width: 90 }}
+                value={durationDays || ''}
+                onChange={(e) => setDurationDays(e.target.value === '' ? 0 : Number(e.target.value))}
+              />
+              <span style={{ fontSize: '0.88rem', color: '#475569' }}>
+                {crossesMidnight ? (durationDays > 1 ? 'nuits' : 'nuit') : durationDays > 1 ? 'jours' : 'jour'}
+              </span>
+            </div>
           </div>
+        </div>
+        <p style={hintStyle}>
+          {crossesMidnight
+            ? 'Pour un horaire de nuit, la durée compte le nombre de nuits consécutives.'
+            : 'Nombre de jours consécutifs (par exemple 7 pour une semaine de garde).'}
+        </p>
+      </div>
+
+      <div style={sectionStyle}>
+        <label style={labelStyle}>Répétition</label>
+        <Segmented<Repeat>
+          value={repeat}
+          onChange={setRepeat}
+          options={[
+            { value: 'none', label: 'Aucune' },
+            { value: 'weekly', label: 'Toutes les X semaines' },
+            { value: 'monthly', label: 'Chaque mois' },
+          ]}
+        />
+
+        {repeat === 'weekly' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: '0.8rem' }}>
+            <span style={{ fontSize: '0.9rem', color: '#0f172a' }}>Répéter toutes les</span>
+            <input
+              type="number"
+              min={1}
+              max={52}
+              style={{ ...inputStyle, width: 80 }}
+              value={intervalWeeks || ''}
+              onChange={(e) => setIntervalWeeks(e.target.value === '' ? 0 : Number(e.target.value))}
+            />
+            <span style={{ fontSize: '0.9rem', color: '#0f172a' }}>
+              {intervalWeeks > 1 ? 'semaines' : 'semaine'}
+            </span>
+          </div>
+        )}
+        {repeat === 'weekly' && (
+          <p style={hintStyle}>1 pour chaque semaine, 2 pour une semaine sur deux, 3 pour une semaine sur trois...</p>
+        )}
+
+        {repeat === 'monthly' && (
+          <>
+            <div style={{ marginTop: '0.8rem' }}>
+              <select
+                style={inputStyle}
+                value={weekOfMonth}
+                onChange={(e) => setWeekOfMonth(Number(e.target.value))}
+              >
+                {MONTH_WEEKS.map((w) => (
+                  <option key={w.value} value={w.value}>
+                    Le {w.label} {weekday} du mois
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p style={hintStyle}>Le jour de la semaine est celui de la date choisie ci-dessus.</p>
+          </>
+        )}
+      </div>
+
+      <div style={sectionStyle}>
+        <label style={labelStyle}>Horaire</label>
+        <Segmented<TimeMode>
+          value={timeMode}
+          onChange={chooseTimeMode}
+          options={[
+            { value: 'allday', label: 'Journée entière' },
+            { value: 'timed', label: 'Horaire précis' },
+          ]}
+        />
+
+        {timed && (
+          <>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.8rem' }}>
+              <div style={{ flex: '1 1 140px' }}>
+                <label style={{ ...labelStyle, fontWeight: 500 }}>Début</label>
+                <input type="time" style={inputStyle} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              </div>
+              <div style={{ flex: '1 1 140px' }}>
+                <label style={{ ...labelStyle, fontWeight: 500 }}>Fin</label>
+                <input type="time" style={inputStyle} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+              </div>
+            </div>
+            {crossesMidnight && (
+              <p style={{ ...hintStyle, color: '#1d4ed8' }}>
+                L'heure de fin est avant celle de début : l'événement se termine le lendemain.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+
+      {summary && (
+        <div
+          style={{
+            background: '#eff6ff', borderLeft: `4px solid ${color}`, borderRadius: 10,
+            padding: '0.7rem 0.9rem',
+          }}
+        >
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1e3a8a', marginBottom: 2 }}>Récapitulatif</div>
+          <div style={{ fontSize: '0.88rem', color: '#1e293b', lineHeight: 1.5 }}>{summary}</div>
         </div>
       )}
 
-      {error && <p style={{ color: '#dc2626', fontSize: '0.85rem' }}>{error}</p>}
+      {error && <p style={{ margin: 0, color: '#dc2626', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
         <button
@@ -169,7 +388,8 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
           disabled={saving}
           style={{
             background: 'var(--gradient-main)', color: 'white', border: 'none',
-            borderRadius: 10, padding: '0.7rem 1.3rem', fontSize: '0.9rem', fontWeight: 700,
+            borderRadius: 10, padding: '0.7rem 1.4rem', fontSize: '0.9rem', fontWeight: 700,
+            opacity: saving ? 0.7 : 1,
           }}
         >
           {saving ? 'Enregistrement...' : "Créer l'événement"}
@@ -178,7 +398,7 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
           type="button"
           onClick={onCancel}
           style={{
-            background: 'transparent', color: 'var(--text-secondary)', border: '1px solid #e2e8f0',
+            background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0',
             borderRadius: 10, padding: '0.7rem 1.3rem', fontSize: '0.9rem', fontWeight: 600,
           }}
         >
