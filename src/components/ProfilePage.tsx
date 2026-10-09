@@ -114,27 +114,61 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center' }}>
-          <Logo height={38} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', minWidth: 0 }}>
+          <div style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center' }}>
+            <Logo height={38} />
+          </div>
+          <span style={{ color: 'white', fontSize: '1rem', fontWeight: 600, opacity: 0.95 }}>
+            Mon profil
+          </span>
         </div>
-        <button
-          onClick={onBack}
+
+        <div
           style={{
-            background: 'white', color: 'var(--blue-dark)', border: 'none',
-            borderRadius: 999, padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
+            display: 'flex', alignItems: 'center', gap: '0.6rem',
+            background: 'rgba(255,255,255,0.15)', borderRadius: 999,
+            padding: savedUsername ? '0.3rem 0.9rem 0.3rem 0.3rem' : '0.3rem',
           }}
         >
-          ← Retour
-        </button>
+          <div
+            style={{
+              width: 34, height: 34, borderRadius: '50%',
+              background: 'white', color: 'var(--blue-dark)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 700, fontSize: '0.9rem', flexShrink: 0, overflow: 'hidden',
+            }}
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              initial
+            )}
+          </div>
+          {savedUsername && (
+            <span style={{ color: 'white', fontSize: '0.85rem', fontWeight: 600 }}>{savedUsername}</span>
+          )}
+        </div>
       </header>
 
       <main style={{ maxWidth: 500, margin: '3rem auto', padding: '0 1.5rem' }}>
         <div
           style={{
-            background: 'white', borderRadius: 16, padding: '2rem',
+            background: 'white', borderRadius: 16, padding: '1.5rem 2rem 2rem',
             boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)', textAlign: 'center',
           }}
         >
+          <div style={{ textAlign: 'left', marginBottom: '1rem' }}>
+            <button
+              onClick={onBack}
+              style={{
+                background: '#f1f5f9', color: 'var(--blue-dark)', border: 'none',
+                borderRadius: 999, padding: '0.45rem 1rem', fontSize: '0.85rem', fontWeight: 700,
+              }}
+            >
+              ← Retour
+            </button>
+          </div>
+
           <label style={{ display: 'inline-block', position: 'relative', cursor: 'pointer', marginBottom: '1rem' }}>
             {avatarUrl ? (
               <img
@@ -175,8 +209,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
           </label>
           {uploading && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Envoi de la photo...</p>}
 
-          <h2 style={{ margin: '0.5rem 0 0.3rem', color: 'var(--text-primary)' }}>Mon profil</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', wordBreak: 'break-word' }}>{user.email}</p>
+          <p style={{ color: 'var(--text-secondary)', margin: '0.3rem 0 1.5rem', wordBreak: 'break-word' }}>{user.email}</p>
 
           <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
             <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 4 }}>
