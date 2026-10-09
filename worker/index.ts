@@ -30,6 +30,9 @@ const CACHE_SECONDS = 600
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
 
+const OE_RE =
+  /(?<!\p{L})\?(?=uvr|uf|il(?!\p{L}))|(?<=\p{L})\?(?=uvr|uf|ur)|(?<=v)\?(?=ux)|(?<=n)\?(?=ud)/giu
+
 const parisFmt = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Paris',
   year: 'numeric',
@@ -86,8 +89,16 @@ function unfold(text: string): string[] {
   return lines
 }
 
+function fixLigatures(text: string): string {
+  if (!text.includes('?')) return text
+  return text.replace(OE_RE, (_match: string, offset: number, whole: string) => {
+    const next = whole[offset + 1] ?? ''
+    return next !== next.toLowerCase() ? 'Œ' : 'œ'
+  })
+}
+
 function unescapeText(value: string): string {
-  return value.replace(/\\n/gi, ' ').replace(/\\([,;\\])/g, '$1').trim()
+  return fixLigatures(value.replace(/\\n/gi, ' ').replace(/\\([,;\\])/g, '$1').trim())
 }
 
 function parseIcs(text: string) {
