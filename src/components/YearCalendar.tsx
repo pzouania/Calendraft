@@ -4,7 +4,7 @@ import { generateAllOccurrences } from '../lib/occurrenceEngine'
 import MonthGrid from './MonthGrid'
 import DayDetail from './DayDetail'
 import Icon from './icons'
-import type { Period, Occurrence, PeriodException } from '../types'
+import type { Period, Occurrence, PeriodException, YearMode } from '../types'
 
 interface YearCalendarProps {
   calendarId: string
@@ -12,6 +12,7 @@ interface YearCalendarProps {
   calendarIcon: string
   calendarColor: string
   canEdit: boolean
+  yearMode?: YearMode
   staticData?: { periods: Period[]; exceptions: PeriodException[] }
 }
 
@@ -31,14 +32,31 @@ interface FeedInfo {
   events: FeedEventDto[]
 }
 
-export default function YearCalendar({ calendarId, calendarName, calendarIcon, calendarColor, canEdit, staticData }: YearCalendarProps) {
+function currentStartYear(mode: YearMode): number {
+  const now = new Date()
+  if (mode === 'school') return now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1
+  return now.getFullYear()
+}
+
+export default function YearCalendar({
+  calendarId,
+  calendarName,
+  calendarIcon,
+  calendarColor,
+  canEdit,
+  yearMode = 'calendar',
+  staticData,
+}: YearCalendarProps) {
   const [periods, setPeriods] = useState<Period[]>(staticData?.periods ?? [])
   const [exceptions, setExceptions] = useState<PeriodException[]>(staticData?.exceptions ?? [])
-  const [year, setYear] = useState(new Date().getFullYear())
+  const [year, setYear] = useState(() => currentStartYear(yearMode))
   const [loading, setLoading] = useState(!staticData)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [feed, setFeed] = useState<FeedInfo | null>(null)
   const [feedNotice, setFeedNotice] = useState<string | null>(null)
+
+  const isSchool = yearMode === 'school'
+  const yearLabel = isSchool ? `${year}-${year + 1}` : String(year)
 
   const loadData = async () => {
     setLoading(true)
@@ -71,6 +89,9 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
     let cancelled = false
     setFeedNotice(null)
 
+    const from = isSchool ? `${year}-09-01` : `${year}-01-01`
+    const to = isSchool ? `${year + 1}-08-31` : `${year}-12-31`
+
     const loadFeed = async () => {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData.session?.access_token
@@ -84,7 +105,7 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
             authorization: `Bearer ${token}`,
             'x-supabase-key': import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
-          body: JSON.stringify({ calendarId, from: `${year}-01-01`, to: `${year}-12-31` }),
+          body: JSON.stringify({ calendarId, from, to }),
         })
         const body = await res.json().catch(() => null)
         if (cancelled || !body) return
@@ -107,7 +128,7 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
     return () => {
       cancelled = true
     }
-  }, [calendarId, year])
+  }, [calendarId, year, yearMode])
 
   const exceptionsByPeriod = useMemo(() => {
     const map = new Map<string, Set<string>>()
@@ -119,9 +140,21 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
     return map
   }, [exceptions])
 
+  const months = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => {
+        if (isSchool) {
+          const m = (8 + i) % 12
+          return { year: m >= 8 ? year : year + 1, month: m }
+        }
+        return { year, month: i }
+      }),
+    [year, isSchool]
+  )
+
   const occurrencesByDate = useMemo(() => {
-    const rangeStart = new Date(year, 0, 1)
-    const rangeEnd = new Date(year, 11, 31)
+    const rangeStart = isSchool ? new Date(year, 8, 1) : new Date(year, 0, 1)
+    const rangeEnd = isSchool ? new Date(year + 1, 7, 31) : new Date(year, 11, 31)
     const all: Occurrence[] = generateAllOccurrences(periods, rangeStart, rangeEnd, exceptionsByPeriod)
 
     if (feed) {
@@ -147,11 +180,11 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
       map.set(o.date, list)
     }
     return map
-  }, [periods, year, exceptionsByPeriod, feed])
+  }, [periods, year, isSchool, exceptionsByPeriod, feed])
 
   const handleExportPDF = () => {
     const previousTitle = document.title
-    document.title = `${calendarName} ${year}`
+    document.title = `${calendarName} ${yearLabel}`
     window.print()
     document.title = previousTitle
   }
@@ -175,7 +208,9 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
         >
           ◀
         </button>
-        <strong style={{ color: 'var(--text-primary)', fontSize: '1.1rem', minWidth: 50, textAlign: 'center' }}>{year}</strong>
+        <strong style={{ color: 'var(--text-primary)', fontSize: '1.1rem', minWidth: isSchool ? 100 : 50, textAlign: 'center' }}>
+          {yearLabel}
+        </strong>
         <button
           onClick={() => setYear((y) => y + 1)}
           style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
@@ -227,18 +262,21 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
         >
           <Icon name={calendarIcon} size={22} color="white" />
         </div>
-        <h2 className="printable-title" style={{ margin: 0, color: 'var(--text-primary)' }}>{calendarName} — {year}</h2>
+        <h2 className="printable-title" style={{ margin: 0, color: 'var(--text-primary)' }}>
+          {calendarName} — {yearLabel}
+        </h2>
       </div>
 
       <div className="year-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '1rem' }}>
-        {Array.from({ length: 12 }, (_, m) => (
+        {months.map(({ year: y, month: m }) => (
           <MonthGrid
-            key={m}
-            year={year}
+            key={`${y}-${m}`}
+            year={y}
             month={m}
             occurrencesByDate={occurrencesByDate}
             onDayClick={(dateStr) => setSelectedDate(dateStr)}
             accentColor={calendarColor}
+            showYear={isSchool}
           />
         ))}
       </div>
