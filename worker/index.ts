@@ -1,17 +1,44 @@
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> }
+  SUPABASE_URL: string
+  FEED_WORKER_SECRET?: string
 }
-
-const ALLOWED_HOSTS = ['edtweb.univ-cotedazur.fr']
-const MAX_BYTES = 5 * 1024 * 1024
-const TIMEOUT_MS = 8000
 
 interface RawEvent {
-  summary?: string
-  start?: string
-  end?: string
-  location?: string
+  uid: string
+  summary: string
+  location: string
+  start: string
+  end: string
+  cancelled: boolean
 }
+
+interface FeedEvent {
+  uid: string
+  title: string
+  location: string
+  date: string
+  start: string | null
+  end: string | null
+  segment: 'full' | 'start' | 'end'
+}
+
+const MAX_BYTES = 5 * 1024 * 1024
+const MAX_EVENTS = 5000
+const TIMEOUT_MS = 8000
+const CACHE_SECONDS = 600
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+const parisFmt = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Paris',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -21,6 +48,30 @@ function json(body: unknown, status = 200): Response {
       'cache-control': 'no-store',
     },
   })
+}
+
+function toParis(ms: number): { date: string; time: string } {
+  const p: Record<string, string> = {}
+  for (const part of parisFmt.formatToParts(new Date(ms))) p[part.type] = part.value
+  return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}` }
+}
+
+function addOneDay(date: string): string {
+  const d = new Date(date + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
+function parseIcsDate(value: string): { date: string; time: string | null } | null {
+  const m = value.trim().match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?$/)
+  if (!m) return null
+  const [, y, mo, d, h, mi, , z] = m
+  if (h === undefined) return { date: `${y}-${mo}-${d}`, time: null }
+  if (z) {
+    const p = toParis(Date.UTC(+y, +mo - 1, +d, +h, +mi))
+    return { date: p.date, time: p.time }
+  }
+  return { date: `${y}-${mo}-${d}`, time: `${h}:${mi}` }
 }
 
 function unfold(text: string): string[] {
@@ -39,20 +90,19 @@ function unescapeText(value: string): string {
   return value.replace(/\\n/gi, ' ').replace(/\\([,;\\])/g, '$1').trim()
 }
 
-function parse(text: string) {
+function parseIcs(text: string) {
   const events: RawEvent[] = []
   let current: RawEvent | null = null
-  let hasRecurrence = false
-  let hasTzid = false
+  let recurring = 0
 
   for (const line of unfold(text)) {
     const marker = line.trim().toUpperCase()
     if (marker === 'BEGIN:VEVENT') {
-      current = {}
+      current = { uid: '', summary: '', location: '', start: '', end: '', cancelled: false }
       continue
     }
     if (marker === 'END:VEVENT') {
-      if (current) events.push(current)
+      if (current && current.start) events.push(current)
       current = null
       continue
     }
@@ -60,113 +110,259 @@ function parse(text: string) {
 
     const idx = line.indexOf(':')
     if (idx < 0) continue
-    const head = line.slice(0, idx)
+    const name = line.slice(0, idx).split(';')[0].toUpperCase()
     const value = line.slice(idx + 1)
-    const name = head.split(';')[0].toUpperCase()
 
-    if (name === 'SUMMARY') current.summary = unescapeText(value)
-    else if (name === 'LOCATION') current.location = unescapeText(value)
-    else if (name === 'DTSTART') {
-      current.start = value
-      if (/TZID=/i.test(head)) hasTzid = true
-    } else if (name === 'DTEND') current.end = value
-    else if (name === 'RRULE') hasRecurrence = true
+    switch (name) {
+      case 'UID':
+        current.uid = value.trim()
+        break
+      case 'SUMMARY':
+        current.summary = unescapeText(value)
+        break
+      case 'LOCATION':
+        current.location = unescapeText(value)
+        break
+      case 'DTSTART':
+        current.start = value.trim()
+        break
+      case 'DTEND':
+        current.end = value.trim()
+        break
+      case 'STATUS':
+        current.cancelled = value.trim().toUpperCase() === 'CANCELLED'
+        break
+      case 'RRULE':
+        recurring++
+        break
+    }
   }
 
-  return { events, hasRecurrence, hasTzid }
+  return { events, recurring }
 }
 
-async function handleIcsTest(request: Request): Promise<Response> {
-  if (request.method !== 'POST') return json({ ok: false, reason: 'method_not_allowed' }, 405)
+function expand(raw: RawEvent): FeedEvent[] {
+  const start = parseIcsDate(raw.start)
+  if (!start) return []
+  const end = raw.end ? parseIcsDate(raw.end) : null
+  const base = { uid: raw.uid, title: raw.summary || 'Sans titre', location: raw.location }
 
-  let target: URL
+  if (start.time === null) {
+    const out: FeedEvent[] = []
+    const last = end && end.date > start.date ? end.date : null
+    let day = start.date
+    for (let i = 0; i < 31; i++) {
+      out.push({ ...base, date: day, start: null, end: null, segment: 'full' })
+      day = addOneDay(day)
+      if (!last || day >= last) break
+    }
+    return out
+  }
+
+  const endDate = end?.date ?? start.date
+  const endTime = end?.time ?? start.time
+
+  if (endDate <= start.date) {
+    return [{ ...base, date: start.date, start: start.time, end: endTime, segment: 'full' }]
+  }
+
+  if (endDate === addOneDay(start.date) && endTime === '00:00') {
+    return [{ ...base, date: start.date, start: start.time, end: '24:00', segment: 'full' }]
+  }
+
+  return [
+    { ...base, date: start.date, start: start.time, end: endTime, segment: 'start' },
+    { ...base, date: endDate, start: start.time, end: endTime, segment: 'end' },
+  ]
+}
+
+function byDateTime(a: FeedEvent, b: FeedEvent): number {
+  if (a.date !== b.date) return a.date < b.date ? -1 : 1
+  const x = a.start ?? ''
+  const y = b.start ?? ''
+  return x < y ? -1 : x > y ? 1 : 0
+}
+
+function validateFeedUrl(raw: unknown): URL | null {
+  let u: URL
   try {
-    const body = (await request.json()) as { url?: string }
-    target = new URL(String(body.url ?? '').trim())
+    u = new URL(String(raw ?? '').trim())
   } catch {
-    return json({ ok: false, reason: 'bad_url' }, 400)
+    return null
   }
+  if (u.protocol !== 'https:') return null
+  if (u.username || u.password) return null
+  if (u.port && u.port !== '443') return null
+  const host = u.hostname.toLowerCase()
+  if (!host.includes('.')) return null
+  if (host.startsWith('[') || host.includes(':')) return null
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) return null
+  if (/(^|\.)(localhost|local|internal|lan|home|corp)$/.test(host)) return null
+  return u
+}
 
-  if (target.protocol !== 'https:') return json({ ok: false, reason: 'https_only' }, 400)
-  if (!ALLOWED_HOSTS.includes(target.hostname)) {
-    return json({ ok: false, reason: 'host_not_allowed', host: target.hostname }, 403)
-  }
-
+async function fetchFeed(
+  url: string
+): Promise<{ ok: true; text: string } | { ok: false; reason: string; status?: number }> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
   try {
-    const res = await fetch(target.toString(), {
+    const res = await fetch(url, {
       signal: controller.signal,
       redirect: 'manual',
       headers: {
         'user-agent': 'Calendraft/1.0 (+https://calendraft.fr)',
         accept: 'text/calendar, text/plain, */*',
       },
-    })
+      cf: { cacheTtl: CACHE_SECONDS, cacheEverything: true },
+    } as RequestInit)
 
-    const contentType = res.headers.get('content-type') ?? ''
-
-    if (res.status >= 300 && res.status < 400) {
-      const location = res.headers.get('location') ?? ''
-      let redirectHost = ''
-      try {
-        redirectHost = new URL(location, target).hostname
-      } catch {
-        redirectHost = 'inconnu'
-      }
-      return json({ ok: false, reason: 'redirect', status: res.status, redirectHost })
-    }
-
-    if (!res.ok) return json({ ok: false, reason: 'http_error', status: res.status, contentType })
+    if (res.status >= 300 && res.status < 400) return { ok: false, reason: 'redirect', status: res.status }
+    if (!res.ok) return { ok: false, reason: 'http_error', status: res.status }
 
     const declared = Number(res.headers.get('content-length') ?? 0)
-    if (declared > MAX_BYTES) return json({ ok: false, reason: 'too_large', status: res.status })
+    if (declared > MAX_BYTES) return { ok: false, reason: 'too_large' }
 
     const text = await res.text()
-    if (text.length > MAX_BYTES) return json({ ok: false, reason: 'too_large', status: res.status })
+    if (text.length > MAX_BYTES) return { ok: false, reason: 'too_large' }
+    if (!/BEGIN:VCALENDAR/i.test(text)) return { ok: false, reason: 'not_ics' }
 
-    if (!/BEGIN:VCALENDAR/i.test(text)) {
-      return json({
-        ok: false,
-        reason: 'not_ics',
-        status: res.status,
-        contentType,
-        startsWith: text.slice(0, 80).replace(/\s+/g, ' '),
-      })
-    }
-
-    const { events, hasRecurrence, hasTzid } = parse(text)
-    const days = events
-      .map((e) => e.start?.slice(0, 8))
-      .filter((d): d is string => !!d && /^\d{8}$/.test(d))
-      .sort()
-
-    return json({
-      ok: true,
-      status: res.status,
-      contentType,
-      bytes: text.length,
-      eventCount: events.length,
-      hasRecurrence,
-      hasTzid,
-      earliest: days[0] ?? null,
-      latest: days[days.length - 1] ?? null,
-      sample: events.slice(0, 3),
-    })
+    return { ok: true, text }
   } catch (err) {
     const timedOut = err instanceof Error && err.name === 'AbortError'
-    return json({ ok: false, reason: timedOut ? 'timeout' : 'network_error' })
+    return { ok: false, reason: timedOut ? 'timeout' : 'network_error' }
   } finally {
     clearTimeout(timer)
   }
+}
+
+function bearer(request: Request): string | null {
+  const m = (request.headers.get('authorization') ?? '').match(/^Bearer\s+(\S+)$/i)
+  return m ? m[1] : null
+}
+
+function apiKey(request: Request): string | null {
+  const k = request.headers.get('x-supabase-key')
+  return k && k.length < 400 ? k : null
+}
+
+async function handleCheck(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return json({ ok: false, reason: 'method_not_allowed' }, 405)
+
+  const token = bearer(request)
+  const key = apiKey(request)
+  if (!token || !key) return json({ ok: false, reason: 'unauthorized' }, 401)
+
+  const userRes = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+    headers: { authorization: `Bearer ${token}`, apikey: key },
+  })
+  if (!userRes.ok) return json({ ok: false, reason: 'unauthorized' }, 401)
+
+  let body: { url?: unknown }
+  try {
+    body = (await request.json()) as { url?: unknown }
+  } catch {
+    return json({ ok: false, reason: 'bad_url' }, 400)
+  }
+
+  const target = validateFeedUrl(body.url)
+  if (!target) return json({ ok: false, reason: 'bad_url' }, 400)
+
+  const feed = await fetchFeed(target.toString())
+  if (!feed.ok) return json({ ok: false, reason: feed.reason, status: feed.status })
+
+  const { events, recurring } = parseIcs(feed.text)
+  const active = events.filter((e) => !e.cancelled)
+  const segments = active.flatMap(expand).sort(byDateTime)
+  const today = toParis(Date.now()).date
+
+  return json({
+    ok: true,
+    eventCount: active.length,
+    recurring,
+    earliest: segments[0]?.date ?? null,
+    latest: segments[segments.length - 1]?.date ?? null,
+    upcoming: segments
+      .filter((e) => e.date >= today)
+      .slice(0, 5)
+      .map((e) => ({ title: e.title, date: e.date, start: e.start, end: e.end, location: e.location })),
+  })
+}
+
+async function handleEvents(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return json({ ok: false, reason: 'method_not_allowed' }, 405)
+
+  const token = bearer(request)
+  const key = apiKey(request)
+  if (!token || !key) return json({ ok: false, reason: 'unauthorized' }, 401)
+  if (!env.FEED_WORKER_SECRET) return json({ ok: false, reason: 'secret_missing' }, 500)
+
+  let body: { calendarId?: unknown; from?: unknown; to?: unknown }
+  try {
+    body = (await request.json()) as typeof body
+  } catch {
+    return json({ ok: false, reason: 'bad_request' }, 400)
+  }
+
+  const { calendarId, from, to } = body
+  if (
+    typeof calendarId !== 'string' || !UUID_RE.test(calendarId) ||
+    typeof from !== 'string' || !DAY_RE.test(from) ||
+    typeof to !== 'string' || !DAY_RE.test(to) ||
+    to < from
+  ) {
+    return json({ ok: false, reason: 'bad_request' }, 400)
+  }
+
+  const rpc = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_calendar_feed`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      apikey: key,
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ p_calendar: calendarId, p_secret: env.FEED_WORKER_SECRET }),
+  })
+
+  if (rpc.status === 401) return json({ ok: false, reason: 'unauthorized' }, 401)
+  if (!rpc.ok) return json({ ok: false, reason: 'database_error' }, 502)
+
+  const data = (await rpc.json()) as
+    | null
+    | { configured: false }
+    | { configured: true; url: string; label: string; color: string }
+
+  if (!data) return json({ ok: false, reason: 'forbidden' }, 403)
+  if (!data.configured) return json({ ok: true, configured: false, events: [] })
+
+  const feed = await fetchFeed(data.url)
+  if (!feed.ok) return json({ ok: false, reason: 'feed_unreachable', detail: feed.reason })
+
+  const { events, recurring } = parseIcs(feed.text)
+  const all = events
+    .filter((e) => !e.cancelled)
+    .flatMap(expand)
+    .filter((e) => e.date >= from && e.date <= to)
+    .sort(byDateTime)
+
+  return json({
+    ok: true,
+    configured: true,
+    label: data.label,
+    color: data.color,
+    recurring,
+    truncated: all.length > MAX_EVENTS,
+    events: all.slice(0, MAX_EVENTS),
+  })
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url)
 
-    if (pathname === '/api/ics-test') return handleIcsTest(request)
+    if (pathname === '/api/feed/check') return handleCheck(request, env)
+    if (pathname === '/api/feed/events') return handleEvents(request, env)
     if (pathname.startsWith('/api/')) return json({ ok: false, reason: 'not_found' }, 404)
 
     return env.ASSETS.fetch(request)
