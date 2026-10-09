@@ -7,9 +7,17 @@ interface MonthGridProps {
   occurrencesByDate: Map<string, Occurrence[]>
   onDayClick: (dateStr: string) => void
   accentColor?: string
+  showYear?: boolean
 }
 
-export default function MonthGrid({ year, month, occurrencesByDate, onDayClick, accentColor = 'var(--blue-main)' }: MonthGridProps) {
+export default function MonthGrid({
+  year,
+  month,
+  occurrencesByDate,
+  onDayClick,
+  accentColor = 'var(--blue-main)',
+  showYear = false,
+}: MonthGridProps) {
   const weeks = getMonthMatrix(year, month)
   const todayStr = toDateOnly(new Date())
 
@@ -24,6 +32,7 @@ export default function MonthGrid({ year, month, occurrencesByDate, onDayClick, 
         }}
       >
         {MONTH_NAMES[month]}
+        {showYear ? ` ${year}` : ''}
       </div>
       <div className="month-weekday-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, fontSize: '0.65rem', textAlign: 'center', color: 'var(--text-secondary)', marginBottom: 2 }}>
         {DAY_LETTERS.map((l, i) => (
