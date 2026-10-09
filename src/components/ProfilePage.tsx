@@ -3,6 +3,7 @@ import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { getAvatarUrl } from '../lib/avatar'
 import Logo from './Logo'
+import DeleteAccountModal from './DeleteAccountModal'
 
 interface ProfilePageProps {
   user: User
@@ -19,6 +20,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
 
   const displayLabel = savedUsername || user.email || '?'
   const initial = displayLabel[0]?.toUpperCase() ?? '?'
@@ -288,8 +290,22 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
               Se déconnecter
             </button>
           </div>
+
+          <div style={{ marginTop: '1.5rem', paddingTop: '1.2rem', borderTop: '1px solid #e2e8f0' }}>
+            <button
+              onClick={() => setShowDelete(true)}
+              style={{
+                background: 'transparent', border: 'none', color: '#b91c1c',
+                fontSize: '0.8rem', fontWeight: 600, textDecoration: 'underline',
+              }}
+            >
+              Supprimer mon compte
+            </button>
+          </div>
         </div>
       </main>
+
+      {showDelete && <DeleteAccountModal user={user} onClose={() => setShowDelete(false)} />}
     </div>
   )
 }
