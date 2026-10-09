@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import YearCalendar from './YearCalendar'
 import Logo from './Logo'
-import type { Period, PeriodException } from '../types'
+import type { Period, PeriodException, YearMode } from '../types'
 
 interface SharedData {
   name: string
   icon: string | null
   color: string | null
+  year_mode?: YearMode
   periods: Period[]
   exceptions: PeriodException[]
 }
@@ -144,6 +145,7 @@ export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
           calendarIcon={data.icon ?? 'calendar'}
           calendarColor={data.color ?? '#2563eb'}
           canEdit={false}
+          yearMode={data.year_mode === 'school' ? 'school' : 'calendar'}
           staticData={{ periods: data.periods, exceptions: data.exceptions }}
         />
       </main>
