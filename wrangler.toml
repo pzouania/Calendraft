@@ -2,6 +2,9 @@ name = "calendraft"
 main = "worker/index.ts"
 compatibility_date = "2026-01-01"
 
+[vars]
+SUPABASE_URL = "https://dklogxyyhqlkvqrmphhz.supabase.co"
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"
