@@ -15,12 +15,30 @@ interface YearCalendarProps {
   staticData?: { periods: Period[]; exceptions: PeriodException[] }
 }
 
+interface FeedEventDto {
+  uid: string
+  title: string
+  location: string
+  date: string
+  start: string | null
+  end: string | null
+  segment: 'full' | 'start' | 'end'
+}
+
+interface FeedInfo {
+  label: string
+  color: string
+  events: FeedEventDto[]
+}
+
 export default function YearCalendar({ calendarId, calendarName, calendarIcon, calendarColor, canEdit, staticData }: YearCalendarProps) {
   const [periods, setPeriods] = useState<Period[]>(staticData?.periods ?? [])
   const [exceptions, setExceptions] = useState<PeriodException[]>(staticData?.exceptions ?? [])
   const [year, setYear] = useState(new Date().getFullYear())
   const [loading, setLoading] = useState(!staticData)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [feed, setFeed] = useState<FeedInfo | null>(null)
+  const [feedNotice, setFeedNotice] = useState<string | null>(null)
 
   const loadData = async () => {
     setLoading(true)
@@ -48,6 +66,49 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
     if (!staticData) loadData()
   }, [calendarId])
 
+  useEffect(() => {
+    if (staticData || !calendarId) return
+    let cancelled = false
+    setFeedNotice(null)
+
+    const loadFeed = async () => {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) return
+
+      try {
+        const res = await fetch('/api/feed/events', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${token}`,
+            'x-supabase-key': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ calendarId, from: `${year}-01-01`, to: `${year}-12-31` }),
+        })
+        const body = await res.json().catch(() => null)
+        if (cancelled || !body) return
+
+        if (body.ok && body.configured) {
+          setFeed({ label: body.label, color: body.color, events: body.events })
+        } else if (body.ok && !body.configured) {
+          setFeed(null)
+        } else if (body.reason === 'feed_unreachable') {
+          setFeedNotice("L'emploi du temps en ligne est momentanément indisponible.")
+        } else if (body.reason === 'secret_missing') {
+          setFeedNotice("L'emploi du temps en ligne n'est pas encore configuré côté serveur.")
+        }
+      } catch {
+        if (!cancelled) setFeedNotice("L'emploi du temps en ligne est momentanément indisponible.")
+      }
+    }
+
+    loadFeed()
+    return () => {
+      cancelled = true
+    }
+  }, [calendarId, year])
+
   const exceptionsByPeriod = useMemo(() => {
     const map = new Map<string, Set<string>>()
     for (const ex of exceptions) {
@@ -61,7 +122,24 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
   const occurrencesByDate = useMemo(() => {
     const rangeStart = new Date(year, 0, 1)
     const rangeEnd = new Date(year, 11, 31)
-    const all = generateAllOccurrences(periods, rangeStart, rangeEnd, exceptionsByPeriod)
+    const all: Occurrence[] = generateAllOccurrences(periods, rangeStart, rangeEnd, exceptionsByPeriod)
+
+    if (feed) {
+      for (const e of feed.events) {
+        all.push({
+          periodId: 'feed',
+          name: e.title,
+          color: feed.color,
+          date: e.date,
+          startTime: e.start,
+          endTime: e.end,
+          segment: e.segment,
+          readOnly: true,
+          location: e.location,
+        })
+      }
+    }
+
     const map = new Map<string, Occurrence[]>()
     for (const o of all) {
       const list = map.get(o.date) ?? []
@@ -69,7 +147,7 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
       map.set(o.date, list)
     }
     return map
-  }, [periods, year, exceptionsByPeriod])
+  }, [periods, year, exceptionsByPeriod, feed])
 
   const handleExportPDF = () => {
     const previousTitle = document.title
@@ -79,6 +157,8 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
   }
 
   if (loading) return <p style={{ color: 'var(--text-secondary)' }}>Chargement du calendrier...</p>
+
+  const hasLegend = periods.length > 0 || !!feed
 
   return (
     <div>
@@ -113,7 +193,19 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
         </button>
       </div>
 
-      {periods.length === 0 && (
+      {feedNotice && (
+        <p
+          className="no-print"
+          style={{
+            margin: '0 0 1rem', padding: '0.6rem 0.9rem', borderRadius: 10,
+            background: '#fffbeb', color: '#92400e', fontSize: '0.85rem',
+          }}
+        >
+          {feedNotice}
+        </p>
+      )}
+
+      {periods.length === 0 && !feed && (
         <p className="no-print" style={{ color: 'var(--text-secondary)' }}>
           Aucune période définie{canEdit ? ' — ajoutez-en dans l\'onglet "Périodes".' : '.'}
         </p>
@@ -151,7 +243,7 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
         ))}
       </div>
 
-      {periods.length > 0 && (
+      {hasLegend && (
         <div
           className="legend"
           style={{
@@ -172,6 +264,18 @@ export default function YearCalendar({ calendarId, calendarName, calendarIcon, c
               {p.name}
             </div>
           ))}
+          {feed && (
+            <div
+              className="legend-pill"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'var(--text-primary)',
+                background: `${feed.color}18`, borderRadius: 999, padding: '0.3rem 0.7rem 0.3rem 0.4rem',
+              }}
+            >
+              <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', backgroundColor: feed.color }} />
+              {feed.label}
+            </div>
+          )}
         </div>
       )}
 
