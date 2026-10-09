@@ -242,7 +242,7 @@ export default function YearCalendar({
 
       {periods.length === 0 && !feed && (
         <p className="no-print" style={{ color: 'var(--text-secondary)' }}>
-          Aucune période définie{canEdit ? ' — ajoutez-en dans l\'onglet "Périodes".' : '.'}
+          Aucun événement défini{canEdit ? ' — ajoutez-en dans l\'onglet "Événements".' : '.'}
         </p>
       )}
 
