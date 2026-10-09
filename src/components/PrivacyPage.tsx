@@ -48,7 +48,7 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
   {
     title: 'Durée de conservation',
     paragraphs: [
-      'Vos données sont conservées tant que votre compte existe. Vous pouvez en demander la suppression à tout moment, avec le compte et son contenu, en écrivant à l’adresse de contact ci-dessus.',
+     'Vos données sont conservées tant que votre compte existe. Vous pouvez supprimer votre compte à tout moment depuis la page « Mon profil » : le compte et son contenu sont alors effacés définitivement, y compris les calendriers que vous avez créés pour les personnes avec qui vous les partagiez. Vous pouvez aussi en faire la demande par email à l’adresse de contact ci-dessus.',
     ],
   },
   {
