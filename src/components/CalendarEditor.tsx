@@ -5,7 +5,7 @@ import YearCalendar from './YearCalendar'
 import ShareModal from './ShareModal'
 import FeedSettings from './FeedSettings'
 import Logo from './Logo'
-import type { Period } from '../types'
+import type { Period, YearMode } from '../types'
 
 interface CalendarEditorProps {
   calendarId: string
@@ -38,6 +38,8 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
   const [calendarName, setCalendarName] = useState('')
   const [calendarIcon, setCalendarIcon] = useState('calendar')
   const [calendarColor, setCalendarColor] = useState('#2563eb')
+  const [yearMode, setYearMode] = useState<YearMode>('calendar')
+  const [infoLoaded, setInfoLoaded] = useState(false)
   const [role, setRole] = useState<Role | null>(null)
   const [showShare, setShowShare] = useState(false)
   const [periods, setPeriods] = useState<Period[]>([])
@@ -54,27 +56,30 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
 
     const { data } = await supabase
       .from('calendars')
-      .select('name, icon, color, user_id')
+      .select('name, icon, color, user_id, year_mode')
       .eq('id', calendarId)
       .single()
-    if (!data) return
 
-    setCalendarName(data.name)
-    setCalendarIcon(data.icon ?? 'calendar')
-    setCalendarColor(data.color ?? '#2563eb')
+    if (data) {
+      setCalendarName(data.name)
+      setCalendarIcon(data.icon ?? 'calendar')
+      setCalendarColor(data.color ?? '#2563eb')
+      setYearMode(data.year_mode === 'school' ? 'school' : 'calendar')
 
-    if (user && data.user_id === user.id) {
-      setRole('owner')
-      return
+      if (user && data.user_id === user.id) {
+        setRole('owner')
+      } else {
+        const { data: share } = await supabase
+          .from('calendar_shares')
+          .select('role')
+          .eq('calendar_id', calendarId)
+          .eq('email', (user?.email ?? '').toLowerCase())
+          .maybeSingle()
+        setRole(share?.role === 'editor' ? 'editor' : 'viewer')
+      }
     }
 
-    const { data: share } = await supabase
-      .from('calendar_shares')
-      .select('role')
-      .eq('calendar_id', calendarId)
-      .eq('email', (user?.email ?? '').toLowerCase())
-      .maybeSingle()
-    setRole(share?.role === 'editor' ? 'editor' : 'viewer')
+    setInfoLoaded(true)
   }
 
   const loadPeriods = async () => {
@@ -266,15 +271,19 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           </>
         )}
 
-        {tab === 'calendar' && (
-          <YearCalendar
-            calendarId={calendarId}
-            calendarName={calendarName}
-            calendarIcon={calendarIcon}
-            calendarColor={calendarColor}
-            canEdit={canEdit}
-          />
-        )}
+        {tab === 'calendar' &&
+          (infoLoaded ? (
+            <YearCalendar
+              calendarId={calendarId}
+              calendarName={calendarName}
+              calendarIcon={calendarIcon}
+              calendarColor={calendarColor}
+              canEdit={canEdit}
+              yearMode={yearMode}
+            />
+          ) : (
+            <p style={{ color: 'var(--text-secondary)' }}>Chargement du calendrier...</p>
+          ))}
       </main>
 
       {showShare && (
