@@ -1,9 +1,12 @@
+export type YearMode = 'calendar' | 'school'
+
 export interface Calendar {
   id: string
   user_id: string
   name: string
   icon: string
   color: string
+  year_mode: YearMode
   created_at: string
   updated_at: string
 }
