@@ -56,6 +56,13 @@ function timeLabel(o: Occurrence): string {
   return `${s} – ${e}`
 }
 
+function isPast(o: Occurrence, todayStr: string, nowMin: number): boolean {
+  if (o.date !== todayStr) return false
+  if (!o.startTime || !o.endTime) return false
+  if (o.segment === 'start') return false
+  return timeToMin(o.endTime) <= nowMin
+}
+
 function dayLabel(dateStr: string, todayStr: string, tomorrowStr: string): string {
   if (dateStr === todayStr) return "Aujourd'hui"
   if (dateStr === tomorrowStr) return 'Demain'
@@ -77,8 +84,14 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; calendar?: Calendar } | null>(null)
+  const [now, setNow] = useState(() => new Date())
 
   const myEmail = (user.email ?? '').toLowerCase()
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60000)
+    return () => window.clearInterval(id)
+  }, [])
 
   const loadFeeds = async (cals: Calendar[]) => {
     setFeedsLoading(true)
@@ -252,10 +265,11 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
     return { days, count: seen.size }
   }, [periods, exceptions, calendars, feedItems])
 
-  const todayStr = toDateOnly(new Date())
-  const tomorrow = new Date()
+  const todayStr = toDateOnly(now)
+  const tomorrow = new Date(now)
   tomorrow.setDate(tomorrow.getDate() + 1)
   const tomorrowStr = toDateOnly(tomorrow)
+  const nowMin = now.getHours() * 60 + now.getMinutes()
 
   const q = search.toLowerCase()
   const matches = (c: Calendar) => c.name.toLowerCase().includes(q)
@@ -268,7 +282,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
   const stats = [
     { icon: 'calendar', label: 'Calendriers', value: ownedCount },
     { icon: 'users', label: 'Partagés avec moi', value: sharedCount },
-    { icon: 'briefcase', label: 'Périodes', value: periods.length },
+    { icon: 'briefcase', label: 'Événements créés', value: periods.length },
     { icon: 'star', label: 'Événements (7 jours)', value: upcoming.count },
   ]
 
@@ -536,7 +550,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
                 {upcoming.days.length === 0 && !feedsLoading && (
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     {periods.length === 0 && !hasFeeds
-                      ? 'Ajoutez des périodes ou un emploi du temps en ligne à vos calendriers pour les voir apparaître ici.'
+                      ? 'Ajoutez des événements ou un emploi du temps en ligne à vos calendriers pour les voir apparaître ici.'
                       : 'Aucun événement prévu dans les 7 prochains jours.'}
                   </p>
                 )}
@@ -553,26 +567,29 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
                         {dayLabel(day.date, todayStr, tomorrowStr)}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        {day.items.map((item, i) => (
-                          <button
-                            key={`${item.uniq}-${item.occ.segment ?? 'full'}-${i}`}
-                            onClick={() => onOpenCalendar(item.calendarId)}
-                            style={{
-                              textAlign: 'left', width: '100%', background: '#f8fafc', border: 'none',
-                              borderLeft: `4px solid ${item.occ.color}`, borderRadius: 10,
-                              padding: '0.5rem 0.7rem',
-                            }}
-                          >
-                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                              {item.occ.name}
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: '#475569' }}>
-                              {timeLabel(item.occ)}
-                              {item.occ.location ? ` · ${item.occ.location}` : ''}
-                              {item.calendarName ? ` · ${item.calendarName}` : ''}
-                            </div>
-                          </button>
-                        ))}
+                        {day.items.map((item, i) => {
+                          const past = isPast(item.occ, todayStr, nowMin)
+                          return (
+                            <button
+                              key={`${item.uniq}-${item.occ.segment ?? 'full'}-${i}`}
+                              onClick={() => onOpenCalendar(item.calendarId)}
+                              style={{
+                                textAlign: 'left', width: '100%', background: '#f8fafc', border: 'none',
+                                borderLeft: `4px solid ${item.occ.color}`, borderRadius: 10,
+                                padding: '0.5rem 0.7rem', opacity: past ? 0.5 : 1,
+                              }}
+                            >
+                              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                                {item.occ.name}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                                {timeLabel(item.occ)}
+                                {item.occ.location ? ` · ${item.occ.location}` : ''}
+                                {item.calendarName ? ` · ${item.calendarName}` : ''}
+                              </div>
+                            </button>
+                          )
+                        })}
                       </div>
                     </section>
                   ))}
