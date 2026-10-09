@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
+import { getAvatarUrl } from '../lib/avatar'
 import Logo from './Logo'
 import Icon from './icons'
 import CalendarFormModal from './CalendarFormModal'
@@ -91,7 +92,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
   const username = user.user_metadata?.username as string | undefined
   const displayLabel = username || user.email || '?'
   const initial = displayLabel[0]?.toUpperCase() ?? '?'
-  const avatarUrl = user.user_metadata?.avatar_url as string | undefined
+  const avatarUrl = getAvatarUrl(user)
 
   const sectionTitle: React.CSSProperties = {
     margin: '0 0 0.8rem',
