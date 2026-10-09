@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import PeriodForm from './PeriodForm'
 import YearCalendar from './YearCalendar'
 import ShareModal from './ShareModal'
+import FeedSettings from './FeedSettings'
 import Logo from './Logo'
 import type { Period } from '../types'
 
@@ -189,6 +190,8 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
 
         {tab === 'periods' && (
           <>
+            {isOwner && <FeedSettings calendarId={calendarId} />}
+
             {canEdit && !showForm && (
               <button
                 onClick={() => setShowForm(true)}
