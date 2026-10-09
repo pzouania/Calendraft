@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { getAvatarUrl } from '../lib/avatar'
+import { generateAllOccurrences } from '../lib/occurrenceEngine'
+import { toDateOnly } from '../lib/dateUtils'
 import Logo from './Logo'
 import Icon from './icons'
 import CalendarFormModal from './CalendarFormModal'
-import type { Calendar } from '../types'
+import type { Calendar, Occurrence, Period, PeriodException } from '../types'
 
 type ShareRole = 'viewer' | 'editor'
 
@@ -17,8 +19,45 @@ interface DashboardProps {
   onOpenProfile: () => void
 }
 
+interface UpcomingItem {
+  occ: Occurrence
+  calendarId: string
+  calendarName: string
+}
+
+function timeToMin(t: string): number {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+
+function sortKey(o: Occurrence): number {
+  if (!o.startTime || !o.endTime) return -1
+  if (o.segment === 'end') return 0
+  return timeToMin(o.startTime)
+}
+
+function timeLabel(o: Occurrence): string {
+  if (!o.startTime || !o.endTime) return 'Journée entière'
+  const s = o.startTime.slice(0, 5)
+  const e = o.endTime.slice(0, 5)
+  if (o.segment === 'start') return `dès ${s}`
+  if (o.segment === 'end') return `jusqu'à ${e}`
+  return `${s} – ${e}`
+}
+
+function dayLabel(dateStr: string, todayStr: string, tomorrowStr: string): string {
+  if (dateStr === todayStr) return "Aujourd'hui"
+  if (dateStr === tomorrowStr) return 'Demain'
+  const s = new Date(dateStr + 'T00:00:00').toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  })
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
 export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: DashboardProps) {
   const [calendars, setCalendars] = useState<Calendar[]>([])
+  const [periods, setPeriods] = useState<Period[]>([])
+  const [exceptions, setExceptions] = useState<PeriodException[]>([])
   const [roles, setRoles] = useState<Record<string, ShareRole>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -29,13 +68,18 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
 
   const loadCalendars = async () => {
     setLoading(true)
-    const [calRes, shareRes] = await Promise.all([
+    const [calRes, shareRes, perRes, excRes] = await Promise.all([
       supabase.from('calendars').select('*').order('updated_at', { ascending: false }),
       supabase.from('calendar_shares').select('calendar_id, role').eq('email', myEmail),
+      supabase.from('periods').select('*'),
+      supabase.from('period_exceptions').select('*'),
     ])
 
     if (calRes.error) setError(calRes.error.message)
     else setCalendars(calRes.data ?? [])
+
+    if (!perRes.error) setPeriods((perRes.data ?? []) as Period[])
+    if (!excRes.error) setExceptions((excRes.data ?? []) as PeriodException[])
 
     const map: Record<string, ShareRole> = {}
     if (!shareRes.error) {
@@ -83,11 +127,66 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
     loadCalendars()
   }
 
+  const upcoming = useMemo(() => {
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 6)
+
+    const exByPeriod = new Map<string, Set<string>>()
+    for (const ex of exceptions) {
+      const set = exByPeriod.get(ex.period_id) ?? new Set<string>()
+      set.add(ex.exception_date)
+      exByPeriod.set(ex.period_id, set)
+    }
+
+    const periodById = new Map(periods.map((p) => [p.id, p]))
+    const calendarById = new Map(calendars.map((c) => [c.id, c]))
+
+    const byDate = new Map<string, UpcomingItem[]>()
+    const seen = new Set<string>()
+    for (const occ of generateAllOccurrences(periods, start, end, exByPeriod)) {
+      const period = periodById.get(occ.periodId)
+      if (!period) continue
+      seen.add(`${occ.periodId}|${occ.date}`)
+      const list = byDate.get(occ.date) ?? []
+      list.push({
+        occ,
+        calendarId: period.calendar_id,
+        calendarName: calendarById.get(period.calendar_id)?.name ?? '',
+      })
+      byDate.set(occ.date, list)
+    }
+
+    const days = [...byDate.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([date, items]) => ({
+        date,
+        items: [...items].sort((x, y) => sortKey(x.occ) - sortKey(y.occ)),
+      }))
+
+    return { days, count: seen.size }
+  }, [periods, exceptions, calendars])
+
+  const todayStr = toDateOnly(new Date())
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowStr = toDateOnly(tomorrow)
+
   const q = search.toLowerCase()
   const matches = (c: Calendar) => c.name.toLowerCase().includes(q)
   const owned = calendars.filter((c) => c.user_id === user.id && matches(c))
   const shared = calendars.filter((c) => c.user_id !== user.id && matches(c))
-  const hasShared = calendars.some((c) => c.user_id !== user.id)
+  const ownedCount = calendars.filter((c) => c.user_id === user.id).length
+  const sharedCount = calendars.filter((c) => c.user_id !== user.id).length
+  const hasShared = sharedCount > 0
+
+  const stats = [
+    { icon: 'calendar', label: 'Calendriers', value: ownedCount },
+    { icon: 'users', label: 'Partagés avec moi', value: sharedCount },
+    { icon: 'briefcase', label: 'Périodes', value: periods.length },
+    { icon: 'star', label: 'Événements (7 jours)', value: upcoming.count },
+  ]
 
   const username = user.user_metadata?.username as string | undefined
   const displayLabel = username || user.email || '?'
@@ -240,8 +339,43 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
         </button>
       </header>
 
-      <main style={{ maxWidth: 1000, margin: '0 auto', padding: '2rem 1.5rem' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', alignItems: 'center' }}>
+      <main style={{ maxWidth: 1150, margin: '0 auto', padding: '2rem 1.5rem' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          {stats.map((s) => (
+            <div
+              key={s.label}
+              style={{
+                background: 'white', borderRadius: 14, padding: '0.9rem 1rem',
+                display: 'flex', alignItems: 'center', gap: '0.8rem',
+                boxShadow: '0 2px 10px rgba(30, 64, 175, 0.07)',
+              }}
+            >
+              <div
+                style={{
+                  width: 40, height: 40, borderRadius: 11, background: 'var(--gradient-main)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}
+              >
+                <Icon name={s.icon} size={20} color="white" />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.1 }}>
+                  {loading ? '–' : s.value}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{s.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', alignItems: 'center' }}>
           <button
             onClick={() => setModal({ mode: 'create' })}
             style={{
@@ -266,33 +400,98 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
 
         {error && <p style={{ color: '#dc2626' }}>{error}</p>}
 
-        {loading ? (
-          <p style={{ color: 'var(--text-secondary)' }}>Chargement...</p>
-        ) : owned.length === 0 && shared.length === 0 ? (
-          <div
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'flex-start' }}>
+          <div style={{ flex: '2 1 460px', minWidth: 0 }}>
+            {loading ? (
+              <p style={{ color: 'var(--text-secondary)' }}>Chargement...</p>
+            ) : owned.length === 0 && shared.length === 0 ? (
+              <div
+                style={{
+                  background: 'white', borderRadius: 16, padding: '3rem 1.5rem', textAlign: 'center',
+                  color: 'var(--text-secondary)', boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)',
+                }}
+              >
+                Aucun calendrier pour l'instant. Créez-en un pour commencer.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {owned.length > 0 && (
+                  <section>
+                    {hasShared && <h2 style={sectionTitle}>Mes calendriers</h2>}
+                    <div style={gridStyle}>{owned.map((cal) => renderCard(cal, false))}</div>
+                  </section>
+                )}
+                {shared.length > 0 && (
+                  <section>
+                    <h2 style={sectionTitle}>Partagés avec moi</h2>
+                    <div style={gridStyle}>{shared.map((cal) => renderCard(cal, true))}</div>
+                  </section>
+                )}
+              </div>
+            )}
+          </div>
+
+          <aside
             style={{
-              background: 'white', borderRadius: 16, padding: '3rem 1.5rem', textAlign: 'center',
-              color: 'var(--text-secondary)', boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)',
+              flex: '1 1 300px', minWidth: 0, background: 'white', borderRadius: 16,
+              padding: '1.2rem', boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)',
+              maxHeight: 560, overflowY: 'auto',
             }}
           >
-            Aucun calendrier pour l'instant. Créez-en un pour commencer.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {owned.length > 0 && (
-              <section>
-                {hasShared && <h2 style={sectionTitle}>Mes calendriers</h2>}
-                <div style={gridStyle}>{owned.map((cal) => renderCard(cal, false))}</div>
-              </section>
+            <h2 style={{ margin: '0 0 0.2rem', fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+              Prochains événements
+            </h2>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              Les 7 prochains jours, tous calendriers confondus
+            </p>
+
+            {loading ? (
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Chargement...</p>
+            ) : upcoming.days.length === 0 ? (
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                {periods.length === 0
+                  ? 'Ajoutez des périodes à vos calendriers pour les voir apparaître ici.'
+                  : 'Aucun événement prévu dans les 7 prochains jours.'}
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {upcoming.days.map((day) => (
+                  <section key={day.date}>
+                    <div
+                      style={{
+                        fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem',
+                        color: day.date === todayStr ? 'var(--blue-dark)' : '#475569',
+                      }}
+                    >
+                      {dayLabel(day.date, todayStr, tomorrowStr)}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {day.items.map((item, i) => (
+                        <button
+                          key={`${item.occ.periodId}-${item.occ.segment ?? 'full'}-${i}`}
+                          onClick={() => onOpenCalendar(item.calendarId)}
+                          style={{
+                            textAlign: 'left', width: '100%', background: '#f8fafc', border: 'none',
+                            borderLeft: `4px solid ${item.occ.color}`, borderRadius: 10,
+                            padding: '0.5rem 0.7rem',
+                          }}
+                        >
+                          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                            {item.occ.name}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                            {timeLabel(item.occ)}
+                            {item.calendarName ? ` · ${item.calendarName}` : ''}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
             )}
-            {shared.length > 0 && (
-              <section>
-                <h2 style={sectionTitle}>Partagés avec moi</h2>
-                <div style={gridStyle}>{shared.map((cal) => renderCard(cal, true))}</div>
-              </section>
-            )}
-          </div>
-        )}
+          </aside>
+        </div>
       </main>
 
       {modal && (
