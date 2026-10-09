@@ -153,22 +153,10 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
       <main style={{ maxWidth: 500, margin: '3rem auto', padding: '0 1.5rem' }}>
         <div
           style={{
-            background: 'white', borderRadius: 16, padding: '1.5rem 2rem 2rem',
+            background: 'white', borderRadius: 16, padding: '2rem',
             boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)', textAlign: 'center',
           }}
         >
-          <div style={{ textAlign: 'left', marginBottom: '1rem' }}>
-            <button
-              onClick={onBack}
-              style={{
-                background: '#f1f5f9', color: 'var(--blue-dark)', border: 'none',
-                borderRadius: 999, padding: '0.45rem 1rem', fontSize: '0.85rem', fontWeight: 700,
-              }}
-            >
-              ← Retour
-            </button>
-          </div>
-
           <label style={{ display: 'inline-block', position: 'relative', cursor: 'pointer', marginBottom: '1rem' }}>
             {avatarUrl ? (
               <img
@@ -275,15 +263,31 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
 
           <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '1.5rem 0' }} />
 
-          <button
-            onClick={() => supabase.auth.signOut()}
+          <div
             style={{
-              background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
-              borderRadius: 10, padding: '0.6rem 1.2rem', fontSize: '0.85rem', fontWeight: 600,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              gap: '0.6rem', flexWrap: 'wrap',
             }}
           >
-            Se déconnecter
-          </button>
+            <button
+              onClick={onBack}
+              style={{
+                background: '#eff6ff', color: 'var(--blue-dark)', border: '1px solid #bfdbfe',
+                borderRadius: 10, padding: '0.6rem 1.2rem', fontSize: '0.85rem', fontWeight: 600,
+              }}
+            >
+              ← Retour
+            </button>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              style={{
+                background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
+                borderRadius: 10, padding: '0.6rem 1.2rem', fontSize: '0.85rem', fontWeight: 600,
+              }}
+            >
+              Se déconnecter
+            </button>
+          </div>
         </div>
       </main>
     </div>
