@@ -49,7 +49,7 @@ const SECTIONS: { title: string; paragraphs: string[] }[] = [
   {
     title: 'Suppression du compte',
     paragraphs: [
-      `Vous pouvez demander la suppression de votre compte et de ses données à tout moment en écrivant à ${CONTACT_EMAIL}. Le traitement de vos données est décrit dans notre politique de confidentialité.`,
+      `Vous pouvez supprimer votre compte à tout moment depuis la page « Mon profil » : votre compte et vos contenus sont alors effacés définitivement. Vous pouvez aussi en faire la demande en écrivant à ${CONTACT_EMAIL}. Le traitement de vos données est décrit dans notre politique de confidentialité.`,
     ],
   },
   {
