@@ -21,8 +21,19 @@ interface DashboardProps {
 
 interface UpcomingItem {
   occ: Occurrence
+  uniq: string
   calendarId: string
   calendarName: string
+}
+
+interface FeedEventDto {
+  uid: string
+  title: string
+  location: string
+  date: string
+  start: string | null
+  end: string | null
+  segment: 'full' | 'start' | 'end'
 }
 
 function timeToMin(t: string): number {
@@ -58,6 +69,9 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
   const [calendars, setCalendars] = useState<Calendar[]>([])
   const [periods, setPeriods] = useState<Period[]>([])
   const [exceptions, setExceptions] = useState<PeriodException[]>([])
+  const [feedItems, setFeedItems] = useState<UpcomingItem[]>([])
+  const [hasFeeds, setHasFeeds] = useState(false)
+  const [feedsLoading, setFeedsLoading] = useState(true)
   const [roles, setRoles] = useState<Record<string, ShareRole>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -65,6 +79,67 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; calendar?: Calendar } | null>(null)
 
   const myEmail = (user.email ?? '').toLowerCase()
+
+  const loadFeeds = async (cals: Calendar[]) => {
+    setFeedsLoading(true)
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+
+    if (!token || cals.length === 0) {
+      setFeedItems([])
+      setHasFeeds(false)
+      setFeedsLoading(false)
+      return
+    }
+
+    const start = new Date()
+    const end = new Date(start)
+    end.setDate(end.getDate() + 6)
+    const from = toDateOnly(start)
+    const to = toDateOnly(end)
+
+    const results = await Promise.all(
+      cals.map(async (cal) => {
+        try {
+          const res = await fetch('/api/feed/events', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              authorization: `Bearer ${token}`,
+              'x-supabase-key': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ calendarId: cal.id, from, to }),
+          })
+          const body = await res.json().catch(() => null)
+          if (!body || !body.ok || !body.configured) return { configured: false, items: [] as UpcomingItem[] }
+
+          const items = (body.events as FeedEventDto[]).map((e) => ({
+            occ: {
+              periodId: 'feed',
+              name: e.title,
+              color: body.color as string,
+              date: e.date,
+              startTime: e.start,
+              endTime: e.end,
+              segment: e.segment,
+              readOnly: true,
+              location: e.location,
+            } as Occurrence,
+            uniq: `feed|${cal.id}|${e.uid}|${e.date}`,
+            calendarId: cal.id,
+            calendarName: cal.name,
+          }))
+          return { configured: true, items }
+        } catch {
+          return { configured: false, items: [] as UpcomingItem[] }
+        }
+      })
+    )
+
+    setFeedItems(results.flatMap((r) => r.items))
+    setHasFeeds(results.some((r) => r.configured))
+    setFeedsLoading(false)
+  }
 
   const loadCalendars = async () => {
     setLoading(true)
@@ -89,6 +164,8 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
     }
     setRoles(map)
     setLoading(false)
+
+    void loadFeeds((calRes.data ?? []) as Calendar[])
   }
 
   useEffect(() => {
@@ -143,30 +220,37 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
     const periodById = new Map(periods.map((p) => [p.id, p]))
     const calendarById = new Map(calendars.map((c) => [c.id, c]))
 
-    const byDate = new Map<string, UpcomingItem[]>()
-    const seen = new Set<string>()
+    const items: UpcomingItem[] = []
     for (const occ of generateAllOccurrences(periods, start, end, exByPeriod)) {
       const period = periodById.get(occ.periodId)
       if (!period) continue
-      seen.add(`${occ.periodId}|${occ.date}`)
-      const list = byDate.get(occ.date) ?? []
-      list.push({
+      items.push({
         occ,
+        uniq: `${occ.periodId}|${occ.date}`,
         calendarId: period.calendar_id,
         calendarName: calendarById.get(period.calendar_id)?.name ?? '',
       })
-      byDate.set(occ.date, list)
+    }
+    items.push(...feedItems)
+
+    const byDate = new Map<string, UpcomingItem[]>()
+    const seen = new Set<string>()
+    for (const item of items) {
+      seen.add(item.uniq)
+      const list = byDate.get(item.occ.date) ?? []
+      list.push(item)
+      byDate.set(item.occ.date, list)
     }
 
     const days = [...byDate.entries()]
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([date, items]) => ({
+      .map(([date, list]) => ({
         date,
-        items: [...items].sort((x, y) => sortKey(x.occ) - sortKey(y.occ)),
+        items: [...list].sort((x, y) => sortKey(x.occ) - sortKey(y.occ)),
       }))
 
     return { days, count: seen.size }
-  }, [periods, exceptions, calendars])
+  }, [periods, exceptions, calendars, feedItems])
 
   const todayStr = toDateOnly(new Date())
   const tomorrow = new Date()
@@ -447,48 +531,59 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
 
             {loading ? (
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Chargement...</p>
-            ) : upcoming.days.length === 0 ? (
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                {periods.length === 0
-                  ? 'Ajoutez des périodes à vos calendriers pour les voir apparaître ici.'
-                  : 'Aucun événement prévu dans les 7 prochains jours.'}
-              </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {upcoming.days.map((day) => (
-                  <section key={day.date}>
-                    <div
-                      style={{
-                        fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem',
-                        color: day.date === todayStr ? 'var(--blue-dark)' : '#475569',
-                      }}
-                    >
-                      {dayLabel(day.date, todayStr, tomorrowStr)}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      {day.items.map((item, i) => (
-                        <button
-                          key={`${item.occ.periodId}-${item.occ.segment ?? 'full'}-${i}`}
-                          onClick={() => onOpenCalendar(item.calendarId)}
-                          style={{
-                            textAlign: 'left', width: '100%', background: '#f8fafc', border: 'none',
-                            borderLeft: `4px solid ${item.occ.color}`, borderRadius: 10,
-                            padding: '0.5rem 0.7rem',
-                          }}
-                        >
-                          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                            {item.occ.name}
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: '#475569' }}>
-                            {timeLabel(item.occ)}
-                            {item.calendarName ? ` · ${item.calendarName}` : ''}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
+              <>
+                {upcoming.days.length === 0 && !feedsLoading && (
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    {periods.length === 0 && !hasFeeds
+                      ? 'Ajoutez des périodes ou un emploi du temps en ligne à vos calendriers pour les voir apparaître ici.'
+                      : 'Aucun événement prévu dans les 7 prochains jours.'}
+                  </p>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {upcoming.days.map((day) => (
+                    <section key={day.date}>
+                      <div
+                        style={{
+                          fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem',
+                          color: day.date === todayStr ? 'var(--blue-dark)' : '#475569',
+                        }}
+                      >
+                        {dayLabel(day.date, todayStr, tomorrowStr)}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        {day.items.map((item, i) => (
+                          <button
+                            key={`${item.uniq}-${item.occ.segment ?? 'full'}-${i}`}
+                            onClick={() => onOpenCalendar(item.calendarId)}
+                            style={{
+                              textAlign: 'left', width: '100%', background: '#f8fafc', border: 'none',
+                              borderLeft: `4px solid ${item.occ.color}`, borderRadius: 10,
+                              padding: '0.5rem 0.7rem',
+                            }}
+                          >
+                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                              {item.occ.name}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                              {timeLabel(item.occ)}
+                              {item.occ.location ? ` · ${item.occ.location}` : ''}
+                              {item.calendarName ? ` · ${item.calendarName}` : ''}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+
+                {feedsLoading && (
+                  <p style={{ margin: '0.8rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Chargement de l'emploi du temps...
+                  </p>
+                )}
+              </>
             )}
           </aside>
         </div>
