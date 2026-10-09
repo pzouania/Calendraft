@@ -35,18 +35,19 @@ function getSpan(occ: Occurrence): Omit<Block, 'occ'> {
   const start = occ.startTime!.slice(0, 5)
   const end = occ.endTime!.slice(0, 5)
   const segment = occ.segment ?? 'full'
+  const place = occ.location ? ` · ${occ.location}` : ''
 
   if (segment === 'start') {
-    return { startMin: timeToMinutes(start), endMin: 24 * 60, subtitle: `${start} → ${end} (lendemain)` }
+    return { startMin: timeToMinutes(start), endMin: 24 * 60, subtitle: `${start} → ${end} (lendemain)${place}` }
   }
   if (segment === 'end') {
-    return { startMin: 0, endMin: timeToMinutes(end), subtitle: `${start} (veille) → ${end}` }
+    return { startMin: 0, endMin: timeToMinutes(end), subtitle: `${start} (veille) → ${end}${place}` }
   }
 
   const startMin = timeToMinutes(start)
   let endMin = timeToMinutes(end)
   if (endMin <= startMin) endMin = 24 * 60
-  return { startMin, endMin, subtitle: `${start} – ${end}` }
+  return { startMin, endMin, subtitle: `${start} – ${end}${place}` }
 }
 
 function layoutBlocks(items: Block[]): Placed[] {
@@ -200,8 +201,10 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
                   }}
                 >
                   <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 600, color: '#0f172a' }}>{occ.name}</span>
-                  <span style={{ fontSize: '0.75rem', color: '#475569' }}>Journée entière</span>
-                  {canEdit && <TrashButton onClick={() => handleDeleteLocal(occ)} />}
+                  <span style={{ fontSize: '0.75rem', color: '#475569' }}>
+                    Journée entière{occ.location ? ` · ${occ.location}` : ''}
+                  </span>
+                  {canEdit && !occ.readOnly && <TrashButton onClick={() => handleDeleteLocal(occ)} />}
                 </div>
               ))}
             </div>
@@ -227,6 +230,7 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
                 {blocks.map((b, i) => {
                   const top = (b.startMin / 60) * ROW_HEIGHT
                   const height = Math.max(((b.endMin - b.startMin) / 60) * ROW_HEIGHT - 2, MIN_BLOCK)
+                  const deletable = canEdit && !b.occ.readOnly
                   return (
                     <div
                       key={`${b.occ.periodId}-${b.occ.segment}-${i}`}
@@ -238,7 +242,7 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
                         backgroundImage: `linear-gradient(${b.occ.color}26, ${b.occ.color}26)`,
                         borderLeft: `4px solid ${b.occ.color}`,
                         borderRadius: 8,
-                        padding: canEdit ? '4px 32px 4px 8px' : '4px 8px',
+                        padding: deletable ? '4px 32px 4px 8px' : '4px 8px',
                         overflow: 'hidden',
                         boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)',
                       }}
@@ -247,7 +251,7 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
                         {b.occ.name}
                       </div>
                       <div style={{ fontSize: '0.7rem', color: '#334155' }}>{b.subtitle}</div>
-                      {canEdit && (
+                      {deletable && (
                         <div style={{ position: 'absolute', top: 4, right: 4 }}>
                           <TrashButton onClick={() => handleDeleteLocal(b.occ)} />
                         </div>
