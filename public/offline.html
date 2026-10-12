@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="robots" content="noindex" />
+    <title>Calendraft - Hors connexion</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: linear-gradient(160deg, #eef4ff 0%, #dbeafe 100%);
+        color: #0f172a;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      .card {
+        width: 100%;
+        max-width: 380px;
+        padding: 32px 24px;
+        text-align: center;
+        background: #ffffff;
+        border: 1px solid #dbeafe;
+        border-radius: 20px;
+        box-shadow: 0 12px 32px rgba(30, 64, 175, 0.12);
+      }
+      img { width: 88px; height: 88px; border-radius: 20px; }
+      h1 { margin: 16px 0 8px; font-size: 22px; color: #1e40af; }
+      p { margin: 0 0 24px; font-size: 15px; line-height: 1.5; color: #475569; }
+      button {
+        width: 100%;
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #38bdf8, #1e40af);
+        color: #ffffff;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <img src="/icons/icon-192.png" alt="Calendraft" width="88" height="88" />
+      <h1>Vous êtes hors connexion</h1>
+      <p>
+        Calendraft a besoin d'internet pour afficher vos calendriers.
+        Vérifiez votre connexion, puis réessayez.
+      </p>
+      <button type="button" onclick="location.reload()">Réessayer</button>
+    </main>
+  </body>
+</html>
