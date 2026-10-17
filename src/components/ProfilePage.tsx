@@ -23,6 +23,7 @@ interface ProfilePageProps {
 interface PushNote {
   kind: 'ok' | 'error'
   text: string
+  detail?: string
 }
 
 function enableErrorText(reason: Extract<EnableResult, { ok: false }>['reason']): string {
@@ -45,10 +46,15 @@ function enableErrorText(reason: Extract<EnableResult, { ok: false }>['reason'])
 function testNote(result: TestResult): PushNote {
   if (result.ok) {
     return result.sent > 0
-      ? { kind: 'ok', text: 'Notification envoyée. Elle doit apparaître dans quelques secondes.' }
+      ? {
+          kind: 'ok',
+          text: 'Notification envoyée. Elle doit apparaître dans quelques secondes.',
+          detail: result.detail,
+        }
       : {
           kind: 'error',
           text: "Le serveur n'a pas réussi à joindre cet appareil. Désactivez puis réactivez les rappels.",
+          detail: result.detail,
         }
   }
   switch (result.reason) {
@@ -482,6 +488,11 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                   }}
                 >
                   {pushNote.text}
+                </p>
+              )}
+              {pushNote?.detail && (
+                <p style={{ fontSize: '0.75rem', margin: '0.3rem 0 0', lineHeight: 1.4, color: 'var(--text-secondary)' }}>
+                  {pushNote.detail}
                 </p>
               )}
             </div>
