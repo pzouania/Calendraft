@@ -260,6 +260,18 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             Réinitialiser mon mot de passe
           </button>
 
+          <a
+            href="/application"
+            style={{
+              display: 'block', boxSizing: 'border-box', background: 'white', color: 'var(--blue-dark)',
+              border: '1px solid var(--blue-main)', borderRadius: 10, padding: '0.7rem 1.3rem',
+              fontSize: '0.9rem', fontWeight: 600, marginBottom: '1rem', width: '100%',
+              textDecoration: 'none',
+            }}
+          >
+            Application mobile (Android et iPhone)
+          </a>
+
           {message && <p style={{ color: '#16a34a', fontSize: '0.85rem' }}>{message}</p>}
           {error && <p style={{ color: '#dc2626', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>}
 
