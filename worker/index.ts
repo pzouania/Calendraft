@@ -1,7 +1,12 @@
+import { sendWebPush, type VapidConfig } from './webpush'
+
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> }
   SUPABASE_URL: string
   FEED_WORKER_SECRET?: string
+  VAPID_PUBLIC_KEY?: string
+  VAPID_PRIVATE_KEY?: string
+  VAPID_SUBJECT?: string
 }
 
 interface RawEvent {
@@ -400,6 +405,98 @@ async function handleAssetLinks(request: Request, env: Env): Promise<Response> {
   })
 }
 
+function vapidConfig(env: Env): VapidConfig | null {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return null
+  return {
+    publicKey: env.VAPID_PUBLIC_KEY,
+    privateKey: env.VAPID_PRIVATE_KEY,
+    subject: env.VAPID_SUBJECT || 'https://calendraft.fr',
+  }
+}
+
+// Clé publique des notifications : le navigateur en a besoin pour s'abonner (elle n'est pas secrète).
+function handlePushConfig(request: Request, env: Env): Response {
+  if (request.method !== 'GET') return json({ ok: false, reason: 'method_not_allowed' }, 405)
+  const vapid = vapidConfig(env)
+  if (!vapid) return json({ ok: false, reason: 'not_configured' })
+  return json({ ok: true, publicKey: vapid.publicKey })
+}
+
+interface DeviceRow {
+  id: string
+  endpoint: string
+  p256dh: string
+  auth: string
+}
+
+// Envoie une notification d'essai aux appareils de la personne connectée.
+async function handlePushTest(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return json({ ok: false, reason: 'method_not_allowed' }, 405)
+
+  const token = bearer(request)
+  const key = apiKey(request)
+  if (!token || !key) return json({ ok: false, reason: 'unauthorized' }, 401)
+
+  const vapid = vapidConfig(env)
+  if (!vapid) return json({ ok: false, reason: 'not_configured' })
+
+  const userRes = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+    headers: { authorization: `Bearer ${token}`, apikey: key },
+  })
+  if (!userRes.ok) return json({ ok: false, reason: 'unauthorized' }, 401)
+
+  let wanted: string | null = null
+  try {
+    const body = (await request.json()) as { endpoint?: unknown }
+    if (typeof body.endpoint === 'string' && body.endpoint.length < 1000) wanted = body.endpoint
+  } catch {
+    // Corps absent ou invalide : on testera tous les appareils.
+  }
+
+  // Les règles de sécurité de la base ne laissent lire que les appareils de cette personne.
+  const devicesRes = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/push_subscriptions?select=id,endpoint,p256dh,auth&order=created_at.desc&limit=10`,
+    { headers: { apikey: key, authorization: `Bearer ${token}` } }
+  )
+  if (!devicesRes.ok) return json({ ok: false, reason: 'database_error' }, 502)
+
+  const all = (await devicesRes.json()) as DeviceRow[]
+  const devices = wanted ? all.filter((d) => d.endpoint === wanted) : all
+  if (devices.length === 0) return json({ ok: false, reason: 'no_device' })
+
+  const message = {
+    title: 'Calendraft',
+    body: 'Les rappels fonctionnent sur cet appareil.',
+    url: '/',
+    tag: 'calendraft-test',
+  }
+
+  const results = await Promise.all(
+    devices.map((d) =>
+      sendWebPush({ endpoint: d.endpoint, p256dh: d.p256dh, auth: d.auth }, message, vapid, {
+        ttl: 300,
+        urgency: 'high',
+      }).catch(() => ({ ok: false, status: 0, gone: false }))
+    )
+  )
+
+  // Un appareil qui n'existe plus (404 / 410) est retiré de la liste.
+  const goneIds = devices.filter((_, i) => results[i].gone).map((d) => d.id)
+  if (goneIds.length > 0) {
+    await fetch(`${env.SUPABASE_URL}/rest/v1/push_subscriptions?id=in.(${goneIds.join(',')})`, {
+      method: 'DELETE',
+      headers: { apikey: key, authorization: `Bearer ${token}` },
+    }).catch(() => undefined)
+  }
+
+  return json({
+    ok: true,
+    sent: results.filter((r) => r.ok).length,
+    failed: results.filter((r) => !r.ok).length,
+    removed: goneIds.length,
+  })
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url)
@@ -407,6 +504,8 @@ export default {
     if (pathname === '/.well-known/assetlinks.json') return handleAssetLinks(request, env)
     if (pathname === '/api/feed/check') return handleCheck(request, env)
     if (pathname === '/api/feed/events') return handleEvents(request, env)
+    if (pathname === '/api/push/config') return handlePushConfig(request, env)
+    if (pathname === '/api/push/test') return handlePushTest(request, env)
     if (pathname.startsWith('/api/')) return json({ ok: false, reason: 'not_found' }, 404)
 
     return env.ASSETS.fetch(request)
