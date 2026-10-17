@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { generateAllOccurrences } from '../lib/occurrenceEngine'
+import { MONTH_NAMES } from '../lib/dateUtils'
 import MonthGrid from './MonthGrid'
 import DayDetail from './DayDetail'
 import Icon from './icons'
@@ -38,6 +39,48 @@ function currentStartYear(mode: YearMode): number {
   return now.getFullYear()
 }
 
+function buildMonths(year: number, isSchool: boolean): { year: number; month: number }[] {
+  return Array.from({ length: 12 }, (_, i) => {
+    if (isSchool) {
+      const m = (8 + i) % 12
+      return { year: m >= 8 ? year : year + 1, month: m }
+    }
+    return { year, month: i }
+  })
+}
+
+// Position (0 à 11) du mois en cours dans l'année affichée, ou 0 si on est hors de cette année.
+function initialMonthIndex(year: number, isSchool: boolean): number {
+  const now = new Date()
+  const idx = buildMonths(year, isSchool).findIndex(
+    (m) => m.year === now.getFullYear() && m.month === now.getMonth()
+  )
+  return idx >= 0 ? idx : 0
+}
+
+function useIsNarrow(maxWidth = 640): boolean {
+  const query = `(max-width: ${maxWidth}px)`
+  const [narrow, setNarrow] = useState(() => window.matchMedia(query).matches)
+
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const onChange = () => setNarrow(mq.matches)
+    onChange()
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [query])
+
+  return narrow
+}
+
+// Sur téléphone, la grille des 12 mois est masquée à l'écran mais reste utilisée pour l'impression (PDF).
+const PRINT_RULES = `
+@media print {
+  .year-grid-print-only { display: grid !important; }
+  .printable-header-print-only { display: flex !important; }
+}
+`
+
 export default function YearCalendar({
   calendarId,
   calendarName,
@@ -54,8 +97,11 @@ export default function YearCalendar({
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [feed, setFeed] = useState<FeedInfo | null>(null)
   const [feedNotice, setFeedNotice] = useState<string | null>(null)
+  const isNarrow = useIsNarrow()
+  const [viewMode, setViewMode] = useState<'month' | 'year'>('month')
 
   const isSchool = yearMode === 'school'
+  const [monthIdx, setMonthIdx] = useState(() => initialMonthIndex(year, isSchool))
   const yearLabel = isSchool ? `${year}-${year + 1}` : String(year)
 
   const loadData = async () => {
@@ -140,17 +186,7 @@ export default function YearCalendar({
     return map
   }, [exceptions])
 
-  const months = useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, i) => {
-        if (isSchool) {
-          const m = (8 + i) % 12
-          return { year: m >= 8 ? year : year + 1, month: m }
-        }
-        return { year, month: i }
-      }),
-    [year, isSchool]
-  )
+  const months = useMemo(() => buildMonths(year, isSchool), [year, isSchool])
 
   const occurrencesByDate = useMemo(() => {
     const rangeStart = isSchool ? new Date(year, 8, 1) : new Date(year, 0, 1)
@@ -189,44 +225,182 @@ export default function YearCalendar({
     document.title = previousTitle
   }
 
+  const monthView = isNarrow && viewMode === 'month'
+  const currentMonth = months[monthIdx] ?? months[0]
+  const now = new Date()
+  const isCurrentMonth = currentMonth.year === now.getFullYear() && currentMonth.month === now.getMonth()
+
+  const goPrev = () => {
+    if (!monthView) {
+      setYear((y) => y - 1)
+    } else if (monthIdx === 0) {
+      setYear((y) => y - 1)
+      setMonthIdx(11)
+    } else {
+      setMonthIdx(monthIdx - 1)
+    }
+  }
+
+  const goNext = () => {
+    if (!monthView) {
+      setYear((y) => y + 1)
+    } else if (monthIdx === 11) {
+      setYear((y) => y + 1)
+      setMonthIdx(0)
+    } else {
+      setMonthIdx(monthIdx + 1)
+    }
+  }
+
+  const goToday = () => {
+    const startYear = currentStartYear(yearMode)
+    setYear(startYear)
+    setMonthIdx(initialMonthIndex(startYear, isSchool))
+  }
+
+  const openMonth = (index: number) => {
+    setMonthIdx(index)
+    setViewMode('month')
+  }
+
   if (loading) return <p style={{ color: 'var(--text-secondary)' }}>Chargement du calendrier...</p>
 
   const hasLegend = periods.length > 0 || !!feed
+  const navButtonSize = isNarrow ? 40 : 32
+  const toolbarTitle = monthView ? `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}` : yearLabel
+
+  const navButtonStyle: React.CSSProperties = {
+    background: '#f1f5f9', border: 'none', borderRadius: 8,
+    width: navButtonSize, height: navButtonSize, color: 'var(--text-primary)', fontWeight: 700, flexShrink: 0,
+  }
+
+  const modeButtonStyle = (active: boolean): React.CSSProperties => ({
+    border: 'none', borderRadius: 8, padding: '0.45rem 0.9rem', fontSize: '0.82rem', fontWeight: 700,
+    background: active ? 'var(--gradient-main)' : 'transparent',
+    color: active ? 'white' : 'var(--text-secondary)',
+  })
+
+  const monthCards = months.map(({ year: y, month: m }) => (
+    <MonthGrid
+      key={`${y}-${m}`}
+      year={y}
+      month={m}
+      occurrencesByDate={occurrencesByDate}
+      onDayClick={(dateStr) => setSelectedDate(dateStr)}
+      accentColor={calendarColor}
+      showYear={isSchool}
+    />
+  ))
 
   return (
     <div>
-      <div
-        className="no-print"
-        style={{
-          display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.2rem', flexWrap: 'wrap',
-          background: 'white', borderRadius: 12, padding: '0.7rem 1rem', boxShadow: '0 2px 8px rgba(30, 64, 175, 0.06)',
-        }}
-      >
-        <button
-          onClick={() => setYear((y) => y - 1)}
-          style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
-        >
-          ◀
-        </button>
-        <strong style={{ color: 'var(--text-primary)', fontSize: '1.1rem', minWidth: isSchool ? 100 : 50, textAlign: 'center' }}>
-          {yearLabel}
-        </strong>
-        <button
-          onClick={() => setYear((y) => y + 1)}
-          style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
-        >
-          ▶
-        </button>
-        <button
-          onClick={handleExportPDF}
+      <style>{PRINT_RULES}</style>
+
+      {isNarrow ? (
+        <div
+          className="no-print"
           style={{
-            marginLeft: 'auto', background: 'var(--gradient-main)', color: 'white', border: 'none',
-            borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
+            display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '0.9rem',
+            background: 'white', borderRadius: 12, padding: '0.6rem', boxShadow: '0 2px 8px rgba(30, 64, 175, 0.06)',
           }}
         >
-          Exporter en PDF
-        </button>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', padding: 3, borderRadius: 10 }}>
+              <button type="button" onClick={() => setViewMode('month')} style={modeButtonStyle(viewMode === 'month')}>
+                Mois
+              </button>
+              <button type="button" onClick={() => setViewMode('year')} style={modeButtonStyle(viewMode === 'year')}>
+                Année
+              </button>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {monthView && !isCurrentMonth && (
+                <button
+                  type="button"
+                  onClick={goToday}
+                  style={{
+                    background: '#eff6ff', color: 'var(--blue-dark)', border: '1px solid #bfdbfe',
+                    borderRadius: 10, padding: '0.45rem 0.8rem', fontSize: '0.82rem', fontWeight: 700,
+                  }}
+                >
+                  Aujourd'hui
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleExportPDF}
+                aria-label="Exporter en PDF"
+                style={{
+                  background: 'var(--gradient-main)', color: 'white', border: 'none',
+                  borderRadius: 10, padding: '0.45rem 0.9rem', fontSize: '0.82rem', fontWeight: 700,
+                }}
+              >
+                PDF
+              </button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={goPrev}
+              aria-label={monthView ? 'Mois précédent' : 'Année précédente'}
+              style={navButtonStyle}
+            >
+              ◀
+            </button>
+            <strong
+              style={{
+                flex: 1, textAlign: 'center', color: 'var(--text-primary)', fontSize: '1.1rem',
+              }}
+            >
+              {toolbarTitle}
+            </strong>
+            <button
+              type="button"
+              onClick={goNext}
+              aria-label={monthView ? 'Mois suivant' : 'Année suivante'}
+              style={navButtonStyle}
+            >
+              ▶
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="no-print"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.2rem', flexWrap: 'wrap',
+            background: 'white', borderRadius: 12, padding: '0.7rem 1rem', boxShadow: '0 2px 8px rgba(30, 64, 175, 0.06)',
+          }}
+        >
+          <button
+            onClick={goPrev}
+            aria-label="Année précédente"
+            style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
+          >
+            ◀
+          </button>
+          <strong style={{ color: 'var(--text-primary)', fontSize: '1.1rem', minWidth: isSchool ? 100 : 50, textAlign: 'center' }}>
+            {yearLabel}
+          </strong>
+          <button
+            onClick={goNext}
+            aria-label="Année suivante"
+            style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
+          >
+            ▶
+          </button>
+          <button
+            onClick={handleExportPDF}
+            style={{
+              marginLeft: 'auto', background: 'var(--gradient-main)', color: 'white', border: 'none',
+              borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
+            }}
+          >
+            Exporter en PDF
+          </button>
+        </div>
+      )}
 
       {feedNotice && (
         <p
@@ -247,9 +421,9 @@ export default function YearCalendar({
       )}
 
       <div
-        className="printable-header"
+        className={isNarrow ? 'printable-header printable-header-print-only' : 'printable-header'}
         style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem',
+          display: isNarrow ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem',
           marginBottom: '1.2rem',
         }}
       >
@@ -267,26 +441,62 @@ export default function YearCalendar({
         </h2>
       </div>
 
-      <div className="year-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '1rem' }}>
-        {months.map(({ year: y, month: m }) => (
+      {isNarrow && viewMode === 'month' && (
+        <div className="no-print">
           <MonthGrid
-            key={`${y}-${m}`}
-            year={y}
-            month={m}
+            key={`${currentMonth.year}-${currentMonth.month}`}
+            large
+            year={currentMonth.year}
+            month={currentMonth.month}
             occurrencesByDate={occurrencesByDate}
             onDayClick={(dateStr) => setSelectedDate(dateStr)}
             accentColor={calendarColor}
             showYear={isSchool}
           />
-        ))}
+        </div>
+      )}
+
+      {isNarrow && viewMode === 'year' && (
+        <div className="no-print">
+          <p style={{ margin: '0 0 0.7rem', fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+            Touchez un mois pour l'ouvrir.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.6rem' }}>
+            {months.map(({ year: y, month: m }, index) => (
+              <div key={`${y}-${m}`} onClick={() => openMonth(index)} style={{ cursor: 'pointer' }}>
+                <MonthGrid
+                  compact
+                  year={y}
+                  month={m}
+                  occurrencesByDate={occurrencesByDate}
+                  onDayClick={() => undefined}
+                  accentColor={calendarColor}
+                  showYear={isSchool}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div
+        className={isNarrow ? 'year-grid year-grid-print-only' : 'year-grid'}
+        style={{
+          display: isNarrow ? 'none' : 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+          gap: '1rem',
+        }}
+      >
+        {monthCards}
       </div>
 
       {hasLegend && (
         <div
           className="legend"
           style={{
-            marginTop: '1.2rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap',
-            background: 'white', borderRadius: 12, padding: '0.9rem 1.2rem', boxShadow: '0 2px 8px rgba(30, 64, 175, 0.06)',
+            marginTop: isNarrow ? '0.9rem' : '1.2rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap',
+            background: 'white', borderRadius: 12, padding: isNarrow ? '0.7rem 0.8rem' : '0.9rem 1.2rem',
+            boxShadow: '0 2px 8px rgba(30, 64, 175, 0.06)',
           }}
         >
           {periods.map((p) => (
