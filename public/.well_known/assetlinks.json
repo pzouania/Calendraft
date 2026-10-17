@@ -1,1 +1,8 @@
-
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "fr.calendraft.app",
+        "sha256_cert_fingerprints": ["45:0C:4D:E7:05:30:10:BA:6D:DA:BB:3A:F6:A2:0D:1C:C7:82:17:D7:C6:78:18:33:1C:12:DA:1F:00:91:2E:97"]
+      }
+    }]
