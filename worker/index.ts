@@ -368,10 +368,43 @@ async function handleEvents(request: Request, env: Env): Promise<Response> {
   })
 }
 
+async function handleAssetLinks(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return json({ ok: false, reason: 'method_not_allowed' }, 405)
+  }
+
+  // Le fichier est publié sous /assetlinks.json (dossier public) : un dossier
+  // caché comme .well-known n'est pas toujours envoyé par le déploiement.
+  const source = new Request(new URL('/assetlinks.json', request.url).toString(), {
+    method: 'GET',
+  })
+  const res = await env.ASSETS.fetch(source)
+  const type = res.headers.get('content-type') ?? ''
+
+  // Si le fichier est absent, le site renvoie sa page d'accueil : on refuse de la servir.
+  if (!res.ok || !type.includes('json')) return json({ ok: false, reason: 'not_found' }, 404)
+
+  const text = await res.text()
+  try {
+    if (!Array.isArray(JSON.parse(text))) throw new Error('not an array')
+  } catch {
+    return json({ ok: false, reason: 'invalid_assetlinks' }, 500)
+  }
+
+  return new Response(request.method === 'HEAD' ? null : text, {
+    status: 200,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'public, max-age=300',
+    },
+  })
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url)
 
+    if (pathname === '/.well-known/assetlinks.json') return handleAssetLinks(request, env)
     if (pathname === '/api/feed/check') return handleCheck(request, env)
     if (pathname === '/api/feed/events') return handleEvents(request, env)
     if (pathname.startsWith('/api/')) return json({ ok: false, reason: 'not_found' }, 404)
