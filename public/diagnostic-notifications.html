@@ -74,8 +74,15 @@
     <div id="local-result" class="result" role="status" aria-live="polite" hidden></div>
   </section>
 
+  <section class="card" aria-labelledby="t-log">
+    <h2 id="t-log">3. Messages push reçus</h2>
+    <p class="muted">Messages arrivés du serveur jusqu'à cet appareil. Pour remplir cette liste : allez dans Profil, touchez « Envoyer une notification test », puis revenez sur cette page.</p>
+    <div id="log" class="result" aria-live="polite">Lecture...</div>
+    <button id="refresh" class="secondary" type="button">Actualiser</button>
+  </section>
+
   <section class="card" aria-labelledby="t-copy">
-    <h2 id="t-copy">3. Résumé à me transmettre</h2>
+    <h2 id="t-copy">4. Résumé à me transmettre</h2>
     <textarea id="summary" readonly aria-label="Résumé du diagnostic"></textarea>
     <button id="copy" class="secondary" type="button">Copier le résumé</button>
     <p id="copy-note" class="muted" role="status" aria-live="polite"></p>
@@ -111,6 +118,17 @@
     return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   }
 
+  function settle(reg) {
+    return new Promise(function (resolve) {
+      var w = reg.installing || reg.waiting;
+      if (!w || w.state === 'activated') { resolve(); return; }
+      var timer = setTimeout(resolve, 6000);
+      w.addEventListener('statechange', function () {
+        if (w.state === 'activated' || w.state === 'redundant') { clearTimeout(timer); resolve(); }
+      });
+    });
+  }
+
   async function inspect() {
     add('mode', 'Ouvert dans', '', isStandalone() ? 'une application installée (mode autonome)' : 'un navigateur');
     var ua = navigator.userAgent || '';
@@ -126,6 +144,7 @@
     }
 
     add('push', 'Notifications push gérées', 'PushManager' in window ? 'ok' : 'bad', 'PushManager' in window ? 'oui' : 'non');
+    render();
 
     if (!('serviceWorker' in navigator)) {
       add('sw', 'Service worker', 'bad', 'non géré par ce navigateur');
@@ -137,6 +156,11 @@
       add('sw', 'Service worker', 'bad', "non enregistré : ouvrez d'abord calendraft.fr (connecté), puis revenez sur cette page");
       render(); return null;
     }
+    // On demande au navigateur de chercher tout de suite la dernière version du service worker.
+    try {
+      await Promise.race([reg.update(), new Promise(function (resolve) { setTimeout(resolve, 5000); })]);
+    } catch (e) { /* hors connexion ou déjà à jour */ }
+    await settle(reg);
     var worker = reg.active || reg.waiting || reg.installing;
     add('sw', 'Service worker', worker && worker.state === 'activated' ? 'ok' : 'warn', worker ? 'enregistré, état : ' + worker.state : 'enregistré, sans fichier actif');
     add('controller', 'Contrôle cette page', navigator.serviceWorker.controller ? 'ok' : 'warn', navigator.serviceWorker.controller ? 'oui' : "pas encore (rechargez la page une fois)");
@@ -145,7 +169,11 @@
       var text = await (await fetch('/sw.js', { cache: 'no-store' })).text();
       var v = (text.match(/const VERSION = '([^']+)'/) || [])[1];
       var hasPush = /addEventListener\('push'/.test(text);
-      add('version', 'Fichier service worker en ligne', v === 'v2' && hasPush ? 'ok' : 'bad', (v ? 'version ' + v : 'version inconnue') + (hasPush ? ', avec réception des notifications' : ', sans réception des notifications'));
+      add('version', 'Fichier service worker en ligne', v && hasPush ? 'ok' : 'bad', (v ? 'version ' + v : 'version inconnue') + (hasPush ? ', avec réception des notifications' : ', sans réception des notifications'));
+      var keys = await caches.keys();
+      var installed = !!v && keys.indexOf('calendraft-static-' + v) >= 0;
+      add('installed', 'Version installée sur cet appareil', installed ? 'ok' : 'bad',
+        installed ? 'à jour (' + v + ')' : "ancienne version : fermez complètement Chrome, rouvrez calendraft.fr, puis revenez ici");
     } catch (e) {
       add('version', 'Fichier service worker en ligne', 'warn', 'lecture impossible');
     }
@@ -162,7 +190,46 @@
     return reg;
   }
 
-  var regPromise = inspect().catch(function (e) { add('error', 'Erreur', 'bad', String(e && e.message || e)); render(); return null; });
+  function when(iso) {
+    try { return new Date(iso).toLocaleString('fr-FR'); } catch (e) { return iso; }
+  }
+  var READING = { json: 'données lues (JSON)', text: 'données lues (texte)', no_data: 'message vide ou illisible' };
+
+  async function loadLog() {
+    var box = document.getElementById('log');
+    var list = [];
+    try {
+      if ('caches' in window) {
+        var res = await caches.match('/__push-log', { cacheName: 'calendraft-debug' });
+        if (res) list = await res.json();
+      }
+    } catch (e) { list = []; }
+    Object.keys(report).forEach(function (k) {
+      if (k.indexOf('log') === 0) { delete report[k]; order.splice(order.indexOf(k), 1); }
+    });
+    if (list.length === 0) {
+      box.className = 'result bad';
+      box.textContent = "Aucun message push reçu par cet appareil pour l'instant.";
+      add('logcount', 'Messages push reçus par cet appareil', 'bad', 'aucun');
+    } else {
+      box.className = 'result ok';
+      box.innerHTML = list.map(function (e) {
+        var state = e.shown ? 'notification affichée' : 'affichage refusé' + (e.error ? ' (' + e.error + ')' : '');
+        return '<div>' + esc(when(e.at)) + ' : ' + esc(state) + ', ' + esc(READING[e.reading] || e.reading || '?') + (e.title ? ', titre « ' + esc(e.title) + ' »' : '') + '</div>';
+      }).join('');
+      add('logcount', 'Messages push reçus par cet appareil', 'ok', String(list.length));
+      list.slice(0, 5).forEach(function (e, i) {
+        add('log' + (i + 1), 'Message ' + (i + 1), e.shown ? 'ok' : 'bad',
+          when(e.at) + ', ' + (e.shown ? 'affichée' : 'non affichée' + (e.error ? ' : ' + e.error : '')) + ', ' + (READING[e.reading] || e.reading || '?'));
+      });
+    }
+    render();
+  }
+
+  var regPromise = inspect().catch(function (e) { add('error', 'Erreur', 'bad', String(e && e.message || e)); render(); return null; })
+    .then(function (reg) { return loadLog().then(function () { return reg; }); });
+  document.getElementById('refresh').addEventListener('click', function () { loadLog(); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) loadLog(); });
 
   var localBtn = document.getElementById('local');
   var localOut = document.getElementById('local-result');
