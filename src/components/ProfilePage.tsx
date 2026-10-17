@@ -1,7 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { getAvatarUrl } from '../lib/avatar'
+import {
+  disablePush,
+  enablePush,
+  getPushState,
+  sendTestPush,
+  type EnableResult,
+  type PushState,
+  type TestResult,
+} from '../lib/push'
 import Logo from './Logo'
 import DeleteAccountModal from './DeleteAccountModal'
 
@@ -9,6 +18,56 @@ interface ProfilePageProps {
   user: User
   onBack: () => void
   onUpdated: () => void
+}
+
+interface PushNote {
+  kind: 'ok' | 'error'
+  text: string
+}
+
+function enableErrorText(reason: Extract<EnableResult, { ok: false }>['reason']): string {
+  switch (reason) {
+    case 'denied':
+      return 'Les notifications sont bloquées pour Calendraft. Autorisez-les dans les réglages du navigateur, puis réessayez.'
+    case 'dismissed':
+      return "L'autorisation n'a pas été accordée. Réessayez et touchez Autoriser quand le navigateur le demande."
+    case 'not_configured':
+      return "Le serveur d'envoi n'est pas encore configuré (clés de notification manquantes)."
+    case 'register_failed':
+      return "Cet appareil n'a pas pu être enregistré. Réessayez dans un instant."
+    case 'unsupported':
+      return "Les notifications ne sont pas disponibles dans cette fenêtre."
+    default:
+      return "Impossible d'activer les notifications sur cet appareil."
+  }
+}
+
+function testNote(result: TestResult): PushNote {
+  if (result.ok) {
+    return result.sent > 0
+      ? { kind: 'ok', text: 'Notification envoyée. Elle doit apparaître dans quelques secondes.' }
+      : {
+          kind: 'error',
+          text: "Le serveur n'a pas réussi à joindre cet appareil. Désactivez puis réactivez les rappels.",
+        }
+  }
+  switch (result.reason) {
+    case 'no_device':
+      return { kind: 'error', text: "Cet appareil n'est pas enregistré. Désactivez puis réactivez les rappels." }
+    case 'not_configured':
+      return { kind: 'error', text: "Le serveur d'envoi n'est pas encore configuré (clés de notification manquantes)." }
+    case 'no_session':
+      return { kind: 'error', text: 'Votre session a expiré. Reconnectez-vous puis réessayez.' }
+    case 'network_error':
+      return { kind: 'error', text: 'Connexion impossible. Vérifiez votre accès internet puis réessayez.' }
+    default:
+      return { kind: 'error', text: "L'envoi a échoué. Réessayez dans un instant." }
+  }
+}
+
+const secondaryButton: React.CSSProperties = {
+  background: 'white', color: 'var(--blue-dark)', border: '1px solid var(--blue-main)',
+  borderRadius: 10, padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 600,
 }
 
 export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProps) {
@@ -21,6 +80,64 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [pushState, setPushState] = useState<PushState | null>(null)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushNote, setPushNote] = useState<PushNote | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    getPushState()
+      .catch((): PushState => ({ kind: 'unsupported', reason: 'no_push' }))
+      .then((state) => {
+        if (!cancelled) setPushState(state)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const refreshPushState = async () => {
+    const state = await getPushState().catch((): PushState => ({ kind: 'unsupported', reason: 'no_push' }))
+    setPushState(state)
+  }
+
+  const handleEnablePush = async () => {
+    setPushNote(null)
+    setPushBusy(true)
+    try {
+      const result = await enablePush()
+      if (!result.ok) setPushNote({ kind: 'error', text: enableErrorText(result.reason) })
+      else setPushNote({ kind: 'ok', text: 'Rappels activés sur cet appareil.' })
+    } catch {
+      setPushNote({ kind: 'error', text: enableErrorText('subscribe_failed') })
+    }
+    await refreshPushState()
+    setPushBusy(false)
+  }
+
+  const handleDisablePush = async () => {
+    setPushNote(null)
+    setPushBusy(true)
+    try {
+      await disablePush()
+      setPushNote({ kind: 'ok', text: 'Rappels désactivés sur cet appareil.' })
+    } catch {
+      setPushNote({ kind: 'error', text: "La désactivation a échoué. Réessayez dans un instant." })
+    }
+    await refreshPushState()
+    setPushBusy(false)
+  }
+
+  const handleTestPush = async () => {
+    setPushNote(null)
+    setPushBusy(true)
+    try {
+      setPushNote(testNote(await sendTestPush()))
+    } catch {
+      setPushNote(testNote({ ok: false, reason: 'server_error' }))
+    }
+    setPushBusy(false)
+  }
 
   const displayLabel = savedUsername || user.email || '?'
   const initial = displayLabel[0]?.toUpperCase() ?? '?'
@@ -271,6 +388,104 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
           >
             Application mobile (Android et iPhone)
           </a>
+
+          <section
+            aria-labelledby="push-title"
+            style={{
+              textAlign: 'left', background: '#eff6ff', border: '1px solid #bfdbfe',
+              borderRadius: 12, padding: '1rem', marginBottom: '1rem',
+            }}
+          >
+            <h2 id="push-title" style={{ fontSize: '0.95rem', margin: '0 0 0.3rem', color: 'var(--text-primary)' }}>
+              Rappels sur cet appareil
+            </h2>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 0.8rem', lineHeight: 1.5 }}>
+              Activez les notifications pour recevoir vos rappels d'événements. Chaque appareil
+              (téléphone, ordinateur) s'active séparément.
+            </p>
+
+            {pushState === null && (
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>Vérification en cours...</p>
+            )}
+
+            {pushState?.kind === 'unsupported' && (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', margin: 0, lineHeight: 1.5 }}>
+                {pushState.reason === 'ios_needs_install' && (
+                  <>
+                    Sur iPhone, les rappels fonctionnent uniquement depuis l'application ajoutée à l'écran
+                    d'accueil (iOS 16.4 ou plus récent). Ouvrez calendraft.fr dans Safari, touchez Partager,
+                    puis « Sur l'écran d'accueil ». <a href="/application" style={{ color: 'var(--blue-dark)', fontWeight: 600 }}>Voir les explications</a>
+                  </>
+                )}
+                {pushState.reason === 'no_service_worker' &&
+                  "Les rappels ne sont pas disponibles dans cette fenêtre. Ouvrez Calendraft sur calendraft.fr puis actualisez la page."}
+                {pushState.reason === 'no_push' &&
+                  "Ce navigateur ne gère pas les notifications. Essayez avec Chrome, Edge ou Firefox."}
+              </p>
+            )}
+
+            {pushState?.kind === 'denied' && (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', margin: 0, lineHeight: 1.5 }}>
+                Les notifications sont bloquées pour Calendraft. Autorisez-les dans les réglages du navigateur
+                (le cadenas à côté de l'adresse, puis Notifications), puis actualisez cette page.
+              </p>
+            )}
+
+            {pushState?.kind === 'off' && (
+              <button
+                onClick={handleEnablePush}
+                disabled={pushBusy}
+                style={{
+                  background: 'var(--gradient-main)', color: 'white', border: 'none',
+                  borderRadius: 10, padding: '0.7rem 1.3rem', fontSize: '0.9rem', fontWeight: 600,
+                  width: '100%', opacity: pushBusy ? 0.6 : 1,
+                }}
+              >
+                {pushBusy ? 'Activation...' : 'Activer les rappels sur cet appareil'}
+              </button>
+            )}
+
+            {pushState?.kind === 'on' && (
+              <>
+                <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#166534', margin: '0 0 0.7rem' }}>
+                  Les rappels sont activés sur cet appareil.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <button
+                    onClick={handleTestPush}
+                    disabled={pushBusy}
+                    style={{ ...secondaryButton, flex: '1 1 180px', opacity: pushBusy ? 0.6 : 1 }}
+                  >
+                    {pushBusy ? 'Envoi...' : 'Envoyer une notification test'}
+                  </button>
+                  <button
+                    onClick={handleDisablePush}
+                    disabled={pushBusy}
+                    style={{
+                      background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
+                      borderRadius: 10, padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 600,
+                      flex: '1 1 120px', opacity: pushBusy ? 0.6 : 1,
+                    }}
+                  >
+                    Désactiver
+                  </button>
+                </div>
+              </>
+            )}
+
+            <div role="status" aria-live="polite">
+              {pushNote && (
+                <p
+                  style={{
+                    fontSize: '0.82rem', margin: '0.7rem 0 0', lineHeight: 1.5, wordBreak: 'break-word',
+                    color: pushNote.kind === 'ok' ? '#16a34a' : '#dc2626',
+                  }}
+                >
+                  {pushNote.text}
+                </p>
+              )}
+            </div>
+          </section>
 
           {message && <p style={{ color: '#16a34a', fontSize: '0.85rem' }}>{message}</p>}
           {error && <p style={{ color: '#dc2626', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>}
