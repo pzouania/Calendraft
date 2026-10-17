@@ -4,6 +4,10 @@ compatibility_date = "2026-01-01"
 
 [vars]
 SUPABASE_URL = "https://dklogxyyhqlkvqrmphhz.supabase.co"
+# Notifications de rappel : la clé publique n'est pas secrète. La clé privée (VAPID_PRIVATE_KEY)
+# est un secret enregistré dans Cloudflare et ne doit jamais apparaître ici.
+VAPID_PUBLIC_KEY = "BNQfiJgk_yEehLMMWfSN1tjPEyRUy6XwlzlHnZfQ2wPCe9QRhHCgefTdOcZFpWQTyaLooyzebZmQ8z9UqBTq4Uo"
+VAPID_SUBJECT = "https://calendraft.fr"
 
 [assets]
 directory = "./dist"
