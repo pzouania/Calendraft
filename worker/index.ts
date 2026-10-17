@@ -1,4 +1,4 @@
-import { sendWebPush, type VapidConfig } from './webpush'
+import { sendEmptyPush, sendWebPush, type VapidConfig } from './webpush'
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> }
@@ -446,9 +446,13 @@ async function handlePushTest(request: Request, env: Env): Promise<Response> {
   if (!userRes.ok) return json({ ok: false, reason: 'unauthorized' }, 401)
 
   let wanted: string | null = null
+  let both = false
   try {
-    const body = (await request.json()) as { endpoint?: unknown }
+    const body = (await request.json()) as { endpoint?: unknown; mode?: unknown }
     if (typeof body.endpoint === 'string' && body.endpoint.length < 1000) wanted = body.endpoint
+    // Mode de diagnostic : envoie aussi un message vide, pour distinguer un problème de
+    // livraison d'un problème de chiffrement.
+    both = body.mode === 'both'
   } catch {
     // Corps absent ou invalide : on testera tous les appareils.
   }
@@ -480,6 +484,17 @@ async function handlePushTest(request: Request, env: Env): Promise<Response> {
     )
   )
 
+  const emptyResults = both
+    ? await Promise.all(
+        devices.map((d) =>
+          sendEmptyPush({ endpoint: d.endpoint, p256dh: d.p256dh, auth: d.auth }, vapid, {
+            ttl: 300,
+            urgency: 'high',
+          }).catch(() => ({ ok: false, status: 0, gone: false }))
+        )
+      )
+    : []
+
   // Un appareil qui n'existe plus (404 / 410) est retiré de la liste.
   const goneIds = devices.filter((_, i) => results[i].gone).map((d) => d.id)
   if (goneIds.length > 0) {
@@ -494,6 +509,9 @@ async function handlePushTest(request: Request, env: Env): Promise<Response> {
     sent: results.filter((r) => r.ok).length,
     failed: results.filter((r) => !r.ok).length,
     removed: goneIds.length,
+    // Codes de réponse du service de push (201 = accepté), pour le diagnostic.
+    statuses: results.map((r) => r.status),
+    ...(both ? { emptyStatuses: emptyResults.map((r) => r.status) } : {}),
   })
 }
 
