@@ -9,6 +9,10 @@ SUPABASE_URL = "https://dklogxyyhqlkvqrmphhz.supabase.co"
 VAPID_PUBLIC_KEY = "BNQfiJgk_yEehLMMWfSN1tjPEyRUy6XwlzlHnZfQ2wPCe9QRhHCgefTdOcZFpWQTyaLooyzebZmQ8z9UqBTq4Uo"
 VAPID_SUBJECT = "https://calendraft.fr"
 
+# Rappels : chaque minute on envoie ceux dont l'heure est arrivée, toutes les 15 minutes on prépare les suivants.
+[triggers]
+crons = ["* * * * *", "*/15 * * * *"]
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"
