@@ -5,6 +5,8 @@ import YearCalendar from './YearCalendar'
 import ShareModal from './ShareModal'
 import FeedSettings from './FeedSettings'
 import Logo from './Logo'
+import { getPushState, type PushState } from '../lib/push'
+import { choicesFor, loadMyReminders, pushHint, requestReminderSync, saveReminder } from '../lib/reminders'
 import type { Period, YearMode } from '../types'
 
 interface CalendarEditorProps {
@@ -64,6 +66,66 @@ const ShareIcon = ({ size }: { size: number }) => (
   </svg>
 )
 
+const BellIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+  </svg>
+)
+
+// Rappel personnel de l'événement (chaque personne règle le sien, y compris en lecture seule).
+function ReminderSelect({
+  name, timed, value, busy, saved, onChange,
+}: {
+  name: string
+  timed: boolean
+  value: number | null
+  busy: boolean
+  saved: boolean
+  onChange: (minutes: number | null) => void
+}) {
+  const active = value !== null
+  return (
+    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative', flex: '1 1 150px', maxWidth: 240, minWidth: 0 }}>
+        <span
+          style={{
+            position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', display: 'flex',
+            color: active ? '#1d4ed8' : '#94a3b8', pointerEvents: 'none',
+          }}
+        >
+          <BellIcon />
+        </span>
+        <select
+          aria-label={`Rappel pour ${name}`}
+          value={value === null ? '' : String(value)}
+          disabled={busy}
+          onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+          style={{
+            width: '100%', padding: '0.35rem 0.5rem 0.35rem 30px', minHeight: 34, borderRadius: 8, fontSize: '0.82rem',
+            fontWeight: active ? 600 : 400, border: `1px solid ${active ? '#bfdbfe' : '#e2e8f0'}`,
+            background: active ? '#eff6ff' : 'white', color: active ? '#1d4ed8' : '#475569', opacity: busy ? 0.6 : 1,
+          }}
+        >
+          {choicesFor(timed, value).map((c) => (
+            <option key={String(c.minutes)} value={c.minutes === null ? '' : String(c.minutes)}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {saved && <span role="status" style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 600 }}>Enregistré</span>}
+    </div>
+  )
+}
+
+function withReminder(map: Record<string, number>, id: string, minutes: number | null): Record<string, number> {
+  const next = { ...map }
+  if (minutes === null) delete next[id]
+  else next[id] = minutes
+  return next
+}
+
 export default function CalendarEditor({ calendarId, onBack }: CalendarEditorProps) {
   const [tab, setTab] = useState<Tab>('calendar')
   const [calendarName, setCalendarName] = useState('')
@@ -77,6 +139,12 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [myReminders, setMyReminders] = useState<Record<string, number>>({})
+  const [remindersOk, setRemindersOk] = useState(false)
+  const [savingReminderId, setSavingReminderId] = useState<string | null>(null)
+  const [savedReminderId, setSavedReminderId] = useState<string | null>(null)
+  const [pushState, setPushState] = useState<PushState | null>(null)
   const isNarrow = useIsNarrow()
 
   const isOwner = role === 'owner'
@@ -122,8 +190,19 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
       .eq('calendar_id', calendarId)
       .order('created_at', { ascending: true })
 
-    if (error) setError(error.message)
-    else setPeriods(data ?? [])
+    if (error) {
+      setError(error.message)
+    } else {
+      const list = (data ?? []) as Period[]
+      setPeriods(list)
+      try {
+        setMyReminders(await loadMyReminders(list.map((p) => p.id)))
+        setRemindersOk(true)
+      } catch {
+        setRemindersOk(false)
+        setError("Vos rappels n'ont pas pu être chargés. Actualisez la page.")
+      }
+    }
     setLoading(false)
   }
 
@@ -131,6 +210,43 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
     loadCalendarInfo()
     loadPeriods()
   }, [calendarId])
+
+  useEffect(() => {
+    let cancelled = false
+    getPushState()
+      .then((state) => {
+        if (!cancelled) setPushState(state)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleReminderChange = async (periodId: string, minutes: number | null) => {
+    const previous = myReminders[periodId] ?? null
+    setError(null)
+    setSavingReminderId(periodId)
+    setSavedReminderId(null)
+    setMyReminders((current) => withReminder(current, periodId, minutes))
+
+    let failure: string | null
+    try {
+      failure = await saveReminder(periodId, minutes)
+    } catch {
+      failure = 'Erreur réseau.'
+    }
+
+    if (failure) {
+      setMyReminders((current) => withReminder(current, periodId, previous))
+      setError(`Le rappel n'a pas pu être enregistré : ${failure}`)
+    } else {
+      requestReminderSync()
+      setSavedReminderId(periodId)
+      window.setTimeout(() => setSavedReminderId((current) => (current === periodId ? null : current)), 2500)
+    }
+    setSavingReminderId(null)
+  }
 
   const handleDelete = async (id: string) => {
     const confirmed = window.confirm('Supprimer cet événement ?')
@@ -293,7 +409,10 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           <>
             {canEdit && !showForm && (
               <button
-                onClick={() => setShowForm(true)}
+                onClick={() => {
+                  setNotice(null)
+                  setShowForm(true)
+                }}
                 style={{
                   background: 'var(--gradient-main)', color: 'white', border: 'none',
                   borderRadius: 12, padding: '0.8rem 1.4rem', fontSize: '0.9rem', fontWeight: 700,
@@ -309,13 +428,37 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               <div style={{ marginBottom: isNarrow ? '1rem' : '1.5rem' }}>
                 <PeriodForm
                   calendarId={calendarId}
-                  onCreated={() => {
+                  onCreated={(message) => {
                     setShowForm(false)
+                    setNotice(message ?? null)
                     loadPeriods()
                   }}
                   onCancel={() => setShowForm(false)}
                 />
               </div>
+            )}
+
+            {notice && (
+              <p
+                role="status"
+                style={{
+                  margin: '0 0 1rem', padding: '0.65rem 0.9rem', borderRadius: 10, fontSize: '0.85rem', lineHeight: 1.45,
+                  background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e',
+                }}
+              >
+                {notice}
+              </p>
+            )}
+
+            {Object.keys(myReminders).length > 0 && pushHint(pushState) && (
+              <p
+                style={{
+                  margin: '0 0 1rem', padding: '0.65rem 0.9rem', borderRadius: 10, fontSize: '0.85rem', lineHeight: 1.45,
+                  background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a',
+                }}
+              >
+                {pushHint(pushState)}
+              </p>
             )}
 
             {loading ? (
@@ -347,6 +490,16 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                         {formatFrequency(p)} — à partir du&nbsp;{formatDateFr(p.start_date)}
                         {p.start_time && ` — ${p.start_time.slice(0, 5)} à ${p.end_time?.slice(0, 5)}`}
                       </div>
+                      {remindersOk && (
+                        <ReminderSelect
+                          name={p.name}
+                          timed={Boolean(p.start_time)}
+                          value={myReminders[p.id] ?? null}
+                          busy={savingReminderId === p.id}
+                          saved={savedReminderId === p.id}
+                          onChange={(minutes) => handleReminderChange(p.id, minutes)}
+                        />
+                      )}
                     </div>
                     {canEdit && (
                       <button
