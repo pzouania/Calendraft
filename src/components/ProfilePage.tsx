@@ -11,6 +11,7 @@ import {
   type PushState,
   type TestResult,
 } from '../lib/push'
+import { requestReminderSync } from '../lib/reminders'
 import Logo from './Logo'
 import DeleteAccountModal from './DeleteAccountModal'
 
@@ -107,7 +108,11 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
     try {
       const result = await enablePush()
       if (!result.ok) setPushNote({ kind: 'error', text: enableErrorText(result.reason) })
-      else setPushNote({ kind: 'ok', text: 'Rappels activés sur cet appareil.' })
+      else {
+        setPushNote({ kind: 'ok', text: 'Rappels activés sur cet appareil.' })
+        // Les rappels déjà réglés sur vos événements deviennent actifs tout de suite.
+        requestReminderSync()
+      }
     } catch {
       setPushNote({ kind: 'error', text: enableErrorText('subscribe_failed') })
     }
@@ -401,7 +406,8 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             </h2>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 0.8rem', lineHeight: 1.5 }}>
               Activez les notifications pour recevoir vos rappels d'événements. Chaque appareil
-              (téléphone, ordinateur) s'active séparément.
+              (téléphone, ordinateur) s'active séparément. Le rappel de chaque événement se choisit
+              dans l'onglet Événements d'un calendrier.
             </p>
 
             {pushState === null && (
