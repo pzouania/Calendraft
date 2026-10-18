@@ -1,10 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { toDateOnly } from '../lib/dateUtils'
+import { getPushState, type PushState } from '../lib/push'
+import {
+  choicesFor,
+  pushHint,
+  reminderInSentence,
+  requestReminderSync,
+  saveReminder,
+} from '../lib/reminders'
 
 interface PeriodFormProps {
   calendarId: string
-  onCreated: () => void
+  // Le message éventuel signale un souci sans gravité (par exemple : événement créé, rappel non enregistré).
+  onCreated: (notice?: string) => void
   onCancel: () => void
 }
 
@@ -112,8 +121,22 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
   const [timeMode, setTimeMode] = useState<TimeMode>('allday')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
+  const [reminder, setReminder] = useState<number | null>(null)
+  const [pushState, setPushState] = useState<PushState | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    getPushState()
+      .then((state) => {
+        if (!cancelled) setPushState(state)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const timed = timeMode === 'timed'
   const crossesMidnight = timed && !!startTime && !!endTime && endTime < startTime
@@ -121,6 +144,8 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
 
   const chooseTimeMode = (mode: TimeMode) => {
     setTimeMode(mode)
+    // Les choix de rappel ne sont pas les mêmes avec ou sans horaire : on repart de « Aucun rappel ».
+    setReminder(null)
     if (mode === 'timed') {
       if (!startTime) setStartTime('08:00')
       if (!endTime) setEndTime('17:00')
@@ -150,8 +175,10 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
         : ''
     }
 
-    return `${when}${days}${time}.`
-  }, [startDate, repeat, intervalWeeks, weekOfMonth, durationDays, timed, startTime, endTime, crossesMidnight, weekday])
+    const remind = reminder === null ? '' : ` Rappel : ${reminderInSentence(reminder, timed)}.`
+
+    return `${when}${days}${time}.${remind}`
+  }, [startDate, repeat, intervalWeeks, weekOfMonth, durationDays, timed, startTime, endTime, crossesMidnight, weekday, reminder])
 
   const validate = (): string | null => {
     if (!name.trim()) return 'Donnez un nom à l\'événement.'
@@ -178,25 +205,47 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
     setError(null)
     setSaving(true)
 
-    const { error: dbError } = await supabase.from('periods').insert({
-      calendar_id: calendarId,
-      name: name.trim(),
-      color,
-      start_date: startDate,
-      frequency: repeat === 'none' ? 'once' : repeat,
-      duration_days: durationDays,
-      interval_weeks: repeat === 'weekly' ? intervalWeeks : 1,
-      week_of_month: repeat === 'monthly' ? weekOfMonth : null,
-      start_time: timed ? startTime : null,
-      end_time: timed ? endTime : null,
-    })
+    const { data: created, error: dbError } = await supabase
+      .from('periods')
+      .insert({
+        calendar_id: calendarId,
+        name: name.trim(),
+        color,
+        start_date: startDate,
+        frequency: repeat === 'none' ? 'once' : repeat,
+        duration_days: durationDays,
+        interval_weeks: repeat === 'weekly' ? intervalWeeks : 1,
+        week_of_month: repeat === 'monthly' ? weekOfMonth : null,
+        start_time: timed ? startTime : null,
+        end_time: timed ? endTime : null,
+      })
+      .select('id')
+      .single()
 
-    setSaving(false)
-    if (dbError) {
-      setError(dbError.message)
+    if (dbError || !created) {
+      setSaving(false)
+      setError(dbError ? dbError.message : "L'événement n'a pas pu être créé.")
       return
     }
-    onCreated()
+
+    // Le rappel est personnel : il est enregistré pour la personne connectée, séparément de l'événement.
+    let notice: string | undefined
+    if (reminder !== null) {
+      let reminderError: string | null
+      try {
+        reminderError = await saveReminder(created.id as string, reminder)
+      } catch {
+        reminderError = 'Erreur réseau.'
+      }
+      if (reminderError) {
+        notice = "L'événement est créé, mais son rappel n'a pas pu être enregistré. Réglez-le depuis la liste des événements."
+      } else {
+        requestReminderSync()
+      }
+    }
+
+    setSaving(false)
+    onCreated(notice)
   }
 
   return (
@@ -365,6 +414,31 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
               </p>
             )}
           </>
+        )}
+      </div>
+
+      <div style={sectionStyle}>
+        <label htmlFor="period-reminder" style={labelStyle}>Rappel (facultatif)</label>
+        <select
+          id="period-reminder"
+          style={inputStyle}
+          value={reminder === null ? '' : String(reminder)}
+          onChange={(e) => setReminder(e.target.value === '' ? null : Number(e.target.value))}
+        >
+          {choicesFor(timed, reminder).map((c) => (
+            <option key={String(c.minutes)} value={c.minutes === null ? '' : String(c.minutes)}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <p style={hintStyle}>
+          {timed
+            ? "Vous recevez une notification avant chaque occurrence de l'événement."
+            : "Pour un événement sur la journée entière, la notification part à 8 h, le jour même ou la veille. Si l'événement dure plusieurs jours de suite, elle concerne le premier jour."}{' '}
+          Ce rappel est personnel : les personnes avec qui le calendrier est partagé règlent le leur.
+        </p>
+        {reminder !== null && pushHint(pushState) && (
+          <p style={{ ...hintStyle, color: '#1d4ed8' }}>{pushHint(pushState)}</p>
         )}
       </div>
 
