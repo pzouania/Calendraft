@@ -205,29 +205,6 @@ export async function sendWebPush(
   return { ok: res.status >= 200 && res.status < 300, status: res.status, gone: res.status === 404 || res.status === 410 }
 }
 
-// Envoi d'un message sans contenu (pas de chiffrement) : sert à vérifier que le service de push
-// livre bien les messages jusqu'à l'appareil, indépendamment du chiffrement.
-export async function sendEmptyPush(
-  target: PushTarget,
-  vapid: VapidConfig,
-  options: SendOptions = {},
-  fetchImpl: typeof fetch = fetch
-): Promise<SendResult> {
-  const url = new URL(target.endpoint)
-  if (url.protocol !== 'https:') return { ok: false, status: 0, gone: false }
-
-  const headers: Record<string, string> = {
-    authorization: await vapidAuthorization(target.endpoint, vapid),
-    ttl: String(options.ttl ?? 3600),
-    urgency: options.urgency ?? 'normal',
-  }
-  if (options.topic) headers.topic = options.topic
-
-  const res = await fetchImpl(target.endpoint, { method: 'POST', headers, body: new Uint8Array(0) as BodyInit })
-  await res.arrayBuffer().catch(() => undefined)
-  return { ok: res.status >= 200 && res.status < 300, status: res.status, gone: res.status === 404 || res.status === 410 }
-}
-
 /** Génère une paire de clés VAPID (à faire une seule fois, hors du dépôt). */
 export async function generateVapidKeys(): Promise<{ publicKey: string; privateKey: string }> {
   const pair = (await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
