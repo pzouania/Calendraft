@@ -1,4 +1,5 @@
-import { sendEmptyPush, sendWebPush, type VapidConfig } from './webpush'
+import { REFILL_SLICES, refillQueue, sendDueReminders } from './reminders'
+import { sendWebPush, type VapidConfig } from './webpush'
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> }
@@ -7,6 +8,16 @@ interface Env {
   VAPID_PUBLIC_KEY?: string
   VAPID_PRIVATE_KEY?: string
   VAPID_SUBJECT?: string
+  SUPABASE_SERVICE_ROLE_KEY?: string
+}
+
+// Types minimaux des exécutions planifiées (cron) de Cloudflare.
+interface ScheduledController {
+  cron: string
+  scheduledTime: number
+}
+interface ExecutionContextLike {
+  waitUntil(promise: Promise<unknown>): void
 }
 
 interface RawEvent {
@@ -415,11 +426,72 @@ function vapidConfig(env: Env): VapidConfig | null {
 }
 
 // Clé publique des notifications : le navigateur en a besoin pour s'abonner (elle n'est pas secrète).
+// « remindersReady » indique seulement si le serveur peut préparer les rappels (aucune clé n'est révélée).
 function handlePushConfig(request: Request, env: Env): Response {
   if (request.method !== 'GET') return json({ ok: false, reason: 'method_not_allowed' }, 405)
   const vapid = vapidConfig(env)
   if (!vapid) return json({ ok: false, reason: 'not_configured' })
-  return json({ ok: true, publicKey: vapid.publicKey })
+  return json({ ok: true, publicKey: vapid.publicKey, remindersReady: Boolean(env.SUPABASE_SERVICE_ROLE_KEY) })
+}
+
+// Anti-rafale (par instance du serveur) : une personne ne relance pas la préparation plus d'une fois toutes les 5 s.
+const lastSync = new Map<string, number>()
+
+// Prépare tout de suite les rappels de la personne connectée (appelé quand elle change un rappel).
+async function handleReminderSync(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return json({ ok: false, reason: 'method_not_allowed' }, 405)
+
+  const token = bearer(request)
+  const key = apiKey(request)
+  if (!token || !key) return json({ ok: false, reason: 'unauthorized' }, 401)
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) return json({ ok: false, reason: 'not_configured' })
+
+  const userRes = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+    headers: { authorization: `Bearer ${token}`, apikey: key },
+  })
+  if (!userRes.ok) return json({ ok: false, reason: 'unauthorized' }, 401)
+  const user = (await userRes.json()) as { id?: unknown }
+  if (typeof user.id !== 'string' || !UUID_RE.test(user.id)) return json({ ok: false, reason: 'unauthorized' }, 401)
+
+  const now = Date.now()
+  const previous = lastSync.get(user.id) ?? 0
+  if (now - previous < 5000) return json({ ok: true, throttled: true })
+  lastSync.set(user.id, now)
+  if (lastSync.size > 500) lastSync.clear()
+
+  try {
+    const stats = await refillQueue(env, now, { userId: user.id })
+    return json({ ok: true, queued: stats.queued })
+  } catch {
+    return json({ ok: false, reason: 'server_error' }, 502)
+  }
+}
+
+// Tâches planifiées : chaque minute on envoie les rappels dus, toutes les 15 minutes on prépare les suivants.
+async function runScheduled(cron: string, scheduledTime: number, env: Env): Promise<void> {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('Rappels inactifs : le secret SUPABASE_SERVICE_ROLE_KEY est absent.')
+    return
+  }
+  try {
+    if (cron === '* * * * *') {
+      const vapid = vapidConfig(env)
+      if (!vapid) {
+        console.warn('Rappels inactifs : les clés VAPID sont absentes.')
+        return
+      }
+      const stats = await sendDueReminders(env, Date.now(), vapid)
+      if (stats.due > 0) console.log('rappels', JSON.stringify(stats))
+    } else if (cron === '*/15 * * * *') {
+      // 4 tranches de personnes, une toutes les 15 minutes : 00 -> 0, 15 -> 1, 30 -> 2, 45 -> 3.
+      const slice = Math.floor(new Date(scheduledTime).getUTCMinutes() / 15) % REFILL_SLICES
+      const stats = await refillQueue(env, Date.now(), { slice })
+      if (stats.truncated) console.warn('Trop de rappels dans une tranche : certains ne sont pas préparés.')
+      console.log('file de rappels', JSON.stringify({ slice, ...stats }))
+    }
+  } catch (error) {
+    console.error('Erreur des rappels :', error instanceof Error ? error.message : 'inconnue')
+  }
 }
 
 interface DeviceRow {
@@ -446,13 +518,9 @@ async function handlePushTest(request: Request, env: Env): Promise<Response> {
   if (!userRes.ok) return json({ ok: false, reason: 'unauthorized' }, 401)
 
   let wanted: string | null = null
-  let both = false
   try {
-    const body = (await request.json()) as { endpoint?: unknown; mode?: unknown }
+    const body = (await request.json()) as { endpoint?: unknown }
     if (typeof body.endpoint === 'string' && body.endpoint.length < 1000) wanted = body.endpoint
-    // Mode de diagnostic : envoie aussi un message vide, pour distinguer un problème de
-    // livraison d'un problème de chiffrement.
-    both = body.mode === 'both'
   } catch {
     // Corps absent ou invalide : on testera tous les appareils.
   }
@@ -484,17 +552,6 @@ async function handlePushTest(request: Request, env: Env): Promise<Response> {
     )
   )
 
-  const emptyResults = both
-    ? await Promise.all(
-        devices.map((d) =>
-          sendEmptyPush({ endpoint: d.endpoint, p256dh: d.p256dh, auth: d.auth }, vapid, {
-            ttl: 300,
-            urgency: 'high',
-          }).catch(() => ({ ok: false, status: 0, gone: false }))
-        )
-      )
-    : []
-
   // Un appareil qui n'existe plus (404 / 410) est retiré de la liste.
   const goneIds = devices.filter((_, i) => results[i].gone).map((d) => d.id)
   if (goneIds.length > 0) {
@@ -509,9 +566,6 @@ async function handlePushTest(request: Request, env: Env): Promise<Response> {
     sent: results.filter((r) => r.ok).length,
     failed: results.filter((r) => !r.ok).length,
     removed: goneIds.length,
-    // Codes de réponse du service de push (201 = accepté), pour le diagnostic.
-    statuses: results.map((r) => r.status),
-    ...(both ? { emptyStatuses: emptyResults.map((r) => r.status) } : {}),
   })
 }
 
@@ -524,8 +578,13 @@ export default {
     if (pathname === '/api/feed/events') return handleEvents(request, env)
     if (pathname === '/api/push/config') return handlePushConfig(request, env)
     if (pathname === '/api/push/test') return handlePushTest(request, env)
+    if (pathname === '/api/reminders/sync') return handleReminderSync(request, env)
     if (pathname.startsWith('/api/')) return json({ ok: false, reason: 'not_found' }, 404)
 
     return env.ASSETS.fetch(request)
+  },
+
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContextLike): Promise<void> {
+    ctx.waitUntil(runScheduled(controller.cron, controller.scheduledTime, env))
   },
 }
