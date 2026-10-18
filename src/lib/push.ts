@@ -14,7 +14,7 @@ export type EnableResult =
   | { ok: false; reason: 'unsupported' | 'denied' | 'dismissed' | 'not_configured' | 'subscribe_failed' | 'register_failed' }
 
 export type TestResult =
-  | { ok: true; sent: number; failed: number; detail: string }
+  | { ok: true; sent: number; failed: number }
   | { ok: false; reason: 'no_session' | 'not_configured' | 'no_device' | 'network_error' | 'server_error' }
 
 function isIOS(): boolean {
@@ -148,28 +148,10 @@ export async function sendTestPush(): Promise<TestResult> {
         authorization: `Bearer ${token}`,
         'x-supabase-key': import.meta.env.VITE_SUPABASE_ANON_KEY,
       },
-      // mode 'both' : diagnostic temporaire (envoie aussi un message vide), à retirer une fois les rappels validés.
-      body: JSON.stringify({ endpoint: subscription?.endpoint ?? null, mode: 'both' }),
+      body: JSON.stringify({ endpoint: subscription?.endpoint ?? null }),
     })
-    const body = (await res.json()) as {
-      ok?: boolean
-      reason?: string
-      sent?: number
-      failed?: number
-      statuses?: number[]
-      emptyStatuses?: number[]
-    }
-    if (body.ok) {
-      const parts: string[] = []
-      if (body.statuses?.length) parts.push(`message chiffré ${body.statuses.join(', ')}`)
-      if (body.emptyStatuses?.length) parts.push(`message vide ${body.emptyStatuses.join(', ')}`)
-      return {
-        ok: true,
-        sent: body.sent ?? 0,
-        failed: body.failed ?? 0,
-        detail: parts.length ? `Réponse du service de notification : ${parts.join(' ; ')}.` : '',
-      }
-    }
+    const body = (await res.json()) as { ok?: boolean; reason?: string; sent?: number; failed?: number }
+    if (body.ok) return { ok: true, sent: body.sent ?? 0, failed: body.failed ?? 0 }
     if (body.reason === 'not_configured') return { ok: false, reason: 'not_configured' }
     if (body.reason === 'no_device') return { ok: false, reason: 'no_device' }
     return { ok: false, reason: 'server_error' }
