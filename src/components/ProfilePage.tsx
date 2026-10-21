@@ -13,6 +13,7 @@ import {
 } from '../lib/push'
 import { requestReminderSync } from '../lib/reminders'
 import Logo from './Logo'
+import ThemeToggle from './ThemeToggle'
 import DeleteAccountModal from './DeleteAccountModal'
 import AppearanceSettings from './AppearanceSettings'
 
@@ -229,7 +230,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
     <div style={{ minHeight: '100vh' }}>
       <header
         style={{
-          background: 'var(--gradient-main)',
+          background: 'var(--header-bg)',
           padding: '0.9rem 1.5rem',
           display: 'flex',
           alignItems: 'center',
@@ -240,7 +241,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', minWidth: 0 }}>
-          <div style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center' }}>
+          <div className="header-logo" style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center' }}>
             <Logo height={38} />
           </div>
           <span style={{ color: 'white', fontSize: '1rem', fontWeight: 600, opacity: 0.95 }}>
@@ -248,30 +249,33 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
           </span>
         </div>
 
-        <div
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.6rem',
-            background: 'rgba(255,255,255,0.15)', borderRadius: 999,
-            padding: savedUsername ? '0.3rem 0.9rem 0.3rem 0.3rem' : '0.3rem',
-          }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <ThemeToggle />
           <div
             style={{
-              width: 34, height: 34, borderRadius: '50%',
-              background: 'white', color: 'var(--blue-dark)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 700, fontSize: '0.9rem', flexShrink: 0, overflow: 'hidden',
+              display: 'flex', alignItems: 'center', gap: '0.6rem',
+              background: 'rgba(255,255,255,0.15)', borderRadius: 999,
+              padding: savedUsername ? '0.3rem 0.9rem 0.3rem 0.3rem' : '0.3rem',
             }}
           >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              initial
+            <div
+              style={{
+                width: 34, height: 34, borderRadius: '50%',
+                background: 'white', color: 'var(--blue-dark)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 700, fontSize: '0.9rem', flexShrink: 0, overflow: 'hidden',
+              }}
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                initial
+              )}
+            </div>
+            {savedUsername && (
+              <span style={{ color: 'white', fontSize: '0.85rem', fontWeight: 600 }}>{savedUsername}</span>
             )}
           </div>
-          {savedUsername && (
-            <span style={{ color: 'white', fontSize: '0.85rem', fontWeight: 600 }}>{savedUsername}</span>
-          )}
         </div>
       </header>
 

@@ -5,6 +5,7 @@ import YearCalendar from './YearCalendar'
 import ShareModal from './ShareModal'
 import FeedSettings from './FeedSettings'
 import Logo from './Logo'
+import ThemeToggle from './ThemeToggle'
 import { getPushState, type PushState } from '../lib/push'
 import { choicesFor, loadMyReminders, pushHint, requestReminderSync, saveReminder } from '../lib/reminders'
 import type { Period, YearMode } from '../types'
@@ -276,7 +277,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
         <header
           className="no-print"
           style={{
-            background: 'var(--gradient-main)',
+            background: 'var(--header-bg)',
             padding: '0.6rem 1rem',
             display: 'flex',
             alignItems: 'center',
@@ -288,7 +289,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             onClick={onBack}
             aria-label="Retour"
             style={{
-              background: 'white', color: 'var(--blue-dark)', border: 'none',
+              background: 'var(--header-btn-bg)', color: 'var(--header-btn-text)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--header-btn-ring)',
               borderRadius: 999, padding: '0.5rem 0.9rem', fontSize: '0.85rem', fontWeight: 700,
               flexShrink: 0, minHeight: 36,
             }}
@@ -325,12 +326,13 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               <ShareIcon size={17} />
             </button>
           )}
+          <ThemeToggle />
         </header>
       ) : (
         <header
           className="no-print"
           style={{
-            background: 'var(--gradient-main)',
+            background: 'var(--header-bg)',
             padding: '0.9rem 1.5rem',
             display: 'flex',
             alignItems: 'center',
@@ -341,7 +343,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', minWidth: 0 }}>
-            <div style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <div className="header-logo" style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               <Logo height={32} />
             </div>
             <span style={{ color: 'white', fontSize: '1rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -360,6 +362,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             )}
           </div>
           <div style={{ display: 'flex', gap: '0.6rem', flexShrink: 0 }}>
+            <ThemeToggle />
             {isOwner && (
               <button
                 onClick={() => setShowShare(true)}
@@ -377,7 +380,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             <button
               onClick={onBack}
               style={{
-                background: 'white', color: 'var(--blue-dark)', border: 'none',
+                background: 'var(--header-btn-bg)', color: 'var(--header-btn-text)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--header-btn-ring)',
                 borderRadius: 999, padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
               }}
             >

@@ -1,4 +1,5 @@
 import Logo from './Logo'
+import ThemeToggle from './ThemeToggle'
 
 const PUBLISHER = 'étudiant '
 const CONTACT_EMAIL = 'calendraft.help@gmail.com'
@@ -71,57 +72,60 @@ export default function TermsPage() {
     <div style={{ minHeight: '100vh' }}>
       <header
         style={{
-          background: 'var(--gradient-main)',
+          background: 'var(--header-bg)',
           padding: '0.9rem 1.5rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 4px 20px rgba(30, 64, 175, 0.25)',
+          boxShadow: 'var(--shadow-header)',
           gap: '1rem',
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center' }}>
+        <div className="header-logo" style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center' }}>
           <Logo height={32} />
         </div>
-        <a
-          href="/"
-          style={{
-            background: 'white', color: 'var(--blue-dark)', borderRadius: 999,
-            padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none',
-          }}
-        >
-          Retour à Calendraft
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
+          <ThemeToggle />
+          <a
+            href="/"
+            style={{
+              background: 'var(--header-btn-bg)', color: 'var(--header-btn-text)', boxShadow: 'inset 0 0 0 1px var(--header-btn-ring)', borderRadius: 999,
+              padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none',
+            }}
+          >
+            Retour à Calendraft
+          </a>
+        </div>
       </header>
 
       <main style={{ maxWidth: 760, margin: '2rem auto', padding: '0 1.5rem 3rem' }}>
         <div
           style={{
-            background: 'white', borderRadius: 16, padding: '2rem',
-            boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)',
+            background: 'var(--surface)', borderRadius: 16, padding: '2rem',
+            boxShadow: 'var(--shadow-md)',
           }}
         >
-          <h1 style={{ margin: '0 0 0.3rem', fontSize: '1.6rem', color: '#0f172a' }}>
+          <h1 style={{ margin: '0 0 0.3rem', fontSize: '1.6rem', color: 'var(--text-primary)' }}>
             Conditions d’utilisation
           </h1>
-          <p style={{ margin: '0 0 1.8rem', fontSize: '0.85rem', color: '#64748b' }}>
+          <p style={{ margin: '0 0 1.8rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             Dernière mise à jour : {LAST_UPDATE}
           </p>
 
           {SECTIONS.map((s) => (
             <section key={s.title} style={{ marginBottom: '1.5rem' }}>
-              <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.05rem', color: '#0f172a' }}>{s.title}</h2>
+              <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.05rem', color: 'var(--text-primary)' }}>{s.title}</h2>
               {s.paragraphs.map((p, i) => (
-                <p key={i} style={{ margin: '0 0 0.6rem', fontSize: '0.92rem', lineHeight: 1.6, color: '#334155' }}>
+                <p key={i} style={{ margin: '0 0 0.6rem', fontSize: '0.92rem', lineHeight: 1.6, color: 'var(--text-strong)' }}>
                   {p}
                 </p>
               ))}
             </section>
           ))}
 
-          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-            Voir aussi notre <a href="/confidentialite" style={{ color: '#1d4ed8' }}>politique de confidentialité</a>.
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Voir aussi notre <a href="/confidentialite" style={{ color: 'var(--accent-link)' }}>politique de confidentialité</a>.
           </p>
         </div>
       </main>

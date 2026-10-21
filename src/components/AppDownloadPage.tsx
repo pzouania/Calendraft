@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import Logo from './Logo'
+import ThemeToggle from './ThemeToggle'
 
 const APK_URL = '/Calendraft.apk'
 
@@ -43,10 +44,10 @@ const IOS_STEPS: Step[] = [
 ]
 
 const cardStyle: CSSProperties = {
-  background: 'white',
+  background: 'var(--surface)',
   borderRadius: 16,
   padding: '1.6rem',
-  boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)',
+  boxShadow: 'var(--shadow-md)',
   marginBottom: '1.2rem',
 }
 
@@ -54,7 +55,7 @@ const textStyle: CSSProperties = {
   margin: '0 0 1rem',
   fontSize: '0.92rem',
   lineHeight: 1.6,
-  color: '#334155',
+  color: 'var(--text-strong)',
 }
 
 function StepList({ steps }: { steps: Step[] }) {
@@ -70,7 +71,7 @@ function StepList({ steps }: { steps: Step[] }) {
           <span
             style={{
               width: 28, height: 28, borderRadius: '50%',
-              background: 'var(--gradient-main)', color: 'white',
+              background: 'var(--gradient-main)', color: 'var(--on-accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontWeight: 700, fontSize: '0.85rem', flexShrink: 0,
             }}
@@ -78,8 +79,8 @@ function StepList({ steps }: { steps: Step[] }) {
             {index + 1}
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}>{step.title}</div>
-            <div style={{ color: '#475569', fontSize: '0.88rem', lineHeight: 1.55, marginTop: 2 }}>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{step.title}</div>
+            <div style={{ color: 'var(--text-body)', fontSize: '0.88rem', lineHeight: 1.55, marginTop: 2 }}>
               {step.text}
             </div>
           </div>
@@ -106,11 +107,11 @@ function Section({
           flexWrap: 'wrap', marginBottom: '0.8rem',
         }}
       >
-        <h2 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a' }}>{title}</h2>
+        <h2 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>{title}</h2>
         {isYours && (
           <span
             style={{
-              background: '#eff6ff', color: 'var(--blue-dark)', border: '1px solid #bfdbfe',
+              background: 'var(--surface-tint)', color: 'var(--accent-text)', border: '1px solid var(--tint-border)',
               borderRadius: 999, padding: '0.15rem 0.7rem', fontSize: '0.75rem', fontWeight: 700,
             }}
           >
@@ -138,14 +139,14 @@ export default function AppDownloadPage() {
         href={APK_URL}
         download="Calendraft.apk"
         style={{
-          display: 'inline-block', background: 'var(--gradient-main)', color: 'white',
+          display: 'inline-block', background: 'var(--gradient-main)', color: 'var(--on-accent)',
           borderRadius: 12, padding: '0.85rem 1.6rem', fontSize: '1rem', fontWeight: 700,
-          textDecoration: 'none', boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+          textDecoration: 'none', boxShadow: 'var(--shadow-accent-md)',
         }}
       >
         Télécharger pour Android
       </a>
-      <p style={{ margin: '0.6rem 0 1.4rem', fontSize: '0.8rem', color: '#64748b' }}>
+      <p style={{ margin: '0.6rem 0 1.4rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
         Fichier APK, environ 1,5 Mo
       </p>
       <StepList steps={ANDROID_STEPS} />
@@ -167,28 +168,31 @@ export default function AppDownloadPage() {
     <div style={{ minHeight: '100vh' }}>
       <header
         style={{
-          background: 'var(--gradient-main)',
+          background: 'var(--header-bg)',
           padding: '0.9rem 1.5rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 4px 20px rgba(30, 64, 175, 0.25)',
+          boxShadow: 'var(--shadow-header)',
           gap: '1rem',
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center' }}>
+        <div className="header-logo" style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center' }}>
           <Logo height={32} />
         </div>
-        <a
-          href="/"
-          style={{
-            background: 'white', color: 'var(--blue-dark)', borderRadius: 999,
-            padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none',
-          }}
-        >
-          Retour à Calendraft
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
+          <ThemeToggle />
+          <a
+            href="/"
+            style={{
+              background: 'var(--header-btn-bg)', color: 'var(--header-btn-text)', boxShadow: 'inset 0 0 0 1px var(--header-btn-ring)', borderRadius: 999,
+              padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none',
+            }}
+          >
+            Retour à Calendraft
+          </a>
+        </div>
       </header>
 
       <main style={{ maxWidth: 760, margin: '2rem auto', padding: '0 1.5rem 3rem' }}>
@@ -198,13 +202,13 @@ export default function AppDownloadPage() {
             alt=""
             width={72}
             height={72}
-            style={{ borderRadius: 18, flexShrink: 0, boxShadow: '0 4px 14px rgba(30, 64, 175, 0.2)' }}
+            style={{ borderRadius: 18, flexShrink: 0, boxShadow: 'var(--shadow-icon)' }}
           />
           <div style={{ flex: '1 1 260px', minWidth: 0 }}>
-            <h1 style={{ margin: '0 0 0.3rem', fontSize: '1.6rem', color: '#0f172a' }}>
+            <h1 style={{ margin: '0 0 0.3rem', fontSize: '1.6rem', color: 'var(--text-primary)' }}>
               Calendraft sur votre téléphone
             </h1>
-            <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: 1.6, color: '#334155' }}>
+            <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: 1.6, color: 'var(--text-strong)' }}>
               Retrouvez vos calendriers comme dans une vraie application, gratuite, depuis l’écran
               d’accueil de votre téléphone.
             </p>
@@ -214,7 +218,7 @@ export default function AppDownloadPage() {
         {isIOS ? [ios, android] : [android, ios]}
 
         <section style={cardStyle}>
-          <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.15rem', color: '#0f172a' }}>À savoir</h2>
+          <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.15rem', color: 'var(--text-primary)' }}>À savoir</h2>
           <p style={{ ...textStyle, marginBottom: '0.6rem' }}>
             L’application affiche calendraft.fr : vos calendriers sont toujours à jour, sans
             réinstaller. Une connexion internet est nécessaire.

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Logo from './Logo';
+import ThemeToggle from './ThemeToggle';
 
 export default function ResetPasswordForm() {
   const [password, setPassword] = useState('');
@@ -40,6 +41,7 @@ export default function ResetPasswordForm() {
         padding: '1rem',
       }}
     >
+      <ThemeToggle variant="floating" />
       <div
         style={{
           background: 'var(--surface)',

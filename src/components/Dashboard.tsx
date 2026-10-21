@@ -5,6 +5,7 @@ import { getAvatarUrl } from '../lib/avatar'
 import { generateAllOccurrences } from '../lib/occurrenceEngine'
 import { toDateOnly } from '../lib/dateUtils'
 import Logo from './Logo'
+import ThemeToggle from './ThemeToggle'
 import Icon from './icons'
 import CalendarFormModal from './CalendarFormModal'
 import type { Calendar, Occurrence, Period, PeriodException } from '../types'
@@ -423,7 +424,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
   const header = (
     <header
       style={{
-        background: 'var(--gradient-main)',
+        background: 'var(--header-bg)',
         padding: isNarrow ? '0.6rem 1rem' : '0.9rem 1.5rem',
         display: 'flex',
         alignItems: 'center',
@@ -435,6 +436,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.7rem' : '1.2rem', minWidth: 0 }}>
         <div
+          className="header-logo"
           style={{
             background: 'white', borderRadius: 10,
             padding: isNarrow ? '0.3rem 0.8rem' : '0.4rem 1rem',
@@ -450,34 +452,37 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
         )}
       </div>
 
-      <button
-        onClick={onOpenProfile}
-        title="Mon profil"
-        style={{
-          display: 'flex', alignItems: 'center', gap: '0.6rem',
-          background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 999,
-          padding: username && !isNarrow ? '0.3rem 0.9rem 0.3rem 0.3rem' : '0.3rem',
-          flexShrink: 0,
-        }}
-      >
-        <div
+      <div style={{ display: 'flex', alignItems: 'center', gap: isNarrow ? '0.5rem' : '0.6rem', flexShrink: 0 }}>
+        <ThemeToggle />
+        <button
+          onClick={onOpenProfile}
+          title="Mon profil"
           style={{
-            width: isNarrow ? 36 : 34, height: isNarrow ? 36 : 34, borderRadius: '50%',
-            background: 'white', color: 'var(--blue-dark)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 700, fontSize: '0.9rem', flexShrink: 0, overflow: 'hidden',
+            display: 'flex', alignItems: 'center', gap: '0.6rem',
+            background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 999,
+            padding: username && !isNarrow ? '0.3rem 0.9rem 0.3rem 0.3rem' : '0.3rem',
+            flexShrink: 0,
           }}
         >
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            initial
+          <div
+            style={{
+              width: isNarrow ? 36 : 34, height: isNarrow ? 36 : 34, borderRadius: '50%',
+              background: 'white', color: 'var(--blue-dark)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 700, fontSize: '0.9rem', flexShrink: 0, overflow: 'hidden',
+            }}
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              initial
+            )}
+          </div>
+          {username && !isNarrow && (
+            <span style={{ color: 'var(--on-accent)', fontSize: '0.85rem', fontWeight: 600 }}>{username}</span>
           )}
-        </div>
-        {username && !isNarrow && (
-          <span style={{ color: 'var(--on-accent)', fontSize: '0.85rem', fontWeight: 600 }}>{username}</span>
-        )}
-      </button>
+        </button>
+      </div>
     </header>
   )
 

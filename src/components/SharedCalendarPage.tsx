@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import YearCalendar from './YearCalendar'
 import Logo from './Logo'
+import ThemeToggle from './ThemeToggle'
 import type { Period, PeriodException, YearMode } from '../types'
 
 interface SharedData {
@@ -65,18 +66,18 @@ export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
     <header
       className="no-print"
       style={{
-        background: 'var(--gradient-main)',
+        background: 'var(--header-bg)',
         padding: '0.9rem 1.5rem',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        boxShadow: '0 4px 20px rgba(30, 64, 175, 0.25)',
+        boxShadow: 'var(--shadow-header)',
         gap: '1rem',
         flexWrap: 'wrap',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', minWidth: 0 }}>
-        <div style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+        <div className="header-logo" style={{ background: 'white', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <Logo height={32} />
         </div>
         <span style={{ color: 'white', fontSize: '1rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -94,15 +95,18 @@ export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
           </span>
         )}
       </div>
-      <button
-        onClick={goHome}
-        style={{
-          background: 'white', color: 'var(--blue-dark)', border: 'none',
-          borderRadius: 999, padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700, flexShrink: 0,
-        }}
-      >
-        Ouvrir Calendraft
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
+        <ThemeToggle />
+        <button
+          onClick={goHome}
+          style={{
+            background: 'var(--header-btn-bg)', color: 'var(--header-btn-text)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--header-btn-ring)',
+            borderRadius: 999, padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700, flexShrink: 0,
+          }}
+        >
+          Ouvrir Calendraft
+        </button>
+      </div>
     </header>
   )
 
@@ -117,8 +121,8 @@ export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
         <main style={{ maxWidth: 480, margin: '4rem auto', padding: '0 1.5rem' }}>
           <div
             style={{
-              background: 'white', borderRadius: 16, padding: '2rem', textAlign: 'center',
-              boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)',
+              background: 'var(--surface)', borderRadius: 16, padding: '2rem', textAlign: 'center',
+              boxShadow: 'var(--shadow-md)',
             }}
           >
             <h2 style={{ margin: '0 0 0.6rem', color: 'var(--text-primary)', fontSize: '1.2rem' }}>

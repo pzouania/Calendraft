@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Logo from './Logo'
+import ThemeToggle from './ThemeToggle'
 import Icon from './icons'
 
 type Mode = 'login' | 'signup' | 'forgot'
@@ -129,6 +130,7 @@ export default function AuthPage() {
         flexWrap: 'wrap',
       }}
     >
+      <ThemeToggle variant="floating" />
       {isWide && (
         <div
           style={{
