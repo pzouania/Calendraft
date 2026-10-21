@@ -4,6 +4,10 @@
 
 Site : [calendraft.fr](https://calendraft.fr)
 
+## 100 % gratuit
+
+Calendraft est conçu pour rester entièrement gratuit pour ses utilisateurs : pas d'abonnement, pas de version payante, pas de publicité et aucune carte bancaire demandée. Toutes les fonctionnalités sont accessibles à tous, sans limite cachée.
+
 ## À quoi ça sert ?
 
 Calendraft aide à organiser et visualiser des rythmes qui se répètent tout au long de l'année, par exemple :
