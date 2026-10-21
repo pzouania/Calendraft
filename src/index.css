@@ -25,6 +25,12 @@
   --accent-link: #1d4ed8; /* liens et icônes actives dans les formulaires */
   --on-accent: #ffffff; /* texte posé sur le dégradé ou sur un fond d'accent */
 
+  /* Barre du haut (en-tête) : suit le thème (dégradé d'accent en clair, bleu nuit en sombre) */
+  --header-bg: var(--gradient-main);
+  --header-btn-bg: #ffffff; /* boutons blancs posés sur la barre du haut */
+  --header-btn-text: var(--blue-dark);
+  --header-btn-ring: transparent;
+
   /* Fond de page (ciel) */
   --bg-page: #eef4ff;
   --page-gradient: linear-gradient(160deg, #d7e6fb 0%, #a9c6f5 55%, #cfe0fb 100%);
@@ -103,6 +109,12 @@
     --accent-text: #8ab4ff;
     --accent-link: #8ab4ff;
     --on-accent: #ffffff;
+
+    /* Barre du haut (en-tête) */
+    --header-bg: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+    --header-btn-bg: rgba(255, 255, 255, 0.14);
+    --header-btn-text: #ffffff;
+    --header-btn-ring: rgba(255, 255, 255, 0.3);
 
     /* Fond de page (ciel de nuit) */
     --bg-page: #0b1324;
@@ -200,12 +212,18 @@
     color: var(--text-primary) !important;
   }
 
-  /* Logo : lettres bleu foncé sur fond transparent. Sur une surface sombre, il est posé sur une plaque claire
-     (même principe que la pastille blanche des en-têtes). Classe logo-slot posée sur le conteneur du logo. */
-  :root[data-mode='dark'] .logo-slot > div {
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 0 0.9rem;
+  /* Logo : lettres bleu foncé sur fond transparent, illisibles sur fond sombre. En mode sombre, le logo est
+     éclairci par un filtre (plus de plaque blanche). Classe header-logo : pastille du logo dans les barres du haut ;
+     classe logo-slot : logo posé sur une carte (connexion, nouveau mot de passe). */
+  :root[data-mode='dark'] .header-logo {
+    background: transparent !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  :root[data-mode='dark'] .header-logo img,
+  :root[data-mode='dark'] .logo-slot img {
+    filter: invert(1) hue-rotate(180deg) brightness(1.6) contrast(1.1);
   }
 }
 
