@@ -62,7 +62,7 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
     <div
       style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.5)', display: 'flex',
+        backgroundColor: 'var(--overlay-strong)', display: 'flex',
         alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem',
       }}
       onClick={() => {
@@ -71,19 +71,19 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
     >
       <div
         style={{
-          backgroundColor: 'white', borderRadius: 16, padding: '1.5rem',
+          backgroundColor: 'var(--surface)', borderRadius: 16, padding: '1.5rem',
           width: 'min(460px, 94vw)', maxHeight: '90vh', overflowY: 'auto',
-          boxShadow: '0 20px 60px rgba(15, 23, 42, 0.3)',
+          boxShadow: 'var(--shadow-modal)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ margin: '0 0 0.6rem', fontSize: '1.1rem', color: '#991b1b' }}>
+        <h3 style={{ margin: '0 0 0.6rem', fontSize: '1.1rem', color: 'var(--danger-strong)' }}>
           Supprimer mon compte
         </h3>
-        <p style={{ margin: '0 0 0.8rem', fontSize: '0.9rem', color: '#334155', lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 0.8rem', fontSize: '0.9rem', color: 'var(--text-strong)', lineHeight: 1.5 }}>
           Cette action est <strong>définitive</strong> et ne peut pas être annulée. Seront effacés :
         </p>
-        <ul style={{ margin: '0 0 0.8rem', paddingLeft: '1.2rem', fontSize: '0.88rem', color: '#334155', lineHeight: 1.6 }}>
+        <ul style={{ margin: '0 0 0.8rem', paddingLeft: '1.2rem', fontSize: '0.88rem', color: 'var(--text-strong)', lineHeight: 1.6 }}>
           <li>votre compte et votre photo de profil ;</li>
           <li>tous les calendriers que vous avez créés, avec leurs événements et l'emploi du temps importé ;</li>
           <li>vos liens de partage et les accès que vous aviez donnés.</li>
@@ -91,14 +91,14 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
         <p
           style={{
             margin: '0 0 1rem', padding: '0.6rem 0.8rem', borderRadius: 10,
-            background: '#fef2f2', color: '#991b1b', fontSize: '0.85rem', lineHeight: 1.5,
+            background: 'var(--danger-bg)', color: 'var(--danger-strong)', fontSize: '0.85rem', lineHeight: 1.5,
           }}
         >
           Les personnes avec qui vous partagez vos calendriers les perdront aussi. Pensez à les exporter en PDF
           avant de continuer. Les calendriers que d'autres ont partagés avec vous ne sont pas touchés.
         </p>
 
-        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>
+        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
           Pour confirmer, tapez {CONFIRM_WORD}
         </label>
         <input
@@ -109,12 +109,12 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
           placeholder={CONFIRM_WORD}
           style={{
             width: '100%', padding: '0.6rem 0.8rem', borderRadius: 10, fontSize: '0.9rem',
-            border: '1px solid #e2e8f0', outline: 'none', marginBottom: '1rem',
+            border: '1px solid var(--border)', outline: 'none', marginBottom: '1rem',
           }}
         />
 
         {error && (
-          <p style={{ margin: '0 0 1rem', color: '#dc2626', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>
+          <p style={{ margin: '0 0 1rem', color: 'var(--danger)', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>
         )}
 
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -122,7 +122,7 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
             onClick={handleDelete}
             disabled={!ready || busy}
             style={{
-              background: '#dc2626', color: 'white', border: 'none', borderRadius: 10,
+              background: 'var(--danger-solid)', color: 'var(--on-accent)', border: 'none', borderRadius: 10,
               padding: '0.65rem 1.2rem', fontSize: '0.88rem', fontWeight: 700,
               opacity: !ready || busy ? 0.5 : 1,
             }}
@@ -133,7 +133,7 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
             onClick={onClose}
             disabled={busy}
             style={{
-              background: 'transparent', color: '#475569', border: '1px solid #e2e8f0',
+              background: 'transparent', color: 'var(--text-body)', border: '1px solid var(--border)',
               borderRadius: 10, padding: '0.65rem 1.2rem', fontSize: '0.88rem', fontWeight: 600,
             }}
           >

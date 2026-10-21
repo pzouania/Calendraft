@@ -48,7 +48,7 @@ function ProviderLogo({ provider }: { provider: Provider }) {
   return (
     <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true">
       <path
-        fill="#0f172a"
+        fill="currentColor"
         d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
       />
     </svg>
@@ -106,7 +106,7 @@ export default function AuthPage() {
     border: 'none',
     borderRadius: 10,
     background: active ? 'var(--gradient-main)' : 'transparent',
-    color: active ? 'white' : 'var(--text-secondary)',
+    color: active ? 'var(--on-accent)' : 'var(--text-secondary)',
     fontWeight: 600,
     fontSize: '0.85rem',
   })
@@ -114,7 +114,7 @@ export default function AuthPage() {
   const inputStyle: React.CSSProperties = {
     padding: '0.7rem 0.9rem',
     borderRadius: 10,
-    border: '1px solid #e2e8f0',
+    border: '1px solid var(--border)',
     fontSize: '0.95rem',
     outline: 'none',
   }
@@ -140,10 +140,10 @@ export default function AuthPage() {
             padding: '3rem 4rem',
           }}
         >
-          <h1 style={{ fontSize: '2.2rem', lineHeight: 1.15, margin: '0 0 1rem', maxWidth: 460, color: '#0f172a' }}>
+          <h1 style={{ fontSize: '2.2rem', lineHeight: 1.15, margin: '0 0 1rem', maxWidth: 460, color: 'var(--text-primary)' }}>
             Vos calendriers personnalisés, enfin simples à créer.
           </h1>
-          <p style={{ fontSize: '1.05rem', color: '#334155', maxWidth: 460, margin: '0 0 2rem' }}>
+          <p style={{ fontSize: '1.05rem', color: 'var(--text-strong)', maxWidth: 460, margin: '0 0 2rem' }}>
             Définissez vos périodes récurrentes une seule fois, Calendraft génère et met à jour tout le reste.
           </p>
 
@@ -155,10 +155,10 @@ export default function AuthPage() {
                   display: 'flex',
                   gap: '0.9rem',
                   alignItems: 'flex-start',
-                  background: 'rgba(255, 255, 255, 0.75)',
+                  background: 'var(--surface-glass)',
                   borderRadius: 14,
                   padding: '0.9rem 1.1rem',
-                  boxShadow: '0 2px 10px rgba(30, 64, 175, 0.08)',
+                  boxShadow: 'var(--shadow-xs)',
                 }}
               >
                 <div
@@ -176,8 +176,8 @@ export default function AuthPage() {
                   <Icon name={f.icon} size={18} color="white" />
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{f.title}</div>
-                  <div style={{ fontSize: '0.85rem', color: '#334155' }}>{f.desc}</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{f.title}</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-strong)' }}>{f.desc}</div>
                 </div>
               </div>
             ))}
@@ -197,19 +197,19 @@ export default function AuthPage() {
       >
         <div
           style={{
-            background: 'white',
+            background: 'var(--surface)',
             borderRadius: 20,
             padding: '2rem 2rem 2.2rem',
             width: '100%',
             maxWidth: 380,
-            boxShadow: '0 10px 40px rgba(30, 64, 175, 0.12)',
+            boxShadow: 'var(--shadow-lg)',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
+          <div className="logo-slot" style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
             <Logo height={72} />
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: '1.5rem', background: '#f1f5f9', padding: 4, borderRadius: 12 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: '1.5rem', background: 'var(--surface-alt)', padding: 4, borderRadius: 12 }}>
             <button style={tabStyle(mode === 'login')} onClick={() => setMode('login')}>Connexion</button>
             <button style={tabStyle(mode === 'signup')} onClick={() => setMode('signup')}>Créer un compte</button>
             <button style={tabStyle(mode === 'forgot')} onClick={() => setMode('forgot')}>Oublié</button>
@@ -243,7 +243,7 @@ export default function AuthPage() {
                 borderRadius: 10,
                 border: 'none',
                 background: 'var(--gradient-main)',
-                color: 'white',
+                color: 'var(--on-accent)',
                 fontWeight: 600,
                 fontSize: '0.95rem',
                 marginTop: '0.4rem',
@@ -256,9 +256,9 @@ export default function AuthPage() {
           {showOAuth && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '1.2rem 0' }}>
-                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-                <span style={{ fontSize: '0.78rem', color: '#64748b' }}>ou</span>
-                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>ou</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -274,9 +274,9 @@ export default function AuthPage() {
                       gap: 10,
                       padding: '0.7rem',
                       borderRadius: 10,
-                      border: '1px solid #e2e8f0',
-                      background: 'white',
-                      color: '#0f172a',
+                      border: '1px solid var(--border)',
+                      background: 'var(--surface)',
+                      color: 'var(--text-primary)',
                       fontWeight: 600,
                       fontSize: '0.9rem',
                     }}
@@ -289,8 +289,8 @@ export default function AuthPage() {
             </>
           )}
 
-          {error && <p style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '0.8rem' }}>{error}</p>}
-          {message && <p style={{ color: '#16a34a', fontSize: '0.85rem', marginTop: '0.8rem' }}>{message}</p>}
+          {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{error}</p>}
+          {message && <p style={{ color: 'var(--success)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{message}</p>}
 
           <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2rem' }}>
             <p style={{ margin: '0 0 0.4rem' }}>© {new Date().getFullYear()} Calendraft. Tous droits réservés.</p>

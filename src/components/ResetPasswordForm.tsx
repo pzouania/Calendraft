@@ -42,16 +42,17 @@ export default function ResetPasswordForm() {
     >
       <div
         style={{
-          background: 'white',
+          background: 'var(--surface)',
           borderRadius: 20,
           padding: '2.5rem 2rem',
           width: '100%',
           maxWidth: 380,
-          boxShadow: '0 10px 40px rgba(30, 64, 175, 0.12)',
+          boxShadow: 'var(--shadow-lg)',
           textAlign: 'center',
         }}
       >
         <div
+          className="logo-slot"
           style={{
             display: 'flex',
             justifyContent: 'center',
@@ -63,7 +64,7 @@ export default function ResetPasswordForm() {
 
         {success ? (
           <>
-            <p style={{ color: '#16a34a', fontWeight: 600 }}>
+            <p style={{ color: 'var(--success)', fontWeight: 600 }}>
               Mot de passe mis à jour avec succès.
             </p>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
@@ -100,7 +101,7 @@ export default function ResetPasswordForm() {
               style={{
                 padding: '0.7rem 0.9rem',
                 borderRadius: 10,
-                border: '1px solid #e2e8f0',
+                border: '1px solid var(--border)',
                 fontSize: '0.95rem',
                 outline: 'none',
               }}
@@ -115,7 +116,7 @@ export default function ResetPasswordForm() {
               style={{
                 padding: '0.7rem 0.9rem',
                 borderRadius: 10,
-                border: '1px solid #e2e8f0',
+                border: '1px solid var(--border)',
                 fontSize: '0.95rem',
                 outline: 'none',
               }}
@@ -128,7 +129,7 @@ export default function ResetPasswordForm() {
                 borderRadius: 10,
                 border: 'none',
                 background: 'var(--gradient-main)',
-                color: 'white',
+                color: 'var(--on-accent)',
                 fontWeight: 600,
                 fontSize: '0.95rem',
                 marginTop: '0.4rem',
@@ -137,7 +138,7 @@ export default function ResetPasswordForm() {
               {saving ? 'Enregistrement...' : 'Mettre à jour le mot de passe'}
             </button>
             {error && (
-              <p style={{ color: '#dc2626', fontSize: '0.85rem' }}>{error}</p>
+              <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p>
             )}
           </form>
         )}

@@ -82,7 +82,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
     <div
       style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.45)', display: 'flex',
+        backgroundColor: 'var(--overlay)', display: 'flex',
         alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem',
       }}
       onClick={onClose}
@@ -91,9 +91,9 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
         style={{
-          backgroundColor: 'white', padding: '1.5rem', borderRadius: 16,
+          backgroundColor: 'var(--surface)', padding: '1.5rem', borderRadius: 16,
           width: 'min(420px, 92vw)', maxHeight: '92vh', overflowY: 'auto',
-          boxShadow: '0 20px 60px rgba(15, 23, 42, 0.3)',
+          boxShadow: 'var(--shadow-modal)',
           display: 'flex', flexDirection: 'column', gap: '1rem',
         }}
       >
@@ -119,7 +119,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
             autoFocus
             style={{
               width: '100%', padding: '0.6rem 0.8rem', borderRadius: 10,
-              border: '1px solid #e2e8f0', fontSize: '0.9rem', outline: 'none',
+              border: '1px solid var(--border)', fontSize: '0.9rem', outline: 'none',
             }}
           />
         </div>
@@ -136,12 +136,12 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
                   onClick={() => setYearMode(m.value)}
                   style={{
                     textAlign: 'left', padding: '0.6rem 0.8rem', borderRadius: 10,
-                    border: active ? `2px solid ${color}` : '1px solid #e2e8f0',
-                    background: active ? '#f0f5ff' : 'white',
+                    border: active ? `2px solid ${color}` : '1px solid var(--border)',
+                    background: active ? 'var(--surface-tint)' : 'var(--surface)',
                   }}
                 >
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>{m.title}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{m.desc}</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{m.title}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.desc}</div>
                 </button>
               )
             })}
@@ -158,8 +158,8 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
                 onClick={() => setIcon(key)}
                 style={{
                   width: '100%', aspectRatio: '1', borderRadius: 10,
-                  border: icon === key ? `2px solid ${color}` : '1px solid #e2e8f0',
-                  background: icon === key ? '#f0f5ff' : 'white',
+                  border: icon === key ? `2px solid ${color}` : '1px solid var(--border)',
+                  background: icon === key ? 'var(--surface-tint)' : 'var(--surface)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
@@ -186,14 +186,14 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
           </div>
         </div>
 
-        {error && <p style={{ color: '#dc2626', fontSize: '0.85rem', margin: 0 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', margin: 0 }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: '0.6rem' }}>
           <button
             type="submit"
             disabled={saving}
             style={{
-              flex: 1, background: 'var(--gradient-main)', color: 'white', border: 'none',
+              flex: 1, background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
               borderRadius: 10, padding: '0.7rem', fontSize: '0.9rem', fontWeight: 700,
             }}
           >
@@ -203,7 +203,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
             type="button"
             onClick={onClose}
             style={{
-              background: 'transparent', color: 'var(--text-secondary)', border: '1px solid #e2e8f0',
+              background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)',
               borderRadius: 10, padding: '0.7rem 1.1rem', fontSize: '0.9rem', fontWeight: 600,
             }}
           >

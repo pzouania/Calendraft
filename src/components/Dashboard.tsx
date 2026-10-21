@@ -330,7 +330,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
     margin: '0 0 0.8rem',
     fontSize: '1rem',
     fontWeight: 700,
-    color: '#0f172a',
+    color: 'var(--text-primary)',
   }
 
   const gridStyle: React.CSSProperties = {
@@ -344,23 +344,23 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
       key={cal.id}
       onClick={() => onOpenCalendar(cal.id)}
       style={{
-        background: 'white', borderRadius: 16, padding: '1.3rem',
-        boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)', cursor: 'pointer',
+        background: 'var(--surface)', borderRadius: 16, padding: '1.3rem',
+        boxShadow: 'var(--shadow-md)', cursor: 'pointer',
         transition: 'transform 0.15s, box-shadow 0.15s', position: 'relative',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-3px)'
-        e.currentTarget.style.boxShadow = '0 8px 24px rgba(30, 64, 175, 0.16)'
+        e.currentTarget.style.boxShadow = 'var(--shadow-hover)'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = '0 4px 16px rgba(30, 64, 175, 0.08)'
+        e.currentTarget.style.boxShadow = 'var(--shadow-md)'
       }}
     >
       {isShared ? (
         <span
           style={{
-            position: 'absolute', top: 12, right: 12, background: '#eff6ff', color: '#1e40af',
+            position: 'absolute', top: 12, right: 12, background: 'var(--surface-tint)', color: 'var(--accent-text)',
             borderRadius: 999, padding: '0.15rem 0.6rem', fontSize: '0.7rem', fontWeight: 700,
           }}
         >
@@ -374,7 +374,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
           }}
           title="Modifier"
           style={{
-            position: 'absolute', top: 10, right: 10, background: '#f1f5f9', border: 'none',
+            position: 'absolute', top: 10, right: 10, background: 'var(--surface-alt)', border: 'none',
             borderRadius: 8, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'var(--text-secondary)',
           }}
@@ -400,7 +400,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
         <button
           onClick={(e) => handleLeave(cal.id, e)}
           style={{
-            background: 'transparent', border: '1px solid #e2e8f0', color: '#475569',
+            background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-body)',
             borderRadius: 8, padding: '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600,
           }}
         >
@@ -410,7 +410,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
         <button
           onClick={(e) => handleDelete(cal.id, e)}
           style={{
-            background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
+            background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
             borderRadius: 8, padding: '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600,
           }}
         >
@@ -428,7 +428,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        boxShadow: '0 4px 20px rgba(30, 64, 175, 0.25)',
+        boxShadow: 'var(--shadow-header)',
         gap: '1rem',
         flexWrap: isNarrow ? 'nowrap' : 'wrap',
       }}
@@ -444,7 +444,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
           <Logo height={isNarrow ? 30 : 38} />
         </div>
         {!isNarrow && (
-          <span style={{ color: 'white', fontSize: '1rem', fontWeight: 600, opacity: 0.95 }}>
+          <span style={{ color: 'var(--on-accent)', fontSize: '1rem', fontWeight: 600, opacity: 0.95 }}>
             Mes calendriers
           </span>
         )}
@@ -475,7 +475,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
           )}
         </div>
         {username && !isNarrow && (
-          <span style={{ color: 'white', fontSize: '0.85rem', fontWeight: 600 }}>{username}</span>
+          <span style={{ color: 'var(--on-accent)', fontSize: '0.85rem', fontWeight: 600 }}>{username}</span>
         )}
       </button>
     </header>
@@ -495,10 +495,10 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
         <div
           key={s.label}
           style={{
-            background: 'white', borderRadius: 14,
+            background: 'var(--surface)', borderRadius: 14,
             padding: isNarrow ? '0.65rem 0.7rem' : '0.9rem 1rem',
             display: 'flex', alignItems: 'center', gap: isNarrow ? '0.6rem' : '0.8rem',
-            boxShadow: '0 2px 10px rgba(30, 64, 175, 0.07)',
+            boxShadow: 'var(--shadow-xs)',
           }}
         >
           <div
@@ -514,7 +514,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
             <div
               style={{
                 fontSize: isNarrow ? '1.2rem' : '1.4rem', fontWeight: 700,
-                color: '#0f172a', lineHeight: 1.1,
+                color: 'var(--text-primary)', lineHeight: 1.1,
               }}
             >
               {loading ? '–' : s.value}
@@ -542,9 +542,9 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
       <button
         onClick={() => setModal({ mode: 'create' })}
         style={{
-          background: 'var(--gradient-main)', color: 'white', border: 'none',
+          background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
           borderRadius: 12, padding: '0.8rem 1.4rem', fontSize: '0.95rem', fontWeight: 700,
-          boxShadow: '0 6px 16px rgba(37, 99, 235, 0.35)',
+          boxShadow: 'var(--shadow-accent)',
         }}
       >
         + Nouveau calendrier
@@ -558,21 +558,21 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
           flex: isNarrow ? 'none' : 1, minWidth: isNarrow ? 0 : 200, boxSizing: 'border-box',
           width: isNarrow ? '100%' : undefined,
           padding: '0.8rem 1rem', borderRadius: 12,
-          border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', background: 'white',
+          border: '1px solid var(--border-strong)', fontSize: '0.9rem', outline: 'none', background: 'var(--input-bg)',
         }}
       />
     </div>
   )
 
-  const errorBlock = error ? <p style={{ color: '#dc2626' }}>{error}</p> : null
+  const errorBlock = error ? <p style={{ color: 'var(--danger)' }}>{error}</p> : null
 
   const calendarsList = loading ? (
     <p style={{ color: 'var(--text-secondary)' }}>Chargement...</p>
   ) : owned.length === 0 && shared.length === 0 ? (
     <div
       style={{
-        background: 'white', borderRadius: 16, padding: '3rem 1.5rem', textAlign: 'center',
-        color: 'var(--text-secondary)', boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)',
+        background: 'var(--surface)', borderRadius: 16, padding: '3rem 1.5rem', textAlign: 'center',
+        color: 'var(--text-secondary)', boxShadow: 'var(--shadow-md)',
       }}
     >
       Aucun calendrier pour l'instant. Créez-en un pour commencer.
@@ -599,17 +599,17 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
       style={
         isNarrow
           ? {
-              background: 'white', borderRadius: 16, padding: '1rem',
-              boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)', marginBottom: '1.2rem',
+              background: 'var(--surface)', borderRadius: 16, padding: '1rem',
+              boxShadow: 'var(--shadow-md)', marginBottom: '1.2rem',
             }
           : {
-              flex: '1 1 300px', minWidth: 0, background: 'white', borderRadius: 16,
-              padding: '1.2rem', boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)',
+              flex: '1 1 300px', minWidth: 0, background: 'var(--surface)', borderRadius: 16,
+              padding: '1.2rem', boxShadow: 'var(--shadow-md)',
               maxHeight: 560, overflowY: 'auto',
             }
       }
     >
-      <h2 style={{ margin: '0 0 0.2rem', fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+      <h2 style={{ margin: '0 0 0.2rem', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
         Prochains événements
       </h2>
       <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
@@ -640,7 +640,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
                 <div
                   style={{
                     fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem',
-                    color: day.date === todayStr ? 'var(--blue-dark)' : '#475569',
+                    color: day.date === todayStr ? 'var(--accent-text)' : 'var(--text-body)',
                   }}
                 >
                   {dayLabel(day.date, todayStr, tomorrowStr)}
@@ -653,15 +653,15 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
                         key={`${item.uniq}-${item.occ.segment ?? 'full'}-${i}`}
                         onClick={() => onOpenCalendar(item.calendarId)}
                         style={{
-                          textAlign: 'left', width: '100%', background: '#f8fafc', border: 'none',
+                          textAlign: 'left', width: '100%', background: 'var(--surface-faint)', border: 'none',
                           borderLeft: `4px solid ${item.occ.color}`, borderRadius: 10,
                           padding: isNarrow ? '0.6rem 0.7rem' : '0.5rem 0.7rem', opacity: past ? 0.5 : 1,
                         }}
                       >
-                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                           {item.occ.name}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-body)' }}>
                           {timeLabel(item.occ)}
                           {item.occ.location ? ` · ${item.occ.location}` : ''}
                           {item.calendarName ? ` · ${item.calendarName}` : ''}
@@ -678,8 +678,8 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
             <button
               onClick={() => setShowAllEvents((v) => !v)}
               style={{
-                marginTop: '0.9rem', width: '100%', background: '#eff6ff', color: 'var(--blue-dark)',
-                border: '1px solid #bfdbfe', borderRadius: 10, padding: '0.6rem 1rem',
+                marginTop: '0.9rem', width: '100%', background: 'var(--surface-tint)', color: 'var(--accent-text)',
+                border: '1px solid var(--tint-border)', borderRadius: 10, padding: '0.6rem 1rem',
                 fontSize: '0.85rem', fontWeight: 600,
               }}
             >
