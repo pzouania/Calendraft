@@ -19,7 +19,7 @@ export const MODE_STORAGE_KEY = 'calendraft.mode'
 export const DEFAULT_MODE: ThemeMode = 'light'
 
 // Couleur de la barre d'état du téléphone (balise meta theme-color).
-const META_COLORS: Record<ResolvedMode, string> = { light: '#2563eb', dark: '#0b1220' }
+const META_COLORS: Record<ResolvedMode, string> = { light: '#2563eb', dark: '#1e3a8a' }
 
 export function isThemeMode(value: unknown): value is ThemeMode {
   return value === 'system' || value === 'light' || value === 'dark'
