@@ -93,32 +93,32 @@
     --on-accent: #ffffff;
 
     /* Fond de page (ciel de nuit) */
-    --bg-page: #0b1220;
-    --page-gradient: linear-gradient(160deg, #0a1020 0%, #121d36 55%, #0c1424 100%);
+    --bg-page: #0b1324;
+    --page-gradient: linear-gradient(160deg, #060a14 0%, #0b1324 55%, #070c18 100%);
     --sky-star: rgba(255, 255, 255, 0.7);
-    --sky-glow-1: rgba(96, 165, 250, 0.14);
-    --sky-glow-2: rgba(96, 165, 250, 0.1);
-    --sky-glow-3: rgba(96, 165, 250, 0.08);
+    --sky-glow-1: rgba(96, 165, 250, 0.04);
+    --sky-glow-2: rgba(96, 165, 250, 0.03);
+    --sky-glow-3: rgba(96, 165, 250, 0.025);
 
     /* Texte */
     --text-primary: #e6ecf5;
     --text-strong: #cfd8e6;
     --text-body: #bac5d9;
-    --text-secondary: #93a1ba;
+    --text-secondary: #9aa8c0;
 
     /* Surfaces */
-    --surface: #131d33;
-    --surface-glass: rgba(19, 29, 51, 0.72);
-    --surface-alt: #1b2742;
-    --surface-soft: #17223a;
-    --surface-faint: #101a2f;
-    --surface-tint: #162a4d;
-    --tint-border: #2b4a85;
-    --input-bg: #0e1729;
+    --surface: #182540;
+    --surface-glass: rgba(24, 37, 64, 0.72);
+    --surface-alt: #223356;
+    --surface-soft: #1d2c4c;
+    --surface-faint: #0f1a31;
+    --surface-tint: #1b3159;
+    --tint-border: #2f4f8f;
+    --input-bg: #0c1527;
 
     /* Bordures */
-    --border: #26344f;
-    --border-strong: #3a4b6a;
+    --border: #2b3c5e;
+    --border-strong: #41567d;
 
     /* États */
     --danger: #f87171;
@@ -154,6 +154,16 @@
   :root[data-mode='dark'] textarea {
     background-color: var(--input-bg);
     color: var(--text-primary);
+  }
+
+  /* Remplissage automatique du navigateur : garde les couleurs du site (sinon fond bleu-gris imposé par Chrome). */
+  :root[data-mode='dark'] input:-webkit-autofill,
+  :root[data-mode='dark'] input:-webkit-autofill:hover,
+  :root[data-mode='dark'] input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text-primary);
+    caret-color: var(--text-primary);
+    box-shadow: 0 0 0 1000px var(--input-bg) inset;
+    transition: background-color 9999s ease-out 0s;
   }
 
   :root[data-mode='dark'] input::placeholder,
