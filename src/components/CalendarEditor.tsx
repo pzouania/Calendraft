@@ -91,7 +91,7 @@ function ReminderSelect({
         <span
           style={{
             position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', display: 'flex',
-            color: active ? '#1d4ed8' : '#94a3b8', pointerEvents: 'none',
+            color: active ? 'var(--accent-link)' : 'var(--text-muted)', pointerEvents: 'none',
           }}
         >
           <BellIcon />
@@ -103,8 +103,8 @@ function ReminderSelect({
           onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
           style={{
             width: '100%', padding: '0.35rem 0.5rem 0.35rem 30px', minHeight: 34, borderRadius: 8, fontSize: '0.82rem',
-            fontWeight: active ? 600 : 400, border: `1px solid ${active ? '#bfdbfe' : '#e2e8f0'}`,
-            background: active ? '#eff6ff' : 'white', color: active ? '#1d4ed8' : '#475569', opacity: busy ? 0.6 : 1,
+            fontWeight: active ? 600 : 400, border: `1px solid ${active ? 'var(--tint-border)' : 'var(--border)'}`,
+            background: active ? 'var(--surface-tint)' : 'var(--surface)', color: active ? 'var(--accent-link)' : 'var(--text-body)', opacity: busy ? 0.6 : 1,
           }}
         >
           {choicesFor(timed, value).map((c) => (
@@ -114,7 +114,7 @@ function ReminderSelect({
           ))}
         </select>
       </div>
-      {saved && <span role="status" style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 600 }}>Enregistré</span>}
+      {saved && <span role="status" style={{ fontSize: '0.75rem', color: 'var(--success-strong)', fontWeight: 600 }}>Enregistré</span>}
     </div>
   )
 }
@@ -260,11 +260,11 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
     padding: isNarrow ? '0.6rem 0.3rem' : '0.6rem 1.2rem',
     borderRadius: 999,
     border: 'none',
-    background: active ? 'var(--gradient-main)' : 'white',
-    color: active ? 'white' : 'var(--text-secondary)',
+    background: active ? 'var(--gradient-main)' : 'var(--surface)',
+    color: active ? 'var(--on-accent)' : 'var(--text-secondary)',
     fontWeight: 600,
     fontSize: isNarrow ? '0.8rem' : '0.85rem',
-    boxShadow: active ? '0 4px 12px rgba(37, 99, 235, 0.3)' : '0 1px 4px rgba(0,0,0,0.06)',
+    boxShadow: active ? 'var(--shadow-accent-sm)' : '0 1px 4px rgba(0,0,0,0.06)',
     ...(isNarrow ? { flex: 1, minWidth: 0, whiteSpace: 'nowrap' as const } : {}),
   })
 
@@ -280,7 +280,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             padding: '0.6rem 1rem',
             display: 'flex',
             alignItems: 'center',
-            boxShadow: '0 4px 20px rgba(30, 64, 175, 0.25)',
+            boxShadow: 'var(--shadow-header)',
             gap: '0.7rem',
           }}
         >
@@ -335,7 +335,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            boxShadow: '0 4px 20px rgba(30, 64, 175, 0.25)',
+            boxShadow: 'var(--shadow-header)',
             gap: '1rem',
             flexWrap: 'wrap',
           }}
@@ -403,7 +403,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           )}
         </div>
 
-        {error && <p className="no-print" style={{ color: '#dc2626' }}>{error}</p>}
+        {error && <p className="no-print" style={{ color: 'var(--danger)' }}>{error}</p>}
 
         {tab === 'events' && (
           <>
@@ -414,9 +414,9 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                   setShowForm(true)
                 }}
                 style={{
-                  background: 'var(--gradient-main)', color: 'white', border: 'none',
+                  background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
                   borderRadius: 12, padding: '0.8rem 1.4rem', fontSize: '0.9rem', fontWeight: 700,
-                  boxShadow: '0 6px 16px rgba(37, 99, 235, 0.35)', marginBottom: isNarrow ? '1rem' : '1.5rem',
+                  boxShadow: 'var(--shadow-accent)', marginBottom: isNarrow ? '1rem' : '1.5rem',
                   width: isNarrow ? '100%' : undefined,
                 }}
               >
@@ -443,7 +443,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                 role="status"
                 style={{
                   margin: '0 0 1rem', padding: '0.65rem 0.9rem', borderRadius: 10, fontSize: '0.85rem', lineHeight: 1.45,
-                  background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e',
+                  background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', color: 'var(--warning-text)',
                 }}
               >
                 {notice}
@@ -454,7 +454,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               <p
                 style={{
                   margin: '0 0 1rem', padding: '0.65rem 0.9rem', borderRadius: 10, fontSize: '0.85rem', lineHeight: 1.45,
-                  background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a',
+                  background: 'var(--surface-tint)', border: '1px solid var(--tint-border)', color: 'var(--tint-text)',
                 }}
               >
                 {pushHint(pushState)}
@@ -466,8 +466,8 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             ) : periods.length === 0 ? (
               <div
                 style={{
-                  background: 'white', borderRadius: 16, padding: '2.5rem 1.5rem', textAlign: 'center',
-                  color: 'var(--text-secondary)', boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)',
+                  background: 'var(--surface)', borderRadius: 16, padding: '2.5rem 1.5rem', textAlign: 'center',
+                  color: 'var(--text-secondary)', boxShadow: 'var(--shadow-md)',
                 }}
               >
                 Aucun événement pour l'instant.
@@ -478,9 +478,9 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                   <div
                     key={p.id}
                     style={{
-                      background: 'white', borderRadius: 12, padding: isNarrow ? '0.8rem 0.9rem' : '0.9rem 1.2rem',
+                      background: 'var(--surface)', borderRadius: 12, padding: isNarrow ? '0.8rem 0.9rem' : '0.9rem 1.2rem',
                       display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: isNarrow ? 'nowrap' : 'wrap',
-                      boxShadow: '0 2px 8px rgba(30, 64, 175, 0.06)',
+                      boxShadow: 'var(--shadow-sm)',
                     }}
                   >
                     <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 4, backgroundColor: p.color, flexShrink: 0 }} />
@@ -505,7 +505,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                       <button
                         onClick={() => handleDelete(p.id)}
                         style={{
-                          background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
+                          background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
                           borderRadius: 8, padding: isNarrow ? '0.4rem 0.6rem' : '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0,
                         }}
                       >

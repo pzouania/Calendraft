@@ -40,8 +40,8 @@ export default function MonthGrid({
     <div
       className="month-card"
       style={{
-        background: 'white', borderRadius: 12, padding: pad,
-        boxShadow: '0 2px 8px rgba(30, 64, 175, 0.06)', overflow: 'hidden',
+        background: 'var(--surface)', borderRadius: 12, padding: pad,
+        boxShadow: 'var(--shadow-sm)', overflow: 'hidden',
       }}
     >
       <div
@@ -94,7 +94,7 @@ export default function MonthGrid({
                   padding: large ? 4 : compact ? 1 : 2,
                   cursor: 'pointer',
                   borderRadius: large ? 8 : compact ? 4 : 6,
-                  background: isToday ? '#eff6ff' : isWeekend ? '#f8fafc' : 'transparent',
+                  background: isToday ? 'var(--surface-tint)' : isWeekend ? 'var(--surface-faint)' : 'transparent',
                   border: isToday ? `1px solid ${accentColor}` : '1px solid transparent',
                 }}
               >

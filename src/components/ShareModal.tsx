@@ -26,16 +26,16 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const inputStyle: React.CSSProperties = {
   padding: '0.6rem 0.8rem',
   borderRadius: 10,
-  border: '1px solid #e2e8f0',
+  border: '1px solid var(--border)',
   fontSize: '0.9rem',
   outline: 'none',
-  background: 'white',
-  color: '#0f172a',
+  background: 'var(--input-bg)',
+  color: 'var(--text-primary)',
 }
 
 const primaryBtn: React.CSSProperties = {
   background: 'var(--gradient-main)',
-  color: 'white',
+  color: 'var(--on-accent)',
   border: 'none',
   borderRadius: 10,
   padding: '0.6rem 1.1rem',
@@ -45,8 +45,8 @@ const primaryBtn: React.CSSProperties = {
 
 const ghostBtn: React.CSSProperties = {
   background: 'transparent',
-  color: '#475569',
-  border: '1px solid #e2e8f0',
+  color: 'var(--text-body)',
+  border: '1px solid var(--border)',
   borderRadius: 10,
   padding: '0.6rem 1.1rem',
   fontSize: '0.85rem',
@@ -56,7 +56,7 @@ const ghostBtn: React.CSSProperties = {
 const sectionTitle: React.CSSProperties = {
   margin: '0 0 0.6rem',
   fontSize: '0.9rem',
-  color: '#0f172a',
+  color: 'var(--text-primary)',
 }
 
 export default function ShareModal({ calendarId, calendarName, onClose }: ShareModalProps) {
@@ -198,28 +198,28 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
       className="no-print"
       style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.45)', display: 'flex',
+        backgroundColor: 'var(--overlay)', display: 'flex',
         alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem',
       }}
       onClick={onClose}
     >
       <div
         style={{
-          backgroundColor: 'white', borderRadius: 16, width: 'min(520px, 94vw)',
-          maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(15, 23, 42, 0.3)',
+          backgroundColor: 'var(--surface)', borderRadius: 16, width: 'min(520px, 94vw)',
+          maxHeight: '88vh', overflowY: 'auto', boxShadow: 'var(--shadow-modal)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           style={{
-            position: 'sticky', top: 0, background: 'white', zIndex: 2,
-            padding: '1rem 1.25rem', borderBottom: '1px solid #eef2f7',
+            position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2,
+            padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-soft)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
           }}
         >
           <div style={{ minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a' }}>Partager le calendrier</h3>
-            <div style={{ fontSize: '0.8rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>Partager le calendrier</h3>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {calendarName}
             </div>
           </div>
@@ -228,7 +228,7 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
             aria-label="Fermer"
             style={{
               width: 32, height: 32, borderRadius: 10, border: 'none',
-              background: '#f1f5f9', color: '#475569', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
+              background: 'var(--surface-alt)', color: 'var(--text-body)', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
             }}
           >
             ×
@@ -259,7 +259,7 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
                 Inviter
               </button>
             </form>
-            <p style={{ margin: '0.5rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
               Un lecteur consulte et exporte le calendrier. Un éditeur peut aussi ajouter des périodes
               et retirer des jours.
             </p>
@@ -268,11 +268,11 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
               <div
                 style={{
                   marginTop: '0.7rem', padding: '0.6rem 0.8rem', borderRadius: 10,
-                  background: '#eff6ff', color: '#1e3a8a', fontSize: '0.82rem',
+                  background: 'var(--surface-tint)', color: 'var(--tint-text)', fontSize: '0.82rem',
                 }}
               >
                 Invitation enregistrée pour {invited}. Calendraft n’envoie pas d’email :{' '}
-                <a href={mailtoHref} style={{ color: '#1d4ed8', fontWeight: 600 }}>
+                <a href={mailtoHref} style={{ color: 'var(--accent-link)', fontWeight: 600 }}>
                   prévenir par email
                 </a>
                 .
@@ -283,9 +283,9 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
           <section>
             <h4 style={sectionTitle}>Personnes ayant accès</h4>
             {loading ? (
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Chargement...</p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Chargement...</p>
             ) : shares.length === 0 ? (
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                 Aucun partage pour l’instant.
               </p>
             ) : (
@@ -295,10 +295,10 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
                     key={s.id}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap',
-                      padding: '0.5rem 0.7rem', borderRadius: 10, background: '#f8fafc',
+                      padding: '0.5rem 0.7rem', borderRadius: 10, background: 'var(--surface-faint)',
                     }}
                   >
-                    <span style={{ flex: '1 1 160px', minWidth: 0, fontSize: '0.85rem', color: '#0f172a', wordBreak: 'break-word' }}>
+                    <span style={{ flex: '1 1 160px', minWidth: 0, fontSize: '0.85rem', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
                       {s.email}
                     </span>
                     <select
@@ -313,7 +313,7 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
                       onClick={() => handleRemove(s.id)}
                       title="Retirer l’accès"
                       style={{
-                        background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
+                        background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
                         borderRadius: 8, padding: '0.3rem 0.6rem', fontSize: '0.78rem', fontWeight: 600,
                       }}
                     >
@@ -329,7 +329,7 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
             <h4 style={sectionTitle}>Lien de partage (lecture seule)</h4>
             {!link ? (
               <>
-                <p style={{ margin: '0 0 0.7rem', fontSize: '0.82rem', color: '#64748b' }}>
+                <p style={{ margin: '0 0 0.7rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                   Créez un lien secret pour partager le calendrier avec des personnes sans compte.
                   Elles pourront le consulter, sans rien modifier.
                 </p>
@@ -350,7 +350,7 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
                     {copied ? 'Copié' : 'Copier'}
                   </button>
                 </div>
-                <p style={{ margin: '0.6rem 0', fontSize: '0.78rem', color: '#64748b' }}>
+                <p style={{ margin: '0.6rem 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   Toute personne qui possède ce lien peut consulter le calendrier. Désactivez-le pour
                   le rendre inutilisable immédiatement.
                 </p>
@@ -362,7 +362,7 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
           </section>
 
           {error && (
-            <p style={{ margin: 0, color: '#dc2626', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>
+            <p style={{ margin: 0, color: 'var(--danger)', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>
           )}
         </div>
       </div>

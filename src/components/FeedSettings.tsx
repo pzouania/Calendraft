@@ -44,18 +44,18 @@ const REASONS: Record<string, string> = {
 const inputStyle: React.CSSProperties = {
   padding: '0.6rem 0.8rem',
   borderRadius: 10,
-  border: '1px solid #e2e8f0',
+  border: '1px solid var(--border)',
   fontSize: '0.9rem',
   outline: 'none',
   width: '100%',
-  background: 'white',
-  color: '#0f172a',
+  background: 'var(--input-bg)',
+  color: 'var(--text-primary)',
 }
 
 const labelStyle: React.CSSProperties = {
   fontSize: '0.85rem',
   fontWeight: 600,
-  color: '#0f172a',
+  color: 'var(--text-primary)',
   display: 'block',
   marginBottom: 4,
 }
@@ -189,12 +189,12 @@ export default function FeedSettings({ calendarId }: FeedSettingsProps) {
     <section
       className="no-print"
       style={{
-        background: 'white', borderRadius: 16, padding: '1.25rem',
-        boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)', marginBottom: '1.5rem', maxWidth: 560,
+        background: 'var(--surface)', borderRadius: 16, padding: '1.25rem',
+        boxShadow: 'var(--shadow-md)', marginBottom: '1.5rem', maxWidth: 560,
       }}
     >
-      <h3 style={{ margin: '0 0 0.3rem', fontSize: '1rem', color: '#0f172a' }}>Emploi du temps en ligne</h3>
-      <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#64748b' }}>
+      <h3 style={{ margin: '0 0 0.3rem', fontSize: '1rem', color: 'var(--text-primary)' }}>Emploi du temps en ligne</h3>
+      <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
         Importez le lien iCalendar de votre école : les cours restent à jour automatiquement.
         L'adresse n'est visible que par vous, les personnes invitées voient les cours sans pouvoir la lire.
       </p>
@@ -203,19 +203,19 @@ export default function FeedSettings({ calendarId }: FeedSettingsProps) {
         <div
           style={{
             display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap',
-            background: '#f8fafc', borderRadius: 10, padding: '0.6rem 0.8rem', marginBottom: '1rem',
+            background: 'var(--surface-faint)', borderRadius: 10, padding: '0.6rem 0.8rem', marginBottom: '1rem',
           }}
         >
           <span style={{ width: 12, height: 12, borderRadius: 4, background: feed.color, flexShrink: 0 }} />
           <div style={{ flex: '1 1 160px', minWidth: 0 }}>
-            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>{feed.label}</div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Source : {hostOf(feed.url)}</div>
+            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>{feed.label}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Source : {hostOf(feed.url)}</div>
           </div>
           <button
             type="button"
             onClick={handleRemove}
             style={{
-              background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
+              background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
               borderRadius: 8, padding: '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600,
             }}
           >
@@ -254,7 +254,7 @@ export default function FeedSettings({ calendarId }: FeedSettingsProps) {
                   aria-label={c}
                   style={{
                     width: 26, height: 26, borderRadius: '50%', background: c, border: 'none',
-                    outline: color === c ? '2px solid #0f172a' : 'none', outlineOffset: 2,
+                    outline: color === c ? '2px solid var(--text-primary)' : 'none', outlineOffset: 2,
                   }}
                 />
               ))}
@@ -267,7 +267,7 @@ export default function FeedSettings({ calendarId }: FeedSettingsProps) {
             type="submit"
             disabled={busy}
             style={{
-              background: 'var(--gradient-main)', color: 'white', border: 'none',
+              background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
               borderRadius: 10, padding: '0.65rem 1.2rem', fontSize: '0.88rem', fontWeight: 700,
               opacity: busy ? 0.7 : 1,
             }}
@@ -277,18 +277,18 @@ export default function FeedSettings({ calendarId }: FeedSettingsProps) {
         </div>
       </form>
 
-      {error && <p style={{ color: '#dc2626', fontSize: '0.85rem', margin: '0.8rem 0 0' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', margin: '0.8rem 0 0' }}>{error}</p>}
 
       {preview && (
-        <div style={{ marginTop: '1rem', background: '#eff6ff', borderRadius: 10, padding: '0.8rem 1rem' }}>
-          <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1e3a8a', marginBottom: '0.4rem' }}>
+        <div style={{ marginTop: '1rem', background: 'var(--surface-tint)', borderRadius: 10, padding: '0.8rem 1rem' }}>
+          <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--tint-text)', marginBottom: '0.4rem' }}>
             Flux enregistré : {preview.eventCount} cours trouvés
             {preview.earliest && preview.latest
               ? `, du ${formatDay(preview.earliest)} au ${formatDay(preview.latest)}`
               : ''}
           </div>
           {preview.upcoming.length > 0 && (
-            <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.8rem', color: '#334155' }}>
+            <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.8rem', color: 'var(--text-strong)' }}>
               {preview.upcoming.map((ev, i) => (
                 <li key={i}>
                   {formatDay(ev.date)}
@@ -299,7 +299,7 @@ export default function FeedSettings({ calendarId }: FeedSettingsProps) {
             </ul>
           )}
           {preview.recurring > 0 && (
-            <p style={{ margin: '0.6rem 0 0', fontSize: '0.78rem', color: '#92400e' }}>
+            <p style={{ margin: '0.6rem 0 0', fontSize: '0.78rem', color: 'var(--warning-text)' }}>
               {preview.recurring} événement(s) utilisent une règle de répétition, non prise en charge pour l'instant.
             </p>
           )}

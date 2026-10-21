@@ -14,6 +14,7 @@ import {
 import { requestReminderSync } from '../lib/reminders'
 import Logo from './Logo'
 import DeleteAccountModal from './DeleteAccountModal'
+import AppearanceSettings from './AppearanceSettings'
 
 interface ProfilePageProps {
   user: User
@@ -67,7 +68,7 @@ function testNote(result: TestResult): PushNote {
 }
 
 const secondaryButton: React.CSSProperties = {
-  background: 'white', color: 'var(--blue-dark)', border: '1px solid var(--blue-main)',
+  background: 'var(--surface)', color: 'var(--accent-text)', border: '1px solid var(--blue-main)',
   borderRadius: 10, padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 600,
 }
 
@@ -233,7 +234,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 4px 20px rgba(30, 64, 175, 0.25)',
+          boxShadow: 'var(--shadow-header)',
           gap: '1rem',
           flexWrap: 'wrap',
         }}
@@ -277,8 +278,8 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
       <main style={{ maxWidth: 500, margin: '3rem auto', padding: '0 1.5rem' }}>
         <div
           style={{
-            background: 'white', borderRadius: 16, padding: '2rem',
-            boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)', textAlign: 'center',
+            background: 'var(--surface)', borderRadius: 16, padding: '2rem',
+            boxShadow: 'var(--shadow-md)', textAlign: 'center',
           }}
         >
           <label style={{ display: 'inline-block', position: 'relative', cursor: 'pointer', marginBottom: '1rem' }}>
@@ -292,7 +293,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
               <div
                 style={{
                   width: 88, height: 88, borderRadius: '50%',
-                  background: 'var(--gradient-main)', color: 'white',
+                  background: 'var(--gradient-main)', color: 'var(--on-accent)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontWeight: 700, fontSize: '2rem',
                 }}
@@ -303,10 +304,10 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             <div
               style={{
                 position: 'absolute', bottom: 0, right: 0,
-                background: 'var(--blue-dark)', color: 'white',
+                background: 'var(--blue-dark)', color: 'var(--on-accent)',
                 width: 28, height: 28, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '0.9rem', border: '2px solid white',
+                fontSize: '0.9rem', border: '2px solid var(--surface)',
               }}
             >
               ✎
@@ -336,8 +337,8 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                 disabled={!isEditingUsername}
                 style={{
                   flex: '1 1 160px', minWidth: 0, padding: '0.6rem 0.8rem', borderRadius: 10,
-                  border: '1px solid #e2e8f0', fontSize: '0.9rem', outline: 'none',
-                  background: isEditingUsername ? 'white' : '#f8fafc',
+                  border: '1px solid var(--border)', fontSize: '0.9rem', outline: 'none',
+                  background: isEditingUsername ? 'var(--input-bg)' : 'var(--surface-faint)',
                   color: isEditingUsername ? 'var(--text-primary)' : 'var(--text-secondary)',
                 }}
               />
@@ -346,7 +347,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                   onClick={handleSaveUsername}
                   disabled={saving || username.trim() === ''}
                   style={{
-                    background: 'var(--gradient-main)', color: 'white', border: 'none',
+                    background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
                     borderRadius: 10, padding: '0 1rem', fontSize: '0.85rem', fontWeight: 600,
                     flexShrink: 0, opacity: saving || username.trim() === '' ? 0.6 : 1,
                   }}
@@ -360,7 +361,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                     setMessage(null)
                   }}
                   style={{
-                    background: 'white', color: 'var(--blue-dark)', border: '1px solid var(--blue-main)',
+                    background: 'var(--surface)', color: 'var(--accent-text)', border: '1px solid var(--blue-main)',
                     borderRadius: 10, padding: '0 1rem', fontSize: '0.85rem', fontWeight: 600,
                     flexShrink: 0,
                   }}
@@ -374,7 +375,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
           <button
             onClick={handleResetPassword}
             style={{
-              background: 'var(--gradient-main)', color: 'white', border: 'none',
+              background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
               borderRadius: 10, padding: '0.7rem 1.3rem', fontSize: '0.9rem', fontWeight: 600,
               marginBottom: '1rem', width: '100%',
             }}
@@ -385,7 +386,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
           <a
             href="/application"
             style={{
-              display: 'block', boxSizing: 'border-box', background: 'white', color: 'var(--blue-dark)',
+              display: 'block', boxSizing: 'border-box', background: 'var(--surface)', color: 'var(--accent-text)',
               border: '1px solid var(--blue-main)', borderRadius: 10, padding: '0.7rem 1.3rem',
               fontSize: '0.9rem', fontWeight: 600, marginBottom: '1rem', width: '100%',
               textDecoration: 'none',
@@ -394,10 +395,12 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             Application mobile (Android et iPhone)
           </a>
 
+          <AppearanceSettings />
+
           <section
             aria-labelledby="push-title"
             style={{
-              textAlign: 'left', background: '#eff6ff', border: '1px solid #bfdbfe',
+              textAlign: 'left', background: 'var(--surface-tint)', border: '1px solid var(--tint-border)',
               borderRadius: 12, padding: '1rem', marginBottom: '1rem',
             }}
           >
@@ -420,7 +423,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                   <>
                     Sur iPhone, les rappels fonctionnent uniquement depuis l'application ajoutée à l'écran
                     d'accueil (iOS 16.4 ou plus récent). Ouvrez calendraft.fr dans Safari, touchez Partager,
-                    puis « Sur l'écran d'accueil ». <a href="/application" style={{ color: 'var(--blue-dark)', fontWeight: 600 }}>Voir les explications</a>
+                    puis « Sur l'écran d'accueil ». <a href="/application" style={{ color: 'var(--accent-text)', fontWeight: 600 }}>Voir les explications</a>
                   </>
                 )}
                 {pushState.reason === 'no_service_worker' &&
@@ -442,7 +445,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                 onClick={handleEnablePush}
                 disabled={pushBusy}
                 style={{
-                  background: 'var(--gradient-main)', color: 'white', border: 'none',
+                  background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
                   borderRadius: 10, padding: '0.7rem 1.3rem', fontSize: '0.9rem', fontWeight: 600,
                   width: '100%', opacity: pushBusy ? 0.6 : 1,
                 }}
@@ -453,7 +456,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
 
             {pushState?.kind === 'on' && (
               <>
-                <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#166534', margin: '0 0 0.7rem' }}>
+                <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--success-strong)', margin: '0 0 0.7rem' }}>
                   Les rappels sont activés sur cet appareil.
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -468,7 +471,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                     onClick={handleDisablePush}
                     disabled={pushBusy}
                     style={{
-                      background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
+                      background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
                       borderRadius: 10, padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 600,
                       flex: '1 1 120px', opacity: pushBusy ? 0.6 : 1,
                     }}
@@ -484,7 +487,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                 <p
                   style={{
                     fontSize: '0.82rem', margin: '0.7rem 0 0', lineHeight: 1.5, wordBreak: 'break-word',
-                    color: pushNote.kind === 'ok' ? '#16a34a' : '#dc2626',
+                    color: pushNote.kind === 'ok' ? 'var(--success)' : 'var(--danger)',
                   }}
                 >
                   {pushNote.text}
@@ -494,10 +497,10 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             </div>
           </section>
 
-          {message && <p style={{ color: '#16a34a', fontSize: '0.85rem' }}>{message}</p>}
-          {error && <p style={{ color: '#dc2626', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>}
+          {message && <p style={{ color: 'var(--success)', fontSize: '0.85rem' }}>{message}</p>}
+          {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>}
 
-          <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '1.5rem 0' }} />
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '1.5rem 0' }} />
 
           <div
             style={{
@@ -508,7 +511,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             <button
               onClick={onBack}
               style={{
-                background: '#eff6ff', color: 'var(--blue-dark)', border: '1px solid #bfdbfe',
+                background: 'var(--surface-tint)', color: 'var(--accent-text)', border: '1px solid var(--tint-border)',
                 borderRadius: 10, padding: '0.6rem 1.2rem', fontSize: '0.85rem', fontWeight: 600,
               }}
             >
@@ -517,7 +520,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             <button
               onClick={() => supabase.auth.signOut()}
               style={{
-                background: 'transparent', border: '1px solid #fecaca', color: '#dc2626',
+                background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
                 borderRadius: 10, padding: '0.6rem 1.2rem', fontSize: '0.85rem', fontWeight: 600,
               }}
             >
@@ -525,11 +528,11 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             </button>
           </div>
 
-          <div style={{ marginTop: '1.5rem', paddingTop: '1.2rem', borderTop: '1px solid #e2e8f0' }}>
+          <div style={{ marginTop: '1.5rem', paddingTop: '1.2rem', borderTop: '1px solid var(--border)' }}>
             <button
               onClick={() => setShowDelete(true)}
               style={{
-                background: 'transparent', border: 'none', color: '#b91c1c',
+                background: 'transparent', border: 'none', color: 'var(--danger-text)',
                 fontSize: '0.8rem', fontWeight: 600, textDecoration: 'underline',
               }}
             >

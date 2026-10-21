@@ -270,14 +270,14 @@ export default function YearCalendar({
   const toolbarTitle = monthView ? `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}` : yearLabel
 
   const navButtonStyle: React.CSSProperties = {
-    background: '#f1f5f9', border: 'none', borderRadius: 8,
+    background: 'var(--surface-alt)', border: 'none', borderRadius: 8,
     width: navButtonSize, height: navButtonSize, color: 'var(--text-primary)', fontWeight: 700, flexShrink: 0,
   }
 
   const modeButtonStyle = (active: boolean): React.CSSProperties => ({
     border: 'none', borderRadius: 8, padding: '0.45rem 0.9rem', fontSize: '0.82rem', fontWeight: 700,
     background: active ? 'var(--gradient-main)' : 'transparent',
-    color: active ? 'white' : 'var(--text-secondary)',
+    color: active ? 'var(--on-accent)' : 'var(--text-secondary)',
   })
 
   const monthCards = months.map(({ year: y, month: m }) => (
@@ -301,11 +301,11 @@ export default function YearCalendar({
           className="no-print"
           style={{
             display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '0.9rem',
-            background: 'white', borderRadius: 12, padding: '0.6rem', boxShadow: '0 2px 8px rgba(30, 64, 175, 0.06)',
+            background: 'var(--surface)', borderRadius: 12, padding: '0.6rem', boxShadow: 'var(--shadow-sm)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', padding: 3, borderRadius: 10 }}>
+            <div style={{ display: 'flex', gap: 2, background: 'var(--surface-alt)', padding: 3, borderRadius: 10 }}>
               <button type="button" onClick={() => setViewMode('month')} style={modeButtonStyle(viewMode === 'month')}>
                 Mois
               </button>
@@ -319,7 +319,7 @@ export default function YearCalendar({
                   type="button"
                   onClick={goToday}
                   style={{
-                    background: '#eff6ff', color: 'var(--blue-dark)', border: '1px solid #bfdbfe',
+                    background: 'var(--surface-tint)', color: 'var(--accent-text)', border: '1px solid var(--tint-border)',
                     borderRadius: 10, padding: '0.45rem 0.8rem', fontSize: '0.82rem', fontWeight: 700,
                   }}
                 >
@@ -331,7 +331,7 @@ export default function YearCalendar({
                 onClick={handleExportPDF}
                 aria-label="Exporter en PDF"
                 style={{
-                  background: 'var(--gradient-main)', color: 'white', border: 'none',
+                  background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
                   borderRadius: 10, padding: '0.45rem 0.9rem', fontSize: '0.82rem', fontWeight: 700,
                 }}
               >
@@ -370,13 +370,13 @@ export default function YearCalendar({
           className="no-print"
           style={{
             display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.2rem', flexWrap: 'wrap',
-            background: 'white', borderRadius: 12, padding: '0.7rem 1rem', boxShadow: '0 2px 8px rgba(30, 64, 175, 0.06)',
+            background: 'var(--surface)', borderRadius: 12, padding: '0.7rem 1rem', boxShadow: 'var(--shadow-sm)',
           }}
         >
           <button
             onClick={goPrev}
             aria-label="Année précédente"
-            style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
+            style={{ background: 'var(--surface-alt)', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
           >
             ◀
           </button>
@@ -386,14 +386,14 @@ export default function YearCalendar({
           <button
             onClick={goNext}
             aria-label="Année suivante"
-            style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
+            style={{ background: 'var(--surface-alt)', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
           >
             ▶
           </button>
           <button
             onClick={handleExportPDF}
             style={{
-              marginLeft: 'auto', background: 'var(--gradient-main)', color: 'white', border: 'none',
+              marginLeft: 'auto', background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
               borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
             }}
           >
@@ -407,7 +407,7 @@ export default function YearCalendar({
           className="no-print"
           style={{
             margin: '0 0 1rem', padding: '0.6rem 0.9rem', borderRadius: 10,
-            background: '#fffbeb', color: '#92400e', fontSize: '0.85rem',
+            background: 'var(--warning-bg)', color: 'var(--warning-text)', fontSize: '0.85rem',
           }}
         >
           {feedNotice}
@@ -495,8 +495,8 @@ export default function YearCalendar({
           className="legend"
           style={{
             marginTop: isNarrow ? '0.9rem' : '1.2rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap',
-            background: 'white', borderRadius: 12, padding: isNarrow ? '0.7rem 0.8rem' : '0.9rem 1.2rem',
-            boxShadow: '0 2px 8px rgba(30, 64, 175, 0.06)',
+            background: 'var(--surface)', borderRadius: 12, padding: isNarrow ? '0.7rem 0.8rem' : '0.9rem 1.2rem',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
           {periods.map((p) => (

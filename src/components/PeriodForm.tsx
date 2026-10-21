@@ -33,7 +33,7 @@ const MONTH_WEEKS: { value: number; label: string }[] = [
 const labelStyle: React.CSSProperties = {
   fontSize: '0.85rem',
   fontWeight: 600,
-  color: '#0f172a',
+  color: 'var(--text-primary)',
   display: 'block',
   marginBottom: 6,
 }
@@ -41,24 +41,24 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   padding: '0.6rem 0.8rem',
   borderRadius: 10,
-  border: '1px solid #e2e8f0',
+  border: '1px solid var(--border)',
   fontSize: '0.9rem',
   outline: 'none',
-  background: 'white',
-  color: '#0f172a',
+  background: 'var(--input-bg)',
+  color: 'var(--text-primary)',
   width: '100%',
 }
 
 const hintStyle: React.CSSProperties = {
   margin: '0.4rem 0 0',
   fontSize: '0.78rem',
-  color: '#64748b',
+  color: 'var(--text-secondary)',
   lineHeight: 1.45,
 }
 
 const sectionStyle: React.CSSProperties = {
   paddingTop: '1.1rem',
-  borderTop: '1px solid #eef2f7',
+  borderTop: '1px solid var(--border-soft)',
 }
 
 function weekdayOf(date: string): string {
@@ -83,7 +83,7 @@ function Segmented<T extends string>({
   onChange: (v: T) => void
 }) {
   return (
-    <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', padding: 4, borderRadius: 12, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 4, background: 'var(--surface-alt)', padding: 4, borderRadius: 12, flexWrap: 'wrap' }}>
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -99,7 +99,7 @@ function Segmented<T extends string>({
               fontSize: '0.84rem',
               fontWeight: 600,
               background: active ? 'var(--gradient-main)' : 'transparent',
-              color: active ? 'white' : '#64748b',
+              color: active ? 'var(--on-accent)' : 'var(--text-secondary)',
             }}
           >
             {o.label}
@@ -253,11 +253,11 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
       onSubmit={handleSubmit}
       style={{
         display: 'flex', flexDirection: 'column', gap: '1.1rem',
-        background: 'white', borderRadius: 16, padding: '1.5rem',
-        boxShadow: '0 4px 16px rgba(30, 64, 175, 0.08)', maxWidth: 640,
+        background: 'var(--surface)', borderRadius: 16, padding: '1.5rem',
+        boxShadow: 'var(--shadow-md)', maxWidth: 640,
       }}
     >
-      <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a' }}>Nouvel événement</h3>
+      <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>Nouvel événement</h3>
 
       <div>
         <label style={labelStyle}>Nom</label>
@@ -282,7 +282,7 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
               aria-label={`Couleur ${c}`}
               style={{
                 width: 30, height: 30, borderRadius: '50%', background: c, border: 'none',
-                outline: color === c ? '2px solid #0f172a' : 'none', outlineOffset: 2,
+                outline: color === c ? '2px solid var(--text-primary)' : 'none', outlineOffset: 2,
               }}
             />
           ))}
@@ -291,7 +291,7 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
             value={color}
             onChange={(e) => setColor(e.target.value)}
             title="Couleur personnalisée"
-            style={{ width: 34, height: 30, padding: 0, border: '1px solid #e2e8f0', borderRadius: 8, background: 'white', cursor: 'pointer' }}
+            style={{ width: 34, height: 30, padding: 0, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--input-bg)', cursor: 'pointer' }}
           />
         </div>
       </div>
@@ -320,7 +320,7 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
                 value={durationDays || ''}
                 onChange={(e) => setDurationDays(e.target.value === '' ? 0 : Number(e.target.value))}
               />
-              <span style={{ fontSize: '0.88rem', color: '#475569' }}>
+              <span style={{ fontSize: '0.88rem', color: 'var(--text-body)' }}>
                 {crossesMidnight ? (durationDays > 1 ? 'nuits' : 'nuit') : durationDays > 1 ? 'jours' : 'jour'}
               </span>
             </div>
@@ -347,7 +347,7 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
 
         {repeat === 'weekly' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: '0.8rem' }}>
-            <span style={{ fontSize: '0.9rem', color: '#0f172a' }}>Répéter toutes les</span>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>Répéter toutes les</span>
             <input
               type="number"
               min={1}
@@ -356,7 +356,7 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
               value={intervalWeeks || ''}
               onChange={(e) => setIntervalWeeks(e.target.value === '' ? 0 : Number(e.target.value))}
             />
-            <span style={{ fontSize: '0.9rem', color: '#0f172a' }}>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
               {intervalWeeks > 1 ? 'semaines' : 'semaine'}
             </span>
           </div>
@@ -409,7 +409,7 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
               </div>
             </div>
             {crossesMidnight && (
-              <p style={{ ...hintStyle, color: '#1d4ed8' }}>
+              <p style={{ ...hintStyle, color: 'var(--accent-link)' }}>
                 L'heure de fin est avant celle de début : l'événement se termine le lendemain.
               </p>
             )}
@@ -438,30 +438,30 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
           Ce rappel est personnel : les personnes avec qui le calendrier est partagé règlent le leur.
         </p>
         {reminder !== null && pushHint(pushState) && (
-          <p style={{ ...hintStyle, color: '#1d4ed8' }}>{pushHint(pushState)}</p>
+          <p style={{ ...hintStyle, color: 'var(--accent-link)' }}>{pushHint(pushState)}</p>
         )}
       </div>
 
       {summary && (
         <div
           style={{
-            background: '#eff6ff', borderLeft: `4px solid ${color}`, borderRadius: 10,
+            background: 'var(--surface-tint)', borderLeft: `4px solid ${color}`, borderRadius: 10,
             padding: '0.7rem 0.9rem',
           }}
         >
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1e3a8a', marginBottom: 2 }}>Récapitulatif</div>
-          <div style={{ fontSize: '0.88rem', color: '#1e293b', lineHeight: 1.5 }}>{summary}</div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--tint-text)', marginBottom: 2 }}>Récapitulatif</div>
+          <div style={{ fontSize: '0.88rem', color: 'var(--tint-text-body)', lineHeight: 1.5 }}>{summary}</div>
         </div>
       )}
 
-      {error && <p style={{ margin: 0, color: '#dc2626', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>}
+      {error && <p style={{ margin: 0, color: 'var(--danger)', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
         <button
           type="submit"
           disabled={saving}
           style={{
-            background: 'var(--gradient-main)', color: 'white', border: 'none',
+            background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
             borderRadius: 10, padding: '0.7rem 1.4rem', fontSize: '0.9rem', fontWeight: 700,
             opacity: saving ? 0.7 : 1,
           }}
@@ -472,7 +472,7 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
           type="button"
           onClick={onCancel}
           style={{
-            background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0',
+            background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)',
             borderRadius: 10, padding: '0.7rem 1.3rem', fontSize: '0.9rem', fontWeight: 600,
           }}
         >
