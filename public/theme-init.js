@@ -8,7 +8,7 @@
 (function () {
   var KEY = 'calendraft.mode'
   var DEFAULT_MODE = 'light'
-  var META_COLORS = { light: '#2563eb', dark: '#0b1220' }
+  var META_COLORS = { light: '#2563eb', dark: '#1e3a8a' }
   var mode = DEFAULT_MODE
 
   function valid(value) {
