@@ -22,6 +22,7 @@
   --blue-wordmark: #1d4ed8;
   --gradient-main: linear-gradient(135deg, var(--blue-light), var(--blue-dark));
   --accent-text: #1e40af; /* texte et liens de couleur d'accent posés sur une surface */
+  --accent-link: #1d4ed8; /* liens et icônes actives dans les formulaires */
   --on-accent: #ffffff; /* texte posé sur le dégradé ou sur un fond d'accent */
 
   /* Fond de page (ciel) */
@@ -37,6 +38,7 @@
   --text-strong: #334155;
   --text-body: #475569;
   --text-secondary: #64748b;
+  --text-muted: #94a3b8; /* icônes et éléments inactifs */
 
   /* Surfaces */
   --surface: #ffffff; /* cartes, fenêtres, menus */
@@ -46,15 +48,20 @@
   --surface-faint: #f8fafc;
   --surface-tint: #eff6ff; /* sélection, information (teinte d'accent) */
   --tint-border: #bfdbfe;
+  --tint-text: #1e3a8a; /* titre posé sur un encart teinté */
+  --tint-text-body: #1e293b; /* texte posé sur un encart teinté */
   --input-bg: #ffffff; /* champs de saisie */
+  --hover-veil: rgba(15, 23, 42, 0.07); /* petits boutons posés sur un bloc coloré */
 
   /* Bordures */
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
+  --border-soft: #eef2f7; /* séparateurs discrets */
 
   /* États */
   --danger: #dc2626;
   --danger-solid: #dc2626; /* fond des boutons de suppression (texte blanc dessus) */
+  --danger-text: #b91c1c; /* lien de suppression de compte */
   --danger-strong: #991b1b;
   --danger-bg: #fef2f2;
   --danger-border: #fecaca;
@@ -76,6 +83,10 @@
   --shadow-header: 0 4px 20px rgba(30, 64, 175, 0.25);
   --shadow-modal: 0 20px 60px rgba(15, 23, 42, 0.3);
   --shadow-accent: 0 6px 16px rgba(37, 99, 235, 0.35);
+  --shadow-accent-sm: 0 4px 12px rgba(37, 99, 235, 0.3);
+  --shadow-accent-md: 0 4px 14px rgba(37, 99, 235, 0.3);
+  --shadow-icon: 0 4px 14px rgba(30, 64, 175, 0.2);
+  --shadow-event: 0 1px 3px rgba(15, 23, 42, 0.08);
   --overlay: rgba(15, 23, 42, 0.45);
   --overlay-strong: rgba(15, 23, 42, 0.5); /* voile de la fenêtre de suppression de compte */
 }
@@ -90,6 +101,7 @@
     --blue-dark: #1e3a8a;
     --blue-wordmark: #93c5fd;
     --accent-text: #8ab4ff;
+    --accent-link: #8ab4ff;
     --on-accent: #ffffff;
 
     /* Fond de page (ciel de nuit) */
@@ -105,6 +117,7 @@
     --text-strong: #cfd8e6;
     --text-body: #bac5d9;
     --text-secondary: #9aa8c0;
+    --text-muted: #8191ad;
 
     /* Surfaces */
     --surface: #182540;
@@ -114,15 +127,20 @@
     --surface-faint: #0f1a31;
     --surface-tint: #1b3159;
     --tint-border: #2f4f8f;
+    --tint-text: #bcd0ff;
+    --tint-text-body: #dbe4f3;
     --input-bg: #0c1527;
+    --hover-veil: rgba(255, 255, 255, 0.1);
 
     /* Bordures */
     --border: #2b3c5e;
     --border-strong: #41567d;
+    --border-soft: #243556;
 
     /* États */
     --danger: #f87171;
     --danger-solid: #dc2626;
+    --danger-text: #f87171;
     --danger-strong: #fca5a5;
     --danger-bg: #2e1a22;
     --danger-border: #6b2a35;
@@ -144,6 +162,10 @@
     --shadow-header: 0 4px 20px rgba(0, 0, 0, 0.5);
     --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.6);
     --shadow-accent: 0 6px 16px rgba(37, 99, 235, 0.35);
+    --shadow-accent-sm: 0 4px 12px rgba(37, 99, 235, 0.3);
+    --shadow-accent-md: 0 4px 14px rgba(37, 99, 235, 0.3);
+    --shadow-icon: 0 4px 14px rgba(0, 0, 0, 0.45);
+    --shadow-event: 0 1px 3px rgba(0, 0, 0, 0.45);
     --overlay: rgba(2, 6, 15, 0.65);
     --overlay-strong: rgba(2, 6, 15, 0.78);
   }
@@ -170,6 +192,12 @@
   :root[data-mode='dark'] textarea::placeholder {
     color: var(--text-secondary);
     opacity: 1;
+  }
+
+  /* Jour courant du calendrier : le numéro reste lisible quelle que soit la couleur choisie pour le calendrier
+     (le contour du jour garde la couleur du calendrier). */
+  :root[data-mode='dark'] .today-cell > div:first-child {
+    color: var(--text-primary) !important;
   }
 
   /* Logo : lettres bleu foncé sur fond transparent. Sur une surface sombre, il est posé sur une plaque claire
