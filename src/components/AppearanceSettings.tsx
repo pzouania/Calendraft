@@ -1,11 +1,20 @@
 import type { CSSProperties } from 'react'
 import { useThemeMode } from '../hooks/useThemeMode'
-import type { ThemeMode } from '../lib/theme'
+import type { ThemeColor, ThemeMode } from '../lib/theme'
 
 const MODES: { value: ThemeMode; label: string }[] = [
   { value: 'system', label: 'Système' },
   { value: 'light', label: 'Clair' },
   { value: 'dark', label: 'Sombre' },
+]
+
+// Pastilles des thèmes : couleurs propres à chaque thème (elles ne changent pas avec le thème actif).
+const COLORS: { value: ThemeColor; label: string; from: string; to: string }[] = [
+  { value: 'blue', label: 'Bleu', from: '#38bdf8', to: '#1e40af' },
+  { value: 'violet', label: 'Violet', from: '#8b5cf6', to: '#5b21b6' },
+  { value: 'green', label: 'Vert', from: '#22c55e', to: '#14532d' },
+  { value: 'pink', label: 'Rose', from: '#ec4899', to: '#9d174d' },
+  { value: 'graphite', label: 'Graphite', from: '#64748b', to: '#1e293b' },
 ]
 
 function ModeIcon({ mode }: { mode: ThemeMode }) {
@@ -59,7 +68,7 @@ const optionStyle = (active: boolean): CSSProperties => ({
 
 // Réglages d'apparence (affichés dans « Mon profil »). Le choix est mémorisé sur cet appareil.
 export default function AppearanceSettings() {
-  const { mode, resolved, setMode } = useThemeMode()
+  const { mode, resolved, color, setMode, setColor } = useThemeMode()
 
   const hint =
     mode === 'system'
@@ -78,7 +87,7 @@ export default function AppearanceSettings() {
         Apparence
       </h2>
       <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 0.8rem', lineHeight: 1.5 }}>
-        Choisissez l'affichage clair ou sombre du site.
+        Choisissez l'affichage clair ou sombre du site, et sa couleur.
       </p>
 
       <div
@@ -98,6 +107,47 @@ export default function AppearanceSettings() {
             {m.label}
           </button>
         ))}
+      </div>
+
+      <div
+        role="group"
+        aria-label="Couleur du thème"
+        style={{ display: 'flex', gap: 4, marginTop: '0.8rem' }}
+      >
+        {COLORS.map((c) => {
+          const active = color === c.value
+          return (
+            <button
+              key={c.value}
+              type="button"
+              aria-pressed={active}
+              aria-label={`Thème ${c.label}`}
+              onClick={() => setColor(c.value)}
+              style={{
+                flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                padding: '0.5rem 0.1rem', border: 'none', background: 'transparent', borderRadius: 10,
+                fontSize: '0.74rem', fontWeight: active ? 700 : 600,
+                color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: `linear-gradient(135deg, ${c.from}, ${c.to})`,
+                  boxShadow: active ? '0 0 0 2px var(--surface-faint), 0 0 0 4px var(--accent-link)' : 'inset 0 0 0 1px rgba(255,255,255,0.25)',
+                }}
+              >
+                {active && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12.5l4.5 4.5L19 7.5" />
+                  </svg>
+                )}
+              </span>
+              {c.label}
+            </button>
+          )
+        })}
       </div>
 
       <p role="status" aria-live="polite" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0.6rem 0 0', lineHeight: 1.45 }}>
