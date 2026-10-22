@@ -2,13 +2,13 @@
    Variables de couleur du site (« design tokens »)
 
    - :root                      -> mode clair (valeurs historiques du site, thème Bleu).
+   - :root[data-theme='violet'] (etc.) -> thème de couleur (absent ou 'blue' = Bleu).
    - :root[data-mode='dark']    -> mode sombre. L'attribut data-mode est posé sur <html> par
                                    public/theme-init.js (avant l'affichage) puis par src/lib/theme.ts.
    - Les règles du mode sombre ne s'appliquent qu'à l'écran (@media screen) : l'impression reste
      toujours en clair, quel que soit le mode choisi.
 
-   Les noms --blue-* désignent la couleur d'accent du thème actif (bleu aujourd'hui, d'autres
-   couleurs avec les thèmes à venir). Les couleurs choisies par l'utilisateur pour ses événements
+   Les noms --blue-* désignent la couleur d'accent du thème actif (bleu, violet, vert, rose ou graphite). Les couleurs choisies par l'utilisateur pour ses événements
    et ses calendriers ne passent jamais par ces variables.
    ============================================================================= */
 
@@ -97,6 +97,119 @@
   --overlay-strong: rgba(15, 23, 42, 0.5); /* voile de la fenêtre de suppression de compte */
 }
 
+/* Thèmes de couleur : le thème Bleu est celui des valeurs ci-dessus ; les autres thèmes remplacent l'accent, le ciel,
+   les encarts teintés et les ombres. L'attribut data-theme est posé sur <html> par public/theme-init.js puis par
+   src/lib/theme.ts. Comme le mode sombre, ils ne s'appliquent qu'à l'écran : l'impression reste identique. */
+@media screen {
+  :root[data-theme='violet'] {
+    --blue-light: #8b5cf6;
+    --blue-main: #7c3aed;
+    --blue-dark: #5b21b6;
+    --blue-wordmark: #6d28d9;
+    --accent-text: #5b21b6;
+    --accent-link: #6d28d9;
+
+    --bg-page: #f5f3ff;
+    --page-gradient: linear-gradient(160deg, #e4defb 0%, #c9bdf5 55%, #e0d8fa 100%);
+
+    --surface-tint: #f5f3ff;
+    --tint-border: #ddd6fe;
+    --tint-text: #4c1d95;
+
+    --shadow-xs: 0 2px 10px rgba(76, 29, 149, 0.08);
+    --shadow-sm: 0 2px 8px rgba(76, 29, 149, 0.06);
+    --shadow-md: 0 4px 16px rgba(76, 29, 149, 0.08);
+    --shadow-lg: 0 10px 40px rgba(76, 29, 149, 0.12);
+    --shadow-hover: 0 8px 24px rgba(76, 29, 149, 0.16);
+    --shadow-header: 0 4px 20px rgba(76, 29, 149, 0.25);
+    --shadow-accent: 0 6px 16px rgba(124, 58, 237, 0.35);
+    --shadow-accent-sm: 0 4px 12px rgba(124, 58, 237, 0.3);
+    --shadow-accent-md: 0 4px 14px rgba(124, 58, 237, 0.3);
+    --shadow-icon: 0 4px 14px rgba(76, 29, 149, 0.2);
+  }
+
+  :root[data-theme='green'] {
+    --blue-light: #16a34a;
+    --blue-main: #15803d;
+    --blue-dark: #14532d;
+    --blue-wordmark: #15803d;
+    --accent-text: #14532d;
+    --accent-link: #15803d;
+
+    --bg-page: #f0fdf4;
+    --page-gradient: linear-gradient(160deg, #d6f0df 0%, #a8dcbb 55%, #cfecd9 100%);
+
+    --surface-tint: #f0fdf4;
+    --tint-border: #bbf7d0;
+    --tint-text: #14532d;
+
+    --shadow-xs: 0 2px 10px rgba(22, 101, 52, 0.08);
+    --shadow-sm: 0 2px 8px rgba(22, 101, 52, 0.06);
+    --shadow-md: 0 4px 16px rgba(22, 101, 52, 0.08);
+    --shadow-lg: 0 10px 40px rgba(22, 101, 52, 0.12);
+    --shadow-hover: 0 8px 24px rgba(22, 101, 52, 0.16);
+    --shadow-header: 0 4px 20px rgba(22, 101, 52, 0.25);
+    --shadow-accent: 0 6px 16px rgba(22, 163, 74, 0.35);
+    --shadow-accent-sm: 0 4px 12px rgba(22, 163, 74, 0.3);
+    --shadow-accent-md: 0 4px 14px rgba(22, 163, 74, 0.3);
+    --shadow-icon: 0 4px 14px rgba(22, 101, 52, 0.2);
+  }
+
+  :root[data-theme='pink'] {
+    --blue-light: #ec4899;
+    --blue-main: #db2777;
+    --blue-dark: #9d174d;
+    --blue-wordmark: #be185d;
+    --accent-text: #9d174d;
+    --accent-link: #be185d;
+
+    --bg-page: #fdf2f8;
+    --page-gradient: linear-gradient(160deg, #fbdcec 0%, #f2adce 55%, #f9d3e6 100%);
+
+    --surface-tint: #fdf2f8;
+    --tint-border: #fbcfe8;
+    --tint-text: #831843;
+
+    --shadow-xs: 0 2px 10px rgba(157, 23, 77, 0.08);
+    --shadow-sm: 0 2px 8px rgba(157, 23, 77, 0.06);
+    --shadow-md: 0 4px 16px rgba(157, 23, 77, 0.08);
+    --shadow-lg: 0 10px 40px rgba(157, 23, 77, 0.12);
+    --shadow-hover: 0 8px 24px rgba(157, 23, 77, 0.16);
+    --shadow-header: 0 4px 20px rgba(157, 23, 77, 0.25);
+    --shadow-accent: 0 6px 16px rgba(219, 39, 119, 0.35);
+    --shadow-accent-sm: 0 4px 12px rgba(219, 39, 119, 0.3);
+    --shadow-accent-md: 0 4px 14px rgba(219, 39, 119, 0.3);
+    --shadow-icon: 0 4px 14px rgba(157, 23, 77, 0.2);
+  }
+
+  :root[data-theme='graphite'] {
+    --blue-light: #64748b;
+    --blue-main: #475569;
+    --blue-dark: #1e293b;
+    --blue-wordmark: #334155;
+    --accent-text: #1e293b;
+    --accent-link: #334155;
+
+    --bg-page: #f1f5f9;
+    --page-gradient: linear-gradient(160deg, #e2e8f0 0%, #c3cdda 55%, #dde4ee 100%);
+
+    --surface-tint: #f1f5f9;
+    --tint-border: #cbd5e1;
+    --tint-text: #1e293b;
+
+    --shadow-xs: 0 2px 10px rgba(30, 41, 59, 0.08);
+    --shadow-sm: 0 2px 8px rgba(30, 41, 59, 0.06);
+    --shadow-md: 0 4px 16px rgba(30, 41, 59, 0.08);
+    --shadow-lg: 0 10px 40px rgba(30, 41, 59, 0.12);
+    --shadow-hover: 0 8px 24px rgba(30, 41, 59, 0.16);
+    --shadow-header: 0 4px 20px rgba(30, 41, 59, 0.25);
+    --shadow-accent: 0 6px 16px rgba(71, 85, 105, 0.35);
+    --shadow-accent-sm: 0 4px 12px rgba(71, 85, 105, 0.3);
+    --shadow-accent-md: 0 4px 14px rgba(71, 85, 105, 0.3);
+    --shadow-icon: 0 4px 14px rgba(30, 41, 59, 0.2);
+  }
+}
+
 @media screen {
   :root[data-mode='dark'] {
     color-scheme: dark;
@@ -182,6 +295,175 @@
     --overlay-strong: rgba(2, 6, 15, 0.78);
   }
 
+  /* Thèmes de couleur en mode sombre (même sélecteur renforcé par data-theme : prend le dessus sur le bloc sombre de base). */
+  :root[data-theme='violet'][data-mode='dark'] {
+    --blue-light: #7c3aed;
+    --blue-main: #7c3aed;
+    --blue-dark: #4c1d95;
+    --blue-wordmark: #c4b5fd;
+    --accent-text: #c4b5fd;
+    --accent-link: #c4b5fd;
+
+    --header-bg: linear-gradient(135deg, #4c1d95 0%, #2e1065 100%);
+
+    --bg-page: #140b24;
+    --page-gradient: linear-gradient(160deg, #0b0614 0%, #140b24 55%, #0d0718 100%);
+    --sky-glow-1: rgba(167, 139, 250, 0.04);
+    --sky-glow-2: rgba(167, 139, 250, 0.03);
+    --sky-glow-3: rgba(167, 139, 250, 0.025);
+
+    --text-primary: #ece6f5;
+    --text-strong: #d7cfe6;
+    --text-body: #c5bad9;
+    --text-secondary: #a89ac0;
+    --text-muted: #9181ad;
+
+    --surface: #271840;
+    --surface-glass: rgba(39, 24, 64, 0.72);
+    --surface-alt: #352256;
+    --surface-soft: #2e1d4c;
+    --surface-faint: #1b0f31;
+    --surface-tint: #321b59;
+    --tint-border: #522f8f;
+    --tint-text: #d5bcff;
+    --tint-text-body: #e4dbf3;
+    --input-bg: #160c27;
+
+    --border: #3e2b5e;
+    --border-strong: #57417d;
+    --border-soft: #362456;
+
+    --shadow-accent: 0 6px 16px rgba(124, 58, 237, 0.35);
+    --shadow-accent-sm: 0 4px 12px rgba(124, 58, 237, 0.3);
+    --shadow-accent-md: 0 4px 14px rgba(124, 58, 237, 0.3);
+  }
+
+  :root[data-theme='green'][data-mode='dark'] {
+    --blue-light: #15803d;
+    --blue-main: #15803d;
+    --blue-dark: #14532d;
+    --blue-wordmark: #86efac;
+    --accent-text: #86efac;
+    --accent-link: #86efac;
+
+    --header-bg: linear-gradient(135deg, #14532d 0%, #052e16 100%);
+
+    --bg-page: #0d2218;
+    --page-gradient: linear-gradient(160deg, #07130d 0%, #0d2218 55%, #081710 100%);
+    --sky-glow-1: rgba(74, 222, 128, 0.04);
+    --sky-glow-2: rgba(74, 222, 128, 0.03);
+    --sky-glow-3: rgba(74, 222, 128, 0.025);
+
+    --text-primary: #e7f4ee;
+    --text-strong: #d1e4db;
+    --text-body: #bcd7ca;
+    --text-secondary: #9dbdad;
+    --text-muted: #84aa97;
+
+    --surface: #1b3d2c;
+    --surface-glass: rgba(27, 61, 44, 0.72);
+    --surface-alt: #26523c;
+    --surface-soft: #214835;
+    --surface-faint: #122e20;
+    --surface-tint: #20543a;
+    --tint-border: #36885f;
+    --tint-text: #c1fade;
+    --tint-text-body: #ddf1e7;
+    --input-bg: #0e251a;
+
+    --border: #2f5a45;
+    --border-strong: #46785f;
+    --border-soft: #28523d;
+
+    --shadow-accent: 0 6px 16px rgba(22, 163, 74, 0.35);
+    --shadow-accent-sm: 0 4px 12px rgba(22, 163, 74, 0.3);
+    --shadow-accent-md: 0 4px 14px rgba(22, 163, 74, 0.3);
+  }
+
+  :root[data-theme='pink'][data-mode='dark'] {
+    --blue-light: #be185d;
+    --blue-main: #be185d;
+    --blue-dark: #831843;
+    --blue-wordmark: #f9a8d4;
+    --accent-text: #f9a8d4;
+    --accent-link: #f9a8d4;
+
+    --header-bg: linear-gradient(135deg, #831843 0%, #500724 100%);
+
+    --bg-page: #230c16;
+    --page-gradient: linear-gradient(160deg, #13070c 0%, #230c16 55%, #17080e 100%);
+    --sky-glow-1: rgba(244, 114, 182, 0.04);
+    --sky-glow-2: rgba(244, 114, 182, 0.03);
+    --sky-glow-3: rgba(244, 114, 182, 0.025);
+
+    --text-primary: #f4e7ec;
+    --text-strong: #e5d0d9;
+    --text-body: #d7bcc7;
+    --text-secondary: #be9caa;
+    --text-muted: #ab8394;
+
+    --surface: #3e1a29;
+    --surface-glass: rgba(62, 26, 41, 0.72);
+    --surface-alt: #532538;
+    --surface-soft: #4a1f31;
+    --surface-faint: #2f111d;
+    --surface-tint: #561e35;
+    --tint-border: #8a3458;
+    --tint-text: #fcbfd8;
+    --tint-text-body: #f2dce5;
+    --input-bg: #260d17;
+
+    --border: #5b2e41;
+    --border-strong: #7a445a;
+    --border-soft: #542639;
+
+    --shadow-accent: 0 6px 16px rgba(219, 39, 119, 0.35);
+    --shadow-accent-sm: 0 4px 12px rgba(219, 39, 119, 0.3);
+    --shadow-accent-md: 0 4px 14px rgba(219, 39, 119, 0.3);
+  }
+
+  :root[data-theme='graphite'][data-mode='dark'] {
+    --blue-light: #64748b;
+    --blue-main: #475569;
+    --blue-dark: #334155;
+    --blue-wordmark: #cbd5e1;
+    --accent-text: #cbd5e1;
+    --accent-link: #cbd5e1;
+
+    --header-bg: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+
+    --bg-page: #15171a;
+    --page-gradient: linear-gradient(160deg, #0c0d0e 0%, #15171a 55%, #0e0f11 100%);
+    --sky-glow-1: rgba(148, 163, 184, 0.04);
+    --sky-glow-2: rgba(148, 163, 184, 0.03);
+    --sky-glow-3: rgba(148, 163, 184, 0.025);
+
+    --text-primary: #ecedef;
+    --text-strong: #d8dadd;
+    --text-body: #c6c9cd;
+    --text-secondary: #a9acb1;
+    --text-muted: #93969b;
+
+    --surface: #282b30;
+    --surface-glass: rgba(40, 43, 48, 0.72);
+    --surface-alt: #373b41;
+    --surface-soft: #303439;
+    --surface-faint: #1d1f23;
+    --surface-tint: #343940;
+    --tint-border: #555d69;
+    --tint-text: #d7dce4;
+    --tint-text-body: #e5e7e9;
+    --input-bg: #17191c;
+
+    --border: #3f444a;
+    --border-strong: #595e65;
+    --border-soft: #383c42;
+
+    --shadow-accent: 0 6px 16px rgba(100, 116, 139, 0.35);
+    --shadow-accent-sm: 0 4px 12px rgba(100, 116, 139, 0.3);
+    --shadow-accent-md: 0 4px 14px rgba(100, 116, 139, 0.3);
+  }
+
   /* Champs de saisie : fond et texte du mode sombre, sauf si le composant impose les siens. */
   :root[data-mode='dark'] input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']):not([type='button']):not([type='submit']),
   :root[data-mode='dark'] select,
@@ -212,17 +494,16 @@
     color: var(--text-primary) !important;
   }
 
-  /* Logo : lettres bleu foncé sur fond transparent, illisibles sur fond sombre. En mode sombre, le logo est
-     éclairci par un filtre (plus de plaque blanche). Classe header-logo : pastille du logo dans les barres du haut ;
-     classe logo-slot : logo posé sur une carte (connexion, nouveau mot de passe). */
+  /* Logo : une image par thème et par mode (public/logo/). Classe header-logo : pastille du logo dans les barres du
+     haut (transparente en sombre, le logo sombre se pose directement sur la barre). Classe logo-legacy : logo de
+     secours (image d'origine, utilisé seulement si les images par thème sont absentes), éclairci par un filtre. */
   :root[data-mode='dark'] .header-logo {
     background: transparent !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
 
-  :root[data-mode='dark'] .header-logo img,
-  :root[data-mode='dark'] .logo-slot img {
+  :root[data-mode='dark'] img.logo-legacy {
     filter: invert(1) hue-rotate(180deg) brightness(1.6) contrast(1.1);
   }
 }
