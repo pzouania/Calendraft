@@ -89,7 +89,7 @@ function TrashButton({ onClick }: { onClick: () => void }) {
       aria-label="Supprimer ce jour"
       style={{
         width: 24, height: 24, borderRadius: 7, border: 'none',
-        background: 'rgba(15, 23, 42, 0.07)', color: '#475569',
+        background: 'var(--hover-veil)', color: 'var(--text-body)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 0, flexShrink: 0,
       }}
@@ -147,7 +147,7 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
     <div
       style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.45)', display: 'flex',
+        backgroundColor: 'var(--overlay)', display: 'flex',
         alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem',
       }}
       onClick={onClose}
@@ -155,27 +155,27 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
       <div
         ref={scrollRef}
         style={{
-          backgroundColor: 'white', borderRadius: 16, position: 'relative',
+          backgroundColor: 'var(--surface)', borderRadius: 16, position: 'relative',
           width: 'min(520px, 92vw)', maxHeight: '85vh', overflowY: 'auto',
-          boxShadow: '0 20px 60px rgba(15, 23, 42, 0.3)',
+          boxShadow: 'var(--shadow-modal)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           ref={headerRef}
           style={{
-            position: 'sticky', top: 0, zIndex: 3, background: 'white',
-            padding: '1rem 1.25rem', borderBottom: '1px solid #eef2f7',
+            position: 'sticky', top: 0, zIndex: 3, background: 'var(--surface)',
+            padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-soft)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a' }}>{title}</h3>
+          <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{title}</h3>
           <button
             onClick={onClose}
             aria-label="Fermer"
             style={{
               width: 32, height: 32, borderRadius: 10, border: 'none',
-              background: '#f1f5f9', color: '#475569', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
+              background: 'var(--surface-alt)', color: 'var(--text-body)', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
             }}
           >
             ×
@@ -194,14 +194,14 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
                   key={`${occ.periodId}-${i}`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--surface)',
                     backgroundImage: `linear-gradient(${occ.color}1f, ${occ.color}1f)`,
                     borderLeft: `4px solid ${occ.color}`, borderRadius: 10,
                     padding: '0.55rem 0.6rem 0.55rem 0.8rem',
                   }}
                 >
-                  <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 600, color: '#0f172a' }}>{occ.name}</span>
-                  <span style={{ fontSize: '0.75rem', color: '#475569' }}>
+                  <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{occ.name}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-body)' }}>
                     Journée entière{occ.location ? ` · ${occ.location}` : ''}
                   </span>
                   {canEdit && !occ.readOnly && <TrashButton onClick={() => handleDeleteLocal(occ)} />}
@@ -211,12 +211,12 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
           )}
 
           {blocks.length > 0 && (
-            <div ref={gridRef} style={{ position: 'relative', borderTop: '1px solid #eef2f7' }}>
+            <div ref={gridRef} style={{ position: 'relative', borderTop: '1px solid var(--border-soft)' }}>
               {HOURS.map((h) => (
                 <div
                   key={h}
                   style={{
-                    height: ROW_HEIGHT, borderBottom: '1px solid #eef2f7',
+                    height: ROW_HEIGHT, borderBottom: '1px solid var(--border-soft)',
                     display: 'flex', alignItems: 'flex-start',
                   }}
                 >
@@ -238,19 +238,19 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
                         position: 'absolute', top: top + 1, height,
                         left: `calc(${b.col} * 100% / ${b.cols})`,
                         width: `calc(100% / ${b.cols} - 4px)`,
-                        backgroundColor: 'white',
+                        backgroundColor: 'var(--surface)',
                         backgroundImage: `linear-gradient(${b.occ.color}26, ${b.occ.color}26)`,
                         borderLeft: `4px solid ${b.occ.color}`,
                         borderRadius: 8,
                         padding: deletable ? '4px 32px 4px 8px' : '4px 8px',
                         overflow: 'hidden',
-                        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)',
+                        boxShadow: 'var(--shadow-event)',
                       }}
                     >
-                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {b.occ.name}
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: '#334155' }}>{b.subtitle}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-strong)' }}>{b.subtitle}</div>
                       {deletable && (
                         <div style={{ position: 'absolute', top: 4, right: 4 }}>
                           <TrashButton onClick={() => handleDeleteLocal(b.occ)} />
