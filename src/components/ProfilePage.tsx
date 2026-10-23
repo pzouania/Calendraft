@@ -6,16 +6,13 @@ import {
   disablePush,
   enablePush,
   getPushState,
-  sendTestPush,
   type EnableResult,
   type PushState,
-  type TestResult,
 } from '../lib/push'
 import { requestReminderSync } from '../lib/reminders'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import DeleteAccountModal from './DeleteAccountModal'
-import AppearanceSettings from './AppearanceSettings'
 
 interface ProfilePageProps {
   user: User
@@ -43,34 +40,6 @@ function enableErrorText(reason: Extract<EnableResult, { ok: false }>['reason'])
     default:
       return "Impossible d'activer les notifications sur cet appareil."
   }
-}
-
-function testNote(result: TestResult): PushNote {
-  if (result.ok) {
-    return result.sent > 0
-      ? { kind: 'ok', text: 'Notification envoyée. Elle doit apparaître dans quelques secondes.' }
-      : {
-          kind: 'error',
-          text: "Le serveur n'a pas réussi à joindre cet appareil. Désactivez puis réactivez les rappels.",
-        }
-  }
-  switch (result.reason) {
-    case 'no_device':
-      return { kind: 'error', text: "Cet appareil n'est pas enregistré. Désactivez puis réactivez les rappels." }
-    case 'not_configured':
-      return { kind: 'error', text: "Le serveur d'envoi n'est pas encore configuré (clés de notification manquantes)." }
-    case 'no_session':
-      return { kind: 'error', text: 'Votre session a expiré. Reconnectez-vous puis réessayez.' }
-    case 'network_error':
-      return { kind: 'error', text: 'Connexion impossible. Vérifiez votre accès internet puis réessayez.' }
-    default:
-      return { kind: 'error', text: "L'envoi a échoué. Réessayez dans un instant." }
-  }
-}
-
-const secondaryButton: React.CSSProperties = {
-  background: 'var(--surface)', color: 'var(--accent-text)', border: '1px solid var(--blue-main)',
-  borderRadius: 10, padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 600,
 }
 
 export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProps) {
@@ -132,17 +101,6 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
       setPushNote({ kind: 'error', text: "La désactivation a échoué. Réessayez dans un instant." })
     }
     await refreshPushState()
-    setPushBusy(false)
-  }
-
-  const handleTestPush = async () => {
-    setPushNote(null)
-    setPushBusy(true)
-    try {
-      setPushNote(testNote(await sendTestPush()))
-    } catch {
-      setPushNote(testNote({ ok: false, reason: 'server_error' }))
-    }
     setPushBusy(false)
   }
 
@@ -399,8 +357,6 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             Application mobile (Android et iPhone)
           </a>
 
-          <AppearanceSettings />
-
           <section
             aria-labelledby="push-title"
             style={{
@@ -464,13 +420,6 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                   Les rappels sont activés sur cet appareil.
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <button
-                    onClick={handleTestPush}
-                    disabled={pushBusy}
-                    style={{ ...secondaryButton, flex: '1 1 180px', opacity: pushBusy ? 0.6 : 1 }}
-                  >
-                    {pushBusy ? 'Envoi...' : 'Envoyer une notification test'}
-                  </button>
                   <button
                     onClick={handleDisablePush}
                     disabled={pushBusy}

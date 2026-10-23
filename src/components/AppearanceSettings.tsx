@@ -20,8 +20,8 @@ const COLORS: { value: ThemeColor; label: string; from: string; to: string }[] =
 function ModeIcon({ mode }: { mode: ThemeMode }) {
   return (
     <svg
-      width="16"
-      height="16"
+      width="18"
+      height="18"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -56,17 +56,23 @@ const optionStyle = (active: boolean): CSSProperties => ({
   alignItems: 'center',
   justifyContent: 'center',
   gap: 4,
-  minHeight: 56,
+  minHeight: 60,
   padding: '0.5rem 0.3rem',
   border: 'none',
   borderRadius: 9,
-  fontSize: '0.8rem',
+  fontSize: '0.82rem',
   fontWeight: 600,
   background: active ? 'var(--gradient-main)' : 'transparent',
   color: active ? 'var(--on-accent)' : 'var(--text-secondary)',
 })
 
-// Réglages d'apparence (affichés dans « Mon profil »). Le choix est mémorisé sur cet appareil.
+const groupLabel: CSSProperties = {
+  fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', margin: '0 0 0.4rem',
+  textTransform: 'uppercase', letterSpacing: '0.04em',
+}
+
+// Choix du mode (clair / sombre / système) et de la couleur du thème. Affiché dans le menu « Thème » de la barre du haut
+// (composant ThemeToggle). Le choix est mémorisé sur cet appareil.
 export default function AppearanceSettings() {
   const { mode, resolved, color, setMode, setColor } = useThemeMode()
 
@@ -76,23 +82,11 @@ export default function AppearanceSettings() {
       : 'Ce choix est enregistré sur cet appareil.'
 
   return (
-    <section
-      aria-labelledby="appearance-title"
-      style={{
-        textAlign: 'left', background: 'var(--surface-faint)', border: '1px solid var(--border)',
-        borderRadius: 12, padding: '1rem', marginBottom: '1rem',
-      }}
-    >
-      <h2 id="appearance-title" style={{ fontSize: '0.95rem', margin: '0 0 0.3rem', color: 'var(--text-primary)' }}>
-        Apparence
-      </h2>
-      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 0.8rem', lineHeight: 1.5 }}>
-        Choisissez l'affichage clair ou sombre du site, et sa couleur.
-      </p>
-
+    <div>
+      <p id="appearance-mode-label" style={groupLabel}>Affichage</p>
       <div
         role="group"
-        aria-label="Mode d'affichage"
+        aria-labelledby="appearance-mode-label"
         style={{ display: 'flex', gap: 4, background: 'var(--surface-alt)', padding: 4, borderRadius: 12 }}
       >
         {MODES.map((m) => (
@@ -109,11 +103,8 @@ export default function AppearanceSettings() {
         ))}
       </div>
 
-      <div
-        role="group"
-        aria-label="Couleur du thème"
-        style={{ display: 'flex', gap: 4, marginTop: '0.8rem' }}
-      >
+      <p id="appearance-color-label" style={{ ...groupLabel, marginTop: '1rem' }}>Couleur</p>
+      <div role="group" aria-labelledby="appearance-color-label" style={{ display: 'flex', gap: 4 }}>
         {COLORS.map((c) => {
           const active = color === c.value
           return (
@@ -126,20 +117,20 @@ export default function AppearanceSettings() {
               style={{
                 flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                 padding: '0.5rem 0.1rem', border: 'none', background: 'transparent', borderRadius: 10,
-                fontSize: '0.74rem', fontWeight: active ? 700 : 600,
+                fontSize: '0.76rem', fontWeight: active ? 700 : 600,
                 color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
               }}
             >
               <span
                 aria-hidden="true"
                 style={{
-                  width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: `linear-gradient(135deg, ${c.from}, ${c.to})`,
-                  boxShadow: active ? '0 0 0 2px var(--surface-faint), 0 0 0 4px var(--accent-link)' : 'inset 0 0 0 1px rgba(255,255,255,0.25)',
+                  boxShadow: active ? '0 0 0 2px var(--surface), 0 0 0 4px var(--accent-link)' : 'inset 0 0 0 1px rgba(255,255,255,0.25)',
                 }}
               >
                 {active && (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12.5l4.5 4.5L19 7.5" />
                   </svg>
                 )}
@@ -150,9 +141,9 @@ export default function AppearanceSettings() {
         })}
       </div>
 
-      <p role="status" aria-live="polite" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0.6rem 0 0', lineHeight: 1.45 }}>
+      <p role="status" aria-live="polite" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0.8rem 0 0', lineHeight: 1.45 }}>
         {hint}
       </p>
-    </section>
+    </div>
   )
 }
