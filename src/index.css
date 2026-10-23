@@ -568,6 +568,40 @@ select {
   font-family: inherit;
 }
 
+/* Bouton « Thème » (menu d'apparence) : pastille avec le texte « Thème » sur écran large, bouton rond sur petit écran. */
+.theme-menu-btn {
+  gap: 0.45rem;
+  cursor: pointer;
+}
+
+.theme-menu-label {
+  display: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+@media (min-width: 640px) {
+  .theme-menu-btn--header {
+    width: auto !important;
+    padding: 0 1rem 0 0.8rem !important;
+    border-radius: 999px !important;
+  }
+
+  .theme-menu-btn--header .theme-menu-label {
+    display: inline;
+  }
+}
+
+.theme-menu-btn--header:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.theme-menu-btn--floating:focus-visible {
+  outline: 3px solid var(--accent-link);
+  outline-offset: 2px;
+}
+
 @media print {
   .no-print {
     display: none !important;
