@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
+import { useI18n } from '../hooks/useI18n'
+import { noticeText, type Notice } from '../lib/authErrors'
 
 interface DeleteAccountModalProps {
   user: User
   onClose: () => void
 }
 
-const CONFIRM_WORD = 'SUPPRIMER'
-
 export default function DeleteAccountModal({ user, onClose }: DeleteAccountModalProps) {
+  const { t } = useI18n()
   const [typed, setTyped] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Notice | null>(null)
 
-  const ready = typed.trim().toUpperCase() === CONFIRM_WORD
+  // Le mot à taper suit la langue du site (SUPPRIMER, DELETE, LÖSCHEN).
+  const confirmWord = t('deleteAccount.confirmWord')
+  const ready = typed.trim().toUpperCase() === confirmWord.toUpperCase()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -32,7 +35,7 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
     const { data: files, error: listError } = await supabase.storage.from('avatars').list(user.id)
     if (listError) {
       setBusy(false)
-      setError('Impossible de vérifier votre photo de profil : ' + listError.message)
+      setError({ key: 'deleteAccount.error.photoCheck', params: { detail: listError.message } })
       return
     }
 
@@ -42,7 +45,7 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
         .remove(files.map((f) => `${user.id}/${f.name}`))
       if (removeError) {
         setBusy(false)
-        setError('Impossible de supprimer votre photo de profil : ' + removeError.message)
+        setError({ key: 'deleteAccount.error.photoRemove', params: { detail: removeError.message } })
         return
       }
     }
@@ -50,12 +53,12 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
     const { error: rpcError } = await supabase.rpc('delete_my_account')
     if (rpcError) {
       setBusy(false)
-      setError('La suppression a échoué : ' + rpcError.message)
+      setError({ key: 'deleteAccount.error.failed', params: { detail: rpcError.message } })
       return
     }
 
     await supabase.auth.signOut()
-    window.alert('Votre compte a été supprimé.')
+    window.alert(t('deleteAccount.done'))
   }
 
   return (
@@ -78,15 +81,15 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
         onClick={(e) => e.stopPropagation()}
       >
         <h3 style={{ margin: '0 0 0.6rem', fontSize: '1.1rem', color: 'var(--danger-strong)' }}>
-          Supprimer mon compte
+          {t('deleteAccount.title')}
         </h3>
         <p style={{ margin: '0 0 0.8rem', fontSize: '0.9rem', color: 'var(--text-strong)', lineHeight: 1.5 }}>
-          Cette action est <strong>définitive</strong> et ne peut pas être annulée. Seront effacés :
+          {t('deleteAccount.intro.before')}<strong>{t('deleteAccount.intro.strong')}</strong>{t('deleteAccount.intro.after')}
         </p>
         <ul style={{ margin: '0 0 0.8rem', paddingLeft: '1.2rem', fontSize: '0.88rem', color: 'var(--text-strong)', lineHeight: 1.6 }}>
-          <li>votre compte et votre photo de profil ;</li>
-          <li>tous les calendriers que vous avez créés, avec leurs événements et l'emploi du temps importé ;</li>
-          <li>vos liens de partage et les accès que vous aviez donnés.</li>
+          <li>{t('deleteAccount.item.account')}</li>
+          <li>{t('deleteAccount.item.calendars')}</li>
+          <li>{t('deleteAccount.item.shares')}</li>
         </ul>
         <p
           style={{
@@ -94,19 +97,18 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
             background: 'var(--danger-bg)', color: 'var(--danger-strong)', fontSize: '0.85rem', lineHeight: 1.5,
           }}
         >
-          Les personnes avec qui vous partagez vos calendriers les perdront aussi. Pensez à les exporter en PDF
-          avant de continuer. Les calendriers que d'autres ont partagés avec vous ne sont pas touchés.
+          {t('deleteAccount.warning')}
         </p>
 
         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
-          Pour confirmer, tapez {CONFIRM_WORD}
+          {t('deleteAccount.confirmLabel', { word: confirmWord })}
         </label>
         <input
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           autoComplete="off"
           disabled={busy}
-          placeholder={CONFIRM_WORD}
+          placeholder={confirmWord}
           style={{
             width: '100%', padding: '0.6rem 0.8rem', borderRadius: 10, fontSize: '0.9rem',
             border: '1px solid var(--border)', outline: 'none', marginBottom: '1rem',
@@ -114,7 +116,7 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
         />
 
         {error && (
-          <p style={{ margin: '0 0 1rem', color: 'var(--danger)', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>
+          <p style={{ margin: '0 0 1rem', color: 'var(--danger)', fontSize: '0.85rem', wordBreak: 'break-word' }}>{noticeText(error, t)}</p>
         )}
 
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -127,7 +129,7 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
               opacity: !ready || busy ? 0.5 : 1,
             }}
           >
-            {busy ? 'Suppression...' : 'Supprimer définitivement'}
+            {busy ? t('deleteAccount.busy') : t('deleteAccount.confirm')}
           </button>
           <button
             onClick={onClose}
@@ -137,7 +139,7 @@ export default function DeleteAccountModal({ user, onClose }: DeleteAccountModal
               borderRadius: 10, padding: '0.65rem 1.2rem', fontSize: '0.88rem', fontWeight: 600,
             }}
           >
-            Annuler
+            {t('common.cancel')}
           </button>
         </div>
       </div>

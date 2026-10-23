@@ -2,11 +2,16 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Logo from './Logo';
 import ThemeToggle from './ThemeToggle';
+import { useI18n } from '../hooks/useI18n';
+import { noticeFromAuthError, noticeText, type Notice } from '../lib/authErrors';
+
+const MIN_PASSWORD_LENGTH = 6;
 
 export default function ResetPasswordForm() {
+  const { t } = useI18n();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Notice | null>(null);
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -14,12 +19,12 @@ export default function ResetPasswordForm() {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 6) {
-      setError('Le mot de passe doit faire au moins 6 caractères.');
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError({ key: 'authError.passwordTooShort', params: { min: MIN_PASSWORD_LENGTH } });
       return;
     }
     if (password !== confirm) {
-      setError('Les deux mots de passe ne correspondent pas.');
+      setError({ key: 'reset.mismatch' });
       return;
     }
 
@@ -27,7 +32,7 @@ export default function ResetPasswordForm() {
     const { error } = await supabase.auth.updateUser({ password });
     setSaving(false);
 
-    if (error) setError(error.message);
+    if (error) setError(noticeFromAuthError(error));
     else setSuccess(true);
   };
 
@@ -67,11 +72,10 @@ export default function ResetPasswordForm() {
         {success ? (
           <>
             <p style={{ color: 'var(--success)', fontWeight: 600 }}>
-              Mot de passe mis à jour avec succès.
+              {t('reset.success')}
             </p>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              Vous pouvez fermer cette page et vous reconnecter avec votre
-              nouveau mot de passe.
+              {t('reset.successHint')}
             </p>
           </>
         ) : (
@@ -91,15 +95,15 @@ export default function ResetPasswordForm() {
                 margin: '0 0 0.4rem',
               }}
             >
-              Choisissez votre nouveau mot de passe.
+              {t('reset.intro')}
             </p>
             <input
               type="password"
-              placeholder="Nouveau mot de passe"
+              placeholder={t('reset.newPassword')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={MIN_PASSWORD_LENGTH}
               style={{
                 padding: '0.7rem 0.9rem',
                 borderRadius: 10,
@@ -110,11 +114,11 @@ export default function ResetPasswordForm() {
             />
             <input
               type="password"
-              placeholder="Confirmer le mot de passe"
+              placeholder={t('reset.confirmPassword')}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               required
-              minLength={6}
+              minLength={MIN_PASSWORD_LENGTH}
               style={{
                 padding: '0.7rem 0.9rem',
                 borderRadius: 10,
@@ -137,10 +141,10 @@ export default function ResetPasswordForm() {
                 marginTop: '0.4rem',
               }}
             >
-              {saving ? 'Enregistrement...' : 'Mettre à jour le mot de passe'}
+              {saving ? t('reset.saving') : t('reset.submit')}
             </button>
             {error && (
-              <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p>
+              <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{noticeText(error, t)}</p>
             )}
           </form>
         )}

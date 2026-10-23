@@ -3,6 +3,9 @@ import { supabase } from '../lib/supabaseClient'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import Icon from './icons'
+import { useI18n } from '../hooks/useI18n'
+import { noticeFromAuthError, noticeText, type Notice } from '../lib/authErrors'
+import type { TranslationKey } from '../i18n'
 
 type Mode = 'login' | 'signup' | 'forgot'
 type Provider = 'google' | 'github'
@@ -14,10 +17,10 @@ const PROVIDER_LABELS: Record<Provider, string> = {
   github: 'GitHub',
 }
 
-const FEATURES = [
-  { icon: 'users', title: 'Périodes récurrentes', desc: 'Garde alternée, plannings 3x8, horaires personnalisés — configurez une fois, répété automatiquement.' },
-  { icon: 'calendar', title: 'Calendrier annuel', desc: 'Visualisez vos 12 mois en un coup d\'œil, avec une vue détaillée heure par heure.' },
-  { icon: 'book', title: 'Export PDF', desc: 'Imprimez ou partagez votre calendrier en un clic, mis en page automatiquement.' },
+const FEATURES: { icon: string; title: TranslationKey; desc: TranslationKey }[] = [
+  { icon: 'users', title: 'auth.feature.recurring.title', desc: 'auth.feature.recurring.desc' },
+  { icon: 'calendar', title: 'auth.feature.year.title', desc: 'auth.feature.year.desc' },
+  { icon: 'book', title: 'auth.feature.pdf.title', desc: 'auth.feature.pdf.desc' },
 ]
 
 function useIsWide() {
@@ -57,12 +60,13 @@ function ProviderLogo({ provider }: { provider: Provider }) {
 }
 
 export default function AuthPage() {
+  const { t } = useI18n()
   const isWide = useIsWide()
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<Notice | null>(null)
+  const [error, setError] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,19 +77,19 @@ export default function AuthPage() {
 
     if (mode === 'login') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setError(error.message)
+      if (error) setError(noticeFromAuthError(error))
     }
 
     if (mode === 'signup') {
       const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setError(error.message)
-      else setMessage('Compte créé. Vous êtes connecté(e).')
+      if (error) setError(noticeFromAuthError(error))
+      else setMessage({ key: 'auth.message.signedUp' })
     }
 
     if (mode === 'forgot') {
       const { error } = await supabase.auth.resetPasswordForEmail(email)
-      if (error) setError(error.message)
-      else setMessage('Email de réinitialisation envoyé si ce compte existe.')
+      if (error) setError(noticeFromAuthError(error))
+      else setMessage({ key: 'auth.message.resetSent' })
     }
 
     setLoading(false)
@@ -98,7 +102,7 @@ export default function AuthPage() {
       provider,
       options: { redirectTo: `${window.location.origin}/` },
     })
-    if (error) setError(error.message)
+    if (error) setError(noticeFromAuthError(error))
   }
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -143,16 +147,16 @@ export default function AuthPage() {
           }}
         >
           <h1 style={{ fontSize: '2.2rem', lineHeight: 1.15, margin: '0 0 1rem', maxWidth: 460, color: 'var(--text-primary)' }}>
-            Vos calendriers personnalisés, enfin simples à créer.
+            {t('auth.hero.title')}
           </h1>
           <p style={{ fontSize: '1.05rem', color: 'var(--text-strong)', maxWidth: 460, margin: '0 0 2rem' }}>
-            Définissez vos périodes récurrentes une seule fois, Calendraft génère et met à jour tout le reste.
+            {t('auth.hero.subtitle')}
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', maxWidth: 460 }}>
             {FEATURES.map((f) => (
               <div
-                key={f.title}
+                key={f.icon}
                 style={{
                   display: 'flex',
                   gap: '0.9rem',
@@ -178,8 +182,8 @@ export default function AuthPage() {
                   <Icon name={f.icon} size={18} color="white" />
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{f.title}</div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-strong)' }}>{f.desc}</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{t(f.title)}</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-strong)' }}>{t(f.desc)}</div>
                 </div>
               </div>
             ))}
@@ -212,15 +216,15 @@ export default function AuthPage() {
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: '1.5rem', background: 'var(--surface-alt)', padding: 4, borderRadius: 12 }}>
-            <button style={tabStyle(mode === 'login')} onClick={() => setMode('login')}>Connexion</button>
-            <button style={tabStyle(mode === 'signup')} onClick={() => setMode('signup')}>Créer un compte</button>
-            <button style={tabStyle(mode === 'forgot')} onClick={() => setMode('forgot')}>Oublié</button>
+            <button style={tabStyle(mode === 'login')} onClick={() => setMode('login')}>{t('auth.tab.login')}</button>
+            <button style={tabStyle(mode === 'signup')} onClick={() => setMode('signup')}>{t('auth.tab.signup')}</button>
+            <button style={tabStyle(mode === 'forgot')} onClick={() => setMode('forgot')}>{t('auth.tab.forgot')}</button>
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
             <input
               type="email"
-              placeholder="Email"
+              placeholder={t('auth.email')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -229,7 +233,7 @@ export default function AuthPage() {
             {mode !== 'forgot' && (
               <input
                 type="password"
-                placeholder="Mot de passe"
+                placeholder={t('auth.password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -251,7 +255,7 @@ export default function AuthPage() {
                 marginTop: '0.4rem',
               }}
             >
-              {loading ? 'Chargement...' : mode === 'login' ? 'Se connecter' : mode === 'signup' ? "S'inscrire" : 'Envoyer le lien'}
+              {loading ? t('auth.submit.loading') : mode === 'login' ? t('auth.submit.login') : mode === 'signup' ? t('auth.submit.signup') : t('auth.submit.forgot')}
             </button>
           </form>
 
@@ -259,7 +263,7 @@ export default function AuthPage() {
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '1.2rem 0' }}>
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>ou</span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{t('auth.or')}</span>
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               </div>
 
@@ -284,22 +288,22 @@ export default function AuthPage() {
                     }}
                   >
                     <ProviderLogo provider={provider} />
-                    Continuer avec {PROVIDER_LABELS[provider]}
+                    {t('auth.continueWith', { provider: PROVIDER_LABELS[provider] })}
                   </button>
                 ))}
               </div>
             </>
           )}
 
-          {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{error}</p>}
-          {message && <p style={{ color: 'var(--success)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{message}</p>}
+          {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{noticeText(error, t)}</p>}
+          {message && <p style={{ color: 'var(--success)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{noticeText(message, t)}</p>}
 
           <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2rem' }}>
-            <p style={{ margin: '0 0 0.4rem' }}>© {new Date().getFullYear()} Calendraft. Tous droits réservés.</p>
+            <p style={{ margin: '0 0 0.4rem' }}>{t('auth.footer.rights', { year: new Date().getFullYear() })}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.3rem 0.9rem' }}>
-              <a href="/conditions" style={{ color: 'inherit', textDecoration: 'underline' }}>Conditions</a>
-              <a href="/confidentialite" style={{ color: 'inherit', textDecoration: 'underline' }}>Confidentialité</a>
-              <a href="/application" style={{ color: 'inherit', textDecoration: 'underline' }}>Application mobile</a>
+              <a href="/conditions" style={{ color: 'inherit', textDecoration: 'underline' }}>{t('auth.footer.terms')}</a>
+              <a href="/confidentialite" style={{ color: 'inherit', textDecoration: 'underline' }}>{t('auth.footer.privacy')}</a>
+              <a href="/application" style={{ color: 'inherit', textDecoration: 'underline' }}>{t('auth.footer.app')}</a>
             </div>
           </div>
         </div>
