@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import AppearanceSettings from './AppearanceSettings'
+import { useI18n } from '../hooks/useI18n'
 
 interface ThemeToggleProps {
   /** « header » : bouton posé sur la barre du haut. « floating » : bouton flottant en haut à droite de l'écran (pages sans barre du haut). */
@@ -16,14 +17,15 @@ interface PanelPosition {
   width: number
 }
 
-// Bouton « Thème » présent sur chaque écran : ouvre un petit menu avec le choix du mode (système / clair / sombre)
-// et de la couleur du thème. Remplace la section « Apparence » de la page Mon profil.
+// Bouton « Apparence » présent sur chaque écran : ouvre un petit menu avec le choix du mode (système / clair / sombre),
+// de la couleur du thème et de la langue.
 export default function ThemeToggle({ variant = 'header', size = 38 }: ThemeToggleProps) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<PanelPosition | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const panelId = useId()
+  const { t } = useI18n()
 
   const close = useCallback((returnFocus: boolean) => {
     setOpen(false)
@@ -95,8 +97,8 @@ export default function ThemeToggle({ variant = 'header', size = 38 }: ThemeTogg
         type="button"
         className={`theme-toggle theme-menu-btn theme-menu-btn--${variant} no-print`}
         onClick={() => (open ? close(false) : setOpen(true))}
-        aria-label="Thème : mode d'affichage et couleur"
-        title="Thème : mode d'affichage et couleur"
+        aria-label={t('appearance.buttonTitle')}
+        title={t('appearance.buttonTitle')}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
@@ -124,7 +126,7 @@ export default function ThemeToggle({ variant = 'header', size = 38 }: ThemeTogg
           <circle cx="6.5" cy="12.5" r="0.6" fill="currentColor" />
           <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
         </svg>
-        {variant === 'header' && <span className="theme-menu-label">Thème</span>}
+        {variant === 'header' && <span className="theme-menu-label">{t('appearance.button')}</span>}
       </button>
 
       {open && (
@@ -132,7 +134,7 @@ export default function ThemeToggle({ variant = 'header', size = 38 }: ThemeTogg
           ref={panelRef}
           id={panelId}
           role="dialog"
-          aria-label="Apparence du site"
+          aria-label={t('appearance.dialogLabel')}
           className="no-print"
           style={{
             position: 'fixed',
@@ -151,11 +153,11 @@ export default function ThemeToggle({ variant = 'header', size = 38 }: ThemeTogg
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.9rem' }}>
-            <h2 style={{ fontSize: '1rem', margin: 0, color: 'var(--text-primary)' }}>Apparence</h2>
+            <h2 style={{ fontSize: '1rem', margin: 0, color: 'var(--text-primary)' }}>{t('appearance.title')}</h2>
             <button
               type="button"
               onClick={() => close(true)}
-              aria-label="Fermer"
+              aria-label={t('appearance.close')}
               style={{
                 width: 36, height: 36, borderRadius: '50%', border: 'none', fontSize: '1.3rem', lineHeight: 1,
                 background: 'var(--surface-alt)', color: 'var(--text-body)',

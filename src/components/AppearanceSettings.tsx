@@ -1,20 +1,25 @@
 import type { CSSProperties } from 'react'
 import { useThemeMode } from '../hooks/useThemeMode'
+import { useI18n } from '../hooks/useI18n'
+import { LANGS, type Lang, type TranslationKey } from '../i18n'
 import type { ThemeColor, ThemeMode } from '../lib/theme'
 
-const MODES: { value: ThemeMode; label: string }[] = [
-  { value: 'system', label: 'Système' },
-  { value: 'light', label: 'Clair' },
-  { value: 'dark', label: 'Sombre' },
+const MODES: { value: ThemeMode; label: TranslationKey }[] = [
+  { value: 'system', label: 'appearance.mode.system' },
+  { value: 'light', label: 'appearance.mode.light' },
+  { value: 'dark', label: 'appearance.mode.dark' },
 ]
 
+// Noms des langues dans leur propre langue : ils ne se traduisent pas.
+const LANGUAGE_NAMES: Record<Lang, string> = { fr: 'Français', en: 'English', de: 'Deutsch' }
+
 // Pastilles des thèmes : couleurs propres à chaque thème (elles ne changent pas avec le thème actif).
-const COLORS: { value: ThemeColor; label: string; from: string; to: string }[] = [
-  { value: 'blue', label: 'Bleu', from: '#38bdf8', to: '#1e40af' },
-  { value: 'violet', label: 'Violet', from: '#8b5cf6', to: '#5b21b6' },
-  { value: 'green', label: 'Vert', from: '#22c55e', to: '#14532d' },
-  { value: 'pink', label: 'Rose', from: '#ec4899', to: '#9d174d' },
-  { value: 'graphite', label: 'Graphite', from: '#64748b', to: '#1e293b' },
+const COLORS: { value: ThemeColor; label: TranslationKey; from: string; to: string }[] = [
+  { value: 'blue', label: 'appearance.color.blue', from: '#38bdf8', to: '#1e40af' },
+  { value: 'violet', label: 'appearance.color.violet', from: '#8b5cf6', to: '#5b21b6' },
+  { value: 'green', label: 'appearance.color.green', from: '#22c55e', to: '#14532d' },
+  { value: 'pink', label: 'appearance.color.pink', from: '#ec4899', to: '#9d174d' },
+  { value: 'graphite', label: 'appearance.color.graphite', from: '#64748b', to: '#1e293b' },
 ]
 
 function ModeIcon({ mode }: { mode: ThemeMode }) {
@@ -71,19 +76,20 @@ const groupLabel: CSSProperties = {
   textTransform: 'uppercase', letterSpacing: '0.04em',
 }
 
-// Choix du mode (clair / sombre / système) et de la couleur du thème. Affiché dans le menu « Thème » de la barre du haut
-// (composant ThemeToggle). Le choix est mémorisé sur cet appareil.
+// Choix du mode (clair / sombre / système), de la couleur du thème et de la langue. Affiché dans le menu « Apparence » de
+// la barre du haut (composant ThemeToggle). Les choix sont mémorisés sur cet appareil.
 export default function AppearanceSettings() {
   const { mode, resolved, color, setMode, setColor } = useThemeMode()
+  const { t, lang, setLang } = useI18n()
 
   const hint =
     mode === 'system'
-      ? `Suit le réglage de votre appareil (actuellement : ${resolved === 'dark' ? 'sombre' : 'clair'}).`
-      : 'Ce choix est enregistré sur cet appareil.'
+      ? t(resolved === 'dark' ? 'appearance.hint.systemDark' : 'appearance.hint.systemLight')
+      : t('appearance.hint.saved')
 
   return (
     <div>
-      <p id="appearance-mode-label" style={groupLabel}>Affichage</p>
+      <p id="appearance-mode-label" style={groupLabel}>{t('appearance.display')}</p>
       <div
         role="group"
         aria-labelledby="appearance-mode-label"
@@ -98,21 +104,22 @@ export default function AppearanceSettings() {
             style={optionStyle(mode === m.value)}
           >
             <ModeIcon mode={m.value} />
-            {m.label}
+            {t(m.label)}
           </button>
         ))}
       </div>
 
-      <p id="appearance-color-label" style={{ ...groupLabel, marginTop: '1rem' }}>Couleur</p>
+      <p id="appearance-color-label" style={{ ...groupLabel, marginTop: '1rem' }}>{t('appearance.color')}</p>
       <div role="group" aria-labelledby="appearance-color-label" style={{ display: 'flex', gap: 4 }}>
         {COLORS.map((c) => {
           const active = color === c.value
+          const colorName = t(c.label)
           return (
             <button
               key={c.value}
               type="button"
               aria-pressed={active}
-              aria-label={`Thème ${c.label}`}
+              aria-label={t('appearance.colorAria', { color: colorName })}
               onClick={() => setColor(c.value)}
               style={{
                 flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
@@ -135,10 +142,30 @@ export default function AppearanceSettings() {
                   </svg>
                 )}
               </span>
-              {c.label}
+              {colorName}
             </button>
           )
         })}
+      </div>
+
+      <p id="appearance-language-label" style={{ ...groupLabel, marginTop: '1rem' }}>{t('appearance.language')}</p>
+      <div
+        role="group"
+        aria-labelledby="appearance-language-label"
+        style={{ display: 'flex', gap: 4, background: 'var(--surface-alt)', padding: 4, borderRadius: 12 }}
+      >
+        {LANGS.map((l) => (
+          <button
+            key={l}
+            type="button"
+            lang={l}
+            aria-pressed={lang === l}
+            onClick={() => setLang(l)}
+            style={{ ...optionStyle(lang === l), minHeight: 44, flexDirection: 'row', fontSize: '0.86rem' }}
+          >
+            {LANGUAGE_NAMES[l]}
+          </button>
+        ))}
       </div>
 
       <p role="status" aria-live="polite" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0.8rem 0 0', lineHeight: 1.45 }}>
