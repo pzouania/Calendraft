@@ -283,6 +283,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             alignItems: 'center',
             boxShadow: 'var(--shadow-header)',
             gap: '0.7rem',
+            flexWrap: 'wrap',
           }}
         >
           <button
@@ -296,7 +297,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           >
             ← Retour
           </button>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: '1 1 150px', minWidth: 0 }}>
             <div
               style={{
                 color: 'white', fontSize: '1rem', fontWeight: 700,
@@ -311,22 +312,25 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               </div>
             )}
           </div>
-          {isOwner && (
-            <button
-              onClick={() => setShowShare(true)}
-              aria-label="Partager"
-              title="Partager"
-              style={{
-                background: 'rgba(255,255,255,0.18)', color: 'white',
-                border: '1px solid rgba(255,255,255,0.55)', borderRadius: '50%',
-                width: 38, height: 38, padding: 0, flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <ShareIcon size={17} />
-            </button>
-          )}
-          <ThemeToggle />
+          {/* Partage et boutons d'apparence : sur un petit écran, ce groupe passe sur une 2e ligne plutôt que de réduire le nom du calendrier. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', marginLeft: 'auto', flexShrink: 0 }}>
+            {isOwner && (
+              <button
+                onClick={() => setShowShare(true)}
+                aria-label="Partager"
+                title="Partager"
+                style={{
+                  background: 'rgba(255,255,255,0.18)', color: 'white',
+                  border: '1px solid rgba(255,255,255,0.55)', borderRadius: '50%',
+                  width: 38, height: 38, padding: 0, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <ShareIcon size={17} />
+              </button>
+            )}
+            <ThemeToggle />
+          </div>
         </header>
       ) : (
         <header
