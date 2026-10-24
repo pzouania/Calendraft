@@ -7,16 +7,12 @@
 export type Message = string | { one: string; other: string }
 
 export const fr = {
-  // Menu « Apparence et langue » (barre du haut)
-  'appearance.button': 'Apparence',
-  'appearance.buttonTitle': 'Apparence et langue',
-  'appearance.dialogLabel': 'Apparence et langue du site',
-  'appearance.title': 'Apparence',
+  // Boutons couleur, langue et mode sombre (barre du haut)
   'appearance.close': 'Fermer',
-  'appearance.display': 'Affichage',
-  'appearance.mode.system': 'Système',
-  'appearance.mode.light': 'Clair',
-  'appearance.mode.dark': 'Sombre',
+  'appearance.colorButton': 'Couleur du thème',
+  'appearance.languageButton': 'Changer de langue',
+  'appearance.mode.toDark': 'Passer en mode sombre',
+  'appearance.mode.toLight': 'Passer en mode clair',
   'appearance.color': 'Couleur',
   'appearance.colorAria': 'Thème {color}',
   'appearance.color.blue': 'Bleu',
@@ -25,9 +21,6 @@ export const fr = {
   'appearance.color.pink': 'Rose',
   'appearance.color.graphite': 'Graphite',
   'appearance.language': 'Langue',
-  'appearance.hint.systemDark': 'Suit le réglage de votre appareil (actuellement : sombre).',
-  'appearance.hint.systemLight': 'Suit le réglage de votre appareil (actuellement : clair).',
-  'appearance.hint.saved': 'Ce choix est enregistré sur cet appareil.',
 
   // Mots communs
   'common.cancel': 'Annuler',

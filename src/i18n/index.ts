@@ -1,7 +1,7 @@
 // Langue du site (français, anglais, allemand) : détection, mémorisation, traduction (t), pluriels et dates (Intl).
 // Pas de bibliothèque externe. Les textes sont dans fr.ts (référence), en.ts et de.ts.
 //
-// Utilisation dans un composant : const { t } = useI18n()   (src/hooks/useI18n.ts)  puis  t('appearance.title')
+// Utilisation dans un composant : const { t } = useI18n()   (src/hooks/useI18n.ts)  puis  t('common.cancel')
 // Hors composant : import { t } from '../i18n'
 
 import { fr, type Message, type TranslationKey } from './fr'

@@ -1,15 +1,11 @@
 import type { Message, TranslationKey } from './fr'
 
 export const de: Record<TranslationKey, Message> = {
-  'appearance.button': 'Darstellung',
-  'appearance.buttonTitle': 'Darstellung und Sprache',
-  'appearance.dialogLabel': 'Darstellung und Sprache der Website',
-  'appearance.title': 'Darstellung',
   'appearance.close': 'Schließen',
-  'appearance.display': 'Anzeige',
-  'appearance.mode.system': 'System',
-  'appearance.mode.light': 'Hell',
-  'appearance.mode.dark': 'Dunkel',
+  'appearance.colorButton': 'Designfarbe',
+  'appearance.languageButton': 'Sprache ändern',
+  'appearance.mode.toDark': 'Zum dunklen Modus wechseln',
+  'appearance.mode.toLight': 'Zum hellen Modus wechseln',
   'appearance.color': 'Farbe',
   'appearance.colorAria': 'Design {color}',
   'appearance.color.blue': 'Blau',
@@ -18,9 +14,6 @@ export const de: Record<TranslationKey, Message> = {
   'appearance.color.pink': 'Rosa',
   'appearance.color.graphite': 'Graphit',
   'appearance.language': 'Sprache',
-  'appearance.hint.systemDark': 'Folgt der Einstellung Ihres Geräts (derzeit: dunkel).',
-  'appearance.hint.systemLight': 'Folgt der Einstellung Ihres Geräts (derzeit: hell).',
-  'appearance.hint.saved': 'Diese Auswahl wird auf diesem Gerät gespeichert.',
 
   // Mots communs
   'common.cancel': 'Abbrechen',
