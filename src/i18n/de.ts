@@ -204,6 +204,33 @@ export const de: Record<TranslationKey, Message> = {
   'yearMode.school.title': 'Schuljahr',
   'yearMode.school.desc': 'Von September bis August',
 
+  // Mots communs (suite)
+  'common.close': 'Schließen',
+  'common.errorWithMessage': 'Fehler: {message}',
+
+  // Calendrier annuel et mensuel
+  'calendar.loading': 'Kalender wird geladen...',
+  'calendar.view.month': 'Monat',
+  'calendar.view.year': 'Jahr',
+  'calendar.today': 'Heute',
+  'calendar.exportPdf': 'Als PDF exportieren',
+  'calendar.prevMonth': 'Vorheriger Monat',
+  'calendar.nextMonth': 'Nächster Monat',
+  'calendar.prevYear': 'Vorheriges Jahr',
+  'calendar.nextYear': 'Nächstes Jahr',
+  'calendar.tapMonth': 'Tippen Sie auf einen Monat, um ihn zu öffnen.',
+  'calendar.noEvents': 'Keine Termine definiert.',
+  'calendar.noEvents.canEdit': 'Keine Termine definiert – fügen Sie welche im Reiter „Termine“ hinzu.',
+  'calendar.feed.unavailable': 'Der Online-Stundenplan ist vorübergehend nicht verfügbar.',
+  'calendar.feed.notConfigured': 'Der Online-Stundenplan ist auf dem Server noch nicht eingerichtet.',
+
+  // Détail d’un jour
+  'dayDetail.empty': 'An diesem Tag gibt es keine Termine.',
+  'dayDetail.deleteDay': 'Nur an diesem Tag löschen',
+  'dayDetail.endsNextDay': '{start} → {end} (Folgetag)',
+  'dayDetail.startedPreviousDay': '{start} (Vortag) → {end}',
+  'dayDetail.confirmDelete': '„{name}“ nur am {date} löschen? Die übrigen Termine dieser Wiederholung bleiben unverändert.',
+
   // Exemple de texte qui varie avec un nombre (utilisé plus tard dans le calendrier)
   'calendar.eventsCount': { one: '{count} Termin', other: '{count} Termine' },
 }

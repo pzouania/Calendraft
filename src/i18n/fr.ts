@@ -211,6 +211,33 @@ export const fr = {
   'yearMode.school.title': 'Année scolaire',
   'yearMode.school.desc': 'De septembre à août',
 
+  // Mots communs (suite)
+  'common.close': 'Fermer',
+  'common.errorWithMessage': 'Erreur : {message}',
+
+  // Calendrier annuel et mensuel
+  'calendar.loading': 'Chargement du calendrier...',
+  'calendar.view.month': 'Mois',
+  'calendar.view.year': 'Année',
+  'calendar.today': "Aujourd'hui",
+  'calendar.exportPdf': 'Exporter en PDF',
+  'calendar.prevMonth': 'Mois précédent',
+  'calendar.nextMonth': 'Mois suivant',
+  'calendar.prevYear': 'Année précédente',
+  'calendar.nextYear': 'Année suivante',
+  'calendar.tapMonth': "Touchez un mois pour l'ouvrir.",
+  'calendar.noEvents': 'Aucun événement défini.',
+  'calendar.noEvents.canEdit': 'Aucun événement défini — ajoutez-en dans l\'onglet "Événements".',
+  'calendar.feed.unavailable': "L'emploi du temps en ligne est momentanément indisponible.",
+  'calendar.feed.notConfigured': "L'emploi du temps en ligne n'est pas encore configuré côté serveur.",
+
+  // Détail d’un jour
+  'dayDetail.empty': 'Aucun événement ce jour-là.',
+  'dayDetail.deleteDay': 'Supprimer ce jour',
+  'dayDetail.endsNextDay': '{start} → {end} (lendemain)',
+  'dayDetail.startedPreviousDay': '{start} (veille) → {end}',
+  'dayDetail.confirmDelete': 'Supprimer "{name}" uniquement pour le {date} ? Les autres dates de cette période récurrente ne seront pas affectées.',
+
   // Exemple de texte qui varie avec un nombre (utilisé plus tard dans le calendrier)
   'calendar.eventsCount': { one: '{count} événement', other: '{count} événements' },
 } satisfies Record<string, Message>

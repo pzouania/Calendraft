@@ -204,6 +204,33 @@ export const en: Record<TranslationKey, Message> = {
   'yearMode.school.title': 'School year',
   'yearMode.school.desc': 'From September to August',
 
+  // Mots communs (suite)
+  'common.close': 'Close',
+  'common.errorWithMessage': 'Error: {message}',
+
+  // Calendrier annuel et mensuel
+  'calendar.loading': 'Loading calendar...',
+  'calendar.view.month': 'Month',
+  'calendar.view.year': 'Year',
+  'calendar.today': 'Today',
+  'calendar.exportPdf': 'Export as PDF',
+  'calendar.prevMonth': 'Previous month',
+  'calendar.nextMonth': 'Next month',
+  'calendar.prevYear': 'Previous year',
+  'calendar.nextYear': 'Next year',
+  'calendar.tapMonth': 'Tap a month to open it.',
+  'calendar.noEvents': 'No events defined.',
+  'calendar.noEvents.canEdit': 'No events defined — add some in the "Events" tab.',
+  'calendar.feed.unavailable': 'The online timetable is temporarily unavailable.',
+  'calendar.feed.notConfigured': 'The online timetable has not been set up on the server yet.',
+
+  // Détail d’un jour
+  'dayDetail.empty': 'No events on this day.',
+  'dayDetail.deleteDay': 'Delete on this day only',
+  'dayDetail.endsNextDay': '{start} → {end} (next day)',
+  'dayDetail.startedPreviousDay': '{start} (previous day) → {end}',
+  'dayDetail.confirmDelete': 'Delete "{name}" on {date} only? The other dates of this recurring event will not be affected.',
+
   // Exemple de texte qui varie avec un nombre (utilisé plus tard dans le calendrier)
   'calendar.eventsCount': { one: '{count} event', other: '{count} events' },
 }
