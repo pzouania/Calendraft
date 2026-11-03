@@ -231,6 +231,16 @@ export const en: Record<TranslationKey, Message> = {
   'dayDetail.startedPreviousDay': '{start} (previous day) → {end}',
   'dayDetail.confirmDelete': 'Delete "{name}" on {date} only? The other dates of this recurring event will not be affected.',
 
+  // Conditions d’utilisation (case à l’inscription et écran d’acceptation)
+  'terms.accept': 'I have read and accept the {link}.',
+  'terms.link': 'terms of use',
+  'terms.required': 'You must accept the terms of use to create an account.',
+  'terms.gate.title': 'Terms of use',
+  'terms.gate.intro': 'To keep using Calendraft, please read and accept our terms of use. It only takes a moment and you will only be asked once.',
+  'terms.gate.privacy': 'Read the privacy policy',
+  'terms.gate.continue': 'Continue',
+  'terms.gate.saveError': 'Your acceptance could not be saved: {message}',
+
   // Exemple de texte qui varie avec un nombre (utilisé plus tard dans le calendrier)
   'calendar.eventsCount': { one: '{count} event', other: '{count} events' },
 }

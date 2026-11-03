@@ -231,6 +231,16 @@ export const de: Record<TranslationKey, Message> = {
   'dayDetail.startedPreviousDay': '{start} (Vortag) → {end}',
   'dayDetail.confirmDelete': '„{name}“ nur am {date} löschen? Die übrigen Termine dieser Wiederholung bleiben unverändert.',
 
+  // Conditions d’utilisation (case à l’inscription et écran d’acceptation)
+  'terms.accept': 'Ich habe die {link} gelesen und akzeptiere sie.',
+  'terms.link': 'Nutzungsbedingungen',
+  'terms.required': 'Sie müssen die Nutzungsbedingungen akzeptieren, um ein Konto zu erstellen.',
+  'terms.gate.title': 'Nutzungsbedingungen',
+  'terms.gate.intro': 'Um Calendraft weiter zu nutzen, lesen und akzeptieren Sie bitte unsere Nutzungsbedingungen. Das dauert nur einen Moment und wird nur einmal abgefragt.',
+  'terms.gate.privacy': 'Datenschutzerklärung lesen',
+  'terms.gate.continue': 'Weiter',
+  'terms.gate.saveError': 'Ihre Zustimmung konnte nicht gespeichert werden: {message}',
+
   // Exemple de texte qui varie avec un nombre (utilisé plus tard dans le calendrier)
   'calendar.eventsCount': { one: '{count} Termin', other: '{count} Termine' },
 }

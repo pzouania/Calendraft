@@ -238,6 +238,16 @@ export const fr = {
   'dayDetail.startedPreviousDay': '{start} (veille) → {end}',
   'dayDetail.confirmDelete': 'Supprimer "{name}" uniquement pour le {date} ? Les autres dates de cette période récurrente ne seront pas affectées.',
 
+  // Conditions d’utilisation (case à l’inscription et écran d’acceptation)
+  'terms.accept': "J'ai lu et j'accepte les {link}.",
+  'terms.link': "conditions d'utilisation",
+  'terms.required': "Vous devez accepter les conditions d'utilisation pour créer un compte.",
+  'terms.gate.title': "Conditions d'utilisation",
+  'terms.gate.intro': "Pour continuer à utiliser Calendraft, merci de lire et d'accepter nos conditions d'utilisation. Cela ne prend qu'un instant et ne vous sera demandé qu'une fois.",
+  'terms.gate.privacy': 'Lire la politique de confidentialité',
+  'terms.gate.continue': 'Continuer',
+  'terms.gate.saveError': "L'acceptation n'a pas pu être enregistrée : {message}",
+
   // Exemple de texte qui varie avec un nombre (utilisé plus tard dans le calendrier)
   'calendar.eventsCount': { one: '{count} événement', other: '{count} événements' },
 } satisfies Record<string, Message>
