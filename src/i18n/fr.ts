@@ -162,6 +162,55 @@ export const fr = {
   'app.know.text1': 'L’application affiche calendraft.fr : vos calendriers sont toujours à jour, sans réinstaller. Une connexion internet est nécessaire.',
   'app.know.text2': 'Sur ordinateur, Chrome et Edge proposent aussi «\u00A0Installer Calendraft\u00A0» dans la barre d’adresse.',
 
+  // Mots communs (suite)
+  'common.loading': 'Chargement...',
+  'common.saving': 'Enregistrement...',
+  'common.create': 'Créer',
+  'common.delete': 'Supprimer',
+  'common.color': 'Couleur',
+
+  // Rôles de partage et libellés d’événements (communs à plusieurs écrans)
+  'role.viewer': 'Lecteur',
+  'role.editor': 'Éditeur',
+  'event.allDay': 'Journée entière',
+  'event.from': 'dès {time}',
+  'event.until': "jusqu'à {time}",
+
+  // Tableau de bord
+  'dashboard.myCalendars': 'Mes calendriers',
+  'dashboard.sharedWithMe': 'Partagés avec moi',
+  'dashboard.stat.calendars': 'Calendriers',
+  'dashboard.stat.created': 'Événements créés',
+  'dashboard.stat.week': 'Événements (7 jours)',
+  'dashboard.new': '+ Nouveau calendrier',
+  'dashboard.search': 'Rechercher un calendrier...',
+  'dashboard.empty': "Aucun calendrier pour l'instant. Créez-en un pour commencer.",
+  'dashboard.modified': 'Modifié le {date}',
+  'dashboard.leave': 'Quitter',
+  'dashboard.confirmDelete': 'Supprimer ce calendrier ? Cette action est irréversible.',
+  'dashboard.confirmLeave': 'Quitter ce calendrier ? Vous n’y aurez plus accès, sauf nouvelle invitation.',
+  'dashboard.upcoming.title': 'Prochains événements',
+  'dashboard.upcoming.subtitle': 'Les 7 prochains jours, tous calendriers confondus',
+  'dashboard.upcoming.setup': 'Ajoutez des événements ou un emploi du temps en ligne à vos calendriers pour les voir apparaître ici.',
+  'dashboard.upcoming.none': 'Aucun événement prévu dans les 7 prochains jours.',
+  'dashboard.upcoming.nothingLeft': 'Plus rien de prévu pour le moment.',
+  'dashboard.upcoming.today': "Aujourd'hui",
+  'dashboard.upcoming.tomorrow': 'Demain',
+  'dashboard.upcoming.showAll': 'Voir toute la semaine ({count} de plus)',
+  'dashboard.upcoming.showLess': 'Réduire',
+  'dashboard.upcoming.loadingFeed': "Chargement de l'emploi du temps...",
+
+  // Création et modification d’un calendrier
+  'calendarForm.createTitle': 'Nouveau calendrier',
+  'calendarForm.editTitle': 'Modifier le calendrier',
+  'calendarForm.name': 'Nom',
+  'calendarForm.yearType': "Type d'année",
+  'calendarForm.icon': 'Icône',
+  'yearMode.calendar.title': 'Année civile',
+  'yearMode.calendar.desc': 'De janvier à décembre',
+  'yearMode.school.title': 'Année scolaire',
+  'yearMode.school.desc': 'De septembre à août',
+
   // Exemple de texte qui varie avec un nombre (utilisé plus tard dans le calendrier)
   'calendar.eventsCount': { one: '{count} événement', other: '{count} événements' },
 } satisfies Record<string, Message>

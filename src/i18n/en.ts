@@ -155,6 +155,55 @@ export const en: Record<TranslationKey, Message> = {
   'app.know.text1': 'The app displays calendraft.fr: your calendars are always up to date, with no reinstalling. An internet connection is required.',
   'app.know.text2': 'On a computer, Chrome and Edge also offer “Install Calendraft” in the address bar.',
 
+  // Mots communs (suite)
+  'common.loading': 'Loading...',
+  'common.saving': 'Saving...',
+  'common.create': 'Create',
+  'common.delete': 'Delete',
+  'common.color': 'Colour',
+
+  // Rôles de partage et libellés d’événements (communs à plusieurs écrans)
+  'role.viewer': 'Viewer',
+  'role.editor': 'Editor',
+  'event.allDay': 'All day',
+  'event.from': 'from {time}',
+  'event.until': 'until {time}',
+
+  // Tableau de bord
+  'dashboard.myCalendars': 'My calendars',
+  'dashboard.sharedWithMe': 'Shared with me',
+  'dashboard.stat.calendars': 'Calendars',
+  'dashboard.stat.created': 'Events created',
+  'dashboard.stat.week': 'Events (7 days)',
+  'dashboard.new': '+ New calendar',
+  'dashboard.search': 'Search for a calendar...',
+  'dashboard.empty': 'No calendars yet. Create one to get started.',
+  'dashboard.modified': 'Modified on {date}',
+  'dashboard.leave': 'Leave',
+  'dashboard.confirmDelete': 'Delete this calendar? This action cannot be undone.',
+  'dashboard.confirmLeave': 'Leave this calendar? You will no longer have access unless you are invited again.',
+  'dashboard.upcoming.title': 'Upcoming events',
+  'dashboard.upcoming.subtitle': 'The next 7 days, all calendars combined',
+  'dashboard.upcoming.setup': 'Add events or an online timetable to your calendars to see them appear here.',
+  'dashboard.upcoming.none': 'No events planned in the next 7 days.',
+  'dashboard.upcoming.nothingLeft': 'Nothing more planned for now.',
+  'dashboard.upcoming.today': 'Today',
+  'dashboard.upcoming.tomorrow': 'Tomorrow',
+  'dashboard.upcoming.showAll': 'See the whole week ({count} more)',
+  'dashboard.upcoming.showLess': 'Show less',
+  'dashboard.upcoming.loadingFeed': 'Loading the timetable...',
+
+  // Création et modification d’un calendrier
+  'calendarForm.createTitle': 'New calendar',
+  'calendarForm.editTitle': 'Edit calendar',
+  'calendarForm.name': 'Name',
+  'calendarForm.yearType': 'Year type',
+  'calendarForm.icon': 'Icon',
+  'yearMode.calendar.title': 'Calendar year',
+  'yearMode.calendar.desc': 'From January to December',
+  'yearMode.school.title': 'School year',
+  'yearMode.school.desc': 'From September to August',
+
   // Exemple de texte qui varie avec un nombre (utilisé plus tard dans le calendrier)
   'calendar.eventsCount': { one: '{count} event', other: '{count} events' },
 }

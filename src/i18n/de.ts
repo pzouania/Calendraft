@@ -155,6 +155,55 @@ export const de: Record<TranslationKey, Message> = {
   'app.know.text1': 'Die App zeigt calendraft.fr an: Ihre Kalender sind immer aktuell, ohne Neuinstallation. Eine Internetverbindung ist erforderlich.',
   'app.know.text2': 'Auf dem Computer bieten Chrome und Edge in der Adressleiste ebenfalls „Calendraft installieren“ an.',
 
+  // Mots communs (suite)
+  'common.loading': 'Wird geladen...',
+  'common.saving': 'Wird gespeichert...',
+  'common.create': 'Erstellen',
+  'common.delete': 'Löschen',
+  'common.color': 'Farbe',
+
+  // Rôles de partage et libellés d’événements (communs à plusieurs écrans)
+  'role.viewer': 'Leser',
+  'role.editor': 'Bearbeiter',
+  'event.allDay': 'Ganztägig',
+  'event.from': 'ab {time}',
+  'event.until': 'bis {time}',
+
+  // Tableau de bord
+  'dashboard.myCalendars': 'Meine Kalender',
+  'dashboard.sharedWithMe': 'Mit mir geteilt',
+  'dashboard.stat.calendars': 'Kalender',
+  'dashboard.stat.created': 'Erstellte Termine',
+  'dashboard.stat.week': 'Termine (7 Tage)',
+  'dashboard.new': '+ Neuer Kalender',
+  'dashboard.search': 'Kalender suchen...',
+  'dashboard.empty': 'Noch keine Kalender. Erstellen Sie einen, um zu beginnen.',
+  'dashboard.modified': 'Geändert am {date}',
+  'dashboard.leave': 'Verlassen',
+  'dashboard.confirmDelete': 'Diesen Kalender löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+  'dashboard.confirmLeave': 'Diesen Kalender verlassen? Sie haben dann keinen Zugriff mehr, es sei denn, Sie werden erneut eingeladen.',
+  'dashboard.upcoming.title': 'Nächste Termine',
+  'dashboard.upcoming.subtitle': 'Die nächsten 7 Tage, alle Kalender zusammen',
+  'dashboard.upcoming.setup': 'Fügen Sie Ihren Kalendern Termine oder einen Online-Stundenplan hinzu, damit sie hier erscheinen.',
+  'dashboard.upcoming.none': 'Keine Termine in den nächsten 7 Tagen geplant.',
+  'dashboard.upcoming.nothingLeft': 'Vorerst steht nichts mehr an.',
+  'dashboard.upcoming.today': 'Heute',
+  'dashboard.upcoming.tomorrow': 'Morgen',
+  'dashboard.upcoming.showAll': 'Ganze Woche anzeigen ({count} weitere)',
+  'dashboard.upcoming.showLess': 'Weniger anzeigen',
+  'dashboard.upcoming.loadingFeed': 'Stundenplan wird geladen...',
+
+  // Création et modification d’un calendrier
+  'calendarForm.createTitle': 'Neuer Kalender',
+  'calendarForm.editTitle': 'Kalender bearbeiten',
+  'calendarForm.name': 'Name',
+  'calendarForm.yearType': 'Jahrestyp',
+  'calendarForm.icon': 'Symbol',
+  'yearMode.calendar.title': 'Kalenderjahr',
+  'yearMode.calendar.desc': 'Von Januar bis Dezember',
+  'yearMode.school.title': 'Schuljahr',
+  'yearMode.school.desc': 'Von September bis August',
+
   // Exemple de texte qui varie avec un nombre (utilisé plus tard dans le calendrier)
   'calendar.eventsCount': { one: '{count} Termin', other: '{count} Termine' },
 }
