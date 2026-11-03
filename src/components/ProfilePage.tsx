@@ -10,6 +10,9 @@ import {
   type PushState,
 } from '../lib/push'
 import { requestReminderSync } from '../lib/reminders'
+import { useI18n } from '../hooks/useI18n'
+import { noticeFromAuthError, noticeText, type Notice } from '../lib/authErrors'
+import type { TranslationKey } from '../i18n'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import DeleteAccountModal from './DeleteAccountModal'
@@ -22,33 +25,34 @@ interface ProfilePageProps {
 
 interface PushNote {
   kind: 'ok' | 'error'
-  text: string
+  text: TranslationKey
 }
 
-function enableErrorText(reason: Extract<EnableResult, { ok: false }>['reason']): string {
+function enableErrorKey(reason: Extract<EnableResult, { ok: false }>['reason']): TranslationKey {
   switch (reason) {
     case 'denied':
-      return 'Les notifications sont bloquées pour Calendraft. Autorisez-les dans les réglages du navigateur, puis réessayez.'
+      return 'profile.push.error.denied'
     case 'dismissed':
-      return "L'autorisation n'a pas été accordée. Réessayez et touchez Autoriser quand le navigateur le demande."
+      return 'profile.push.error.dismissed'
     case 'not_configured':
-      return "Le serveur d'envoi n'est pas encore configuré (clés de notification manquantes)."
+      return 'profile.push.error.notConfigured'
     case 'register_failed':
-      return "Cet appareil n'a pas pu être enregistré. Réessayez dans un instant."
+      return 'profile.push.error.registerFailed'
     case 'unsupported':
-      return "Les notifications ne sont pas disponibles dans cette fenêtre."
+      return 'profile.push.error.unsupported'
     default:
-      return "Impossible d'activer les notifications sur cet appareil."
+      return 'profile.push.error.generic'
   }
 }
 
 export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProps) {
+  const { t } = useI18n()
   const savedUsername = user.user_metadata?.username ?? ''
   const [username, setUsername] = useState(savedUsername)
   const [isEditingUsername, setIsEditingUsername] = useState(savedUsername === '')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(getAvatarUrl(user) ?? null)
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<Notice | null>(null)
+  const [error, setError] = useState<Notice | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
@@ -78,14 +82,14 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
     setPushBusy(true)
     try {
       const result = await enablePush()
-      if (!result.ok) setPushNote({ kind: 'error', text: enableErrorText(result.reason) })
+      if (!result.ok) setPushNote({ kind: 'error', text: enableErrorKey(result.reason) })
       else {
-        setPushNote({ kind: 'ok', text: 'Rappels activés sur cet appareil.' })
+        setPushNote({ kind: 'ok', text: 'profile.push.enabledNote' })
         // Les rappels déjà réglés sur vos événements deviennent actifs tout de suite.
         requestReminderSync()
       }
     } catch {
-      setPushNote({ kind: 'error', text: enableErrorText('subscribe_failed') })
+      setPushNote({ kind: 'error', text: enableErrorKey('subscribe_failed') })
     }
     await refreshPushState()
     setPushBusy(false)
@@ -96,9 +100,9 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
     setPushBusy(true)
     try {
       await disablePush()
-      setPushNote({ kind: 'ok', text: 'Rappels désactivés sur cet appareil.' })
+      setPushNote({ kind: 'ok', text: 'profile.push.disabledNote' })
     } catch {
-      setPushNote({ kind: 'error', text: "La désactivation a échoué. Réessayez dans un instant." })
+      setPushNote({ kind: 'error', text: 'profile.push.error.disableFailed' })
     }
     await refreshPushState()
     setPushBusy(false)
@@ -112,11 +116,11 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      setError('Le fichier doit être une image.')
+      setError({ key: 'profile.avatar.notImage' })
       return
     }
     if (file.size > 2 * 1024 * 1024) {
-      setError('Image trop lourde (2 Mo maximum).')
+      setError({ key: 'profile.avatar.tooBig' })
       return
     }
 
@@ -132,7 +136,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
 
     if (uploadError) {
       setUploading(false)
-      setError(uploadError.message)
+      setError({ raw: uploadError.message })
       return
     }
 
@@ -146,7 +150,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
     setUploading(false)
 
     if (updateError) {
-      setError(updateError.message)
+      setError(noticeFromAuthError(updateError))
       return
     }
 
@@ -166,11 +170,11 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
     setSaving(false)
 
     if (error) {
-      setError(error.message)
+      setError(noticeFromAuthError(error))
       return
     }
 
-    setMessage("Nom d'utilisateur mis à jour.")
+    setMessage({ key: 'profile.usernameSaved' })
     setIsEditingUsername(false)
     onUpdated()
   }
@@ -180,8 +184,8 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
     setError(null)
     if (!user.email) return
     const { error } = await supabase.auth.resetPasswordForEmail(user.email)
-    if (error) setError(error.message)
-    else setMessage('Email de réinitialisation envoyé.')
+    if (error) setError(noticeFromAuthError(error))
+    else setMessage({ key: 'profile.resetSent' })
   }
 
   return (
@@ -203,7 +207,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             <Logo height={38} />
           </div>
           <span style={{ color: 'white', fontSize: '1rem', fontWeight: 600, opacity: 0.95 }}>
-            Mon profil
+            {t('profile.title')}
           </span>
         </div>
 
@@ -248,7 +252,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             {avatarUrl ? (
               <img
                 src={avatarUrl}
-                alt="Photo de profil"
+                alt={t('profile.avatar.alt')}
                 style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', display: 'block' }}
               />
             ) : (
@@ -282,20 +286,20 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
               disabled={uploading}
             />
           </label>
-          {uploading && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Envoi de la photo...</p>}
+          {uploading && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('profile.avatar.uploading')}</p>}
 
           <p style={{ color: 'var(--text-secondary)', margin: '0.3rem 0 1.5rem', wordBreak: 'break-word' }}>{user.email}</p>
 
           <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
             <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 4 }}>
-              Nom d'utilisateur
+              {t('profile.username')}
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Votre nom affiché"
+                placeholder={t('profile.usernamePlaceholder')}
                 disabled={!isEditingUsername}
                 style={{
                   flex: '1 1 160px', minWidth: 0, padding: '0.6rem 0.8rem', borderRadius: 10,
@@ -310,11 +314,11 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                   disabled={saving || username.trim() === ''}
                   style={{
                     background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
-                    borderRadius: 10, padding: '0 1rem', fontSize: '0.85rem', fontWeight: 600,
+                    borderRadius: 10, padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 600,
                     flexShrink: 0, opacity: saving || username.trim() === '' ? 0.6 : 1,
                   }}
                 >
-                  {saving ? '...' : 'Enregistrer'}
+                  {saving ? '...' : t('common.save')}
                 </button>
               ) : (
                 <button
@@ -324,11 +328,11 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                   }}
                   style={{
                     background: 'var(--surface)', color: 'var(--accent-text)', border: '1px solid var(--blue-main)',
-                    borderRadius: 10, padding: '0 1rem', fontSize: '0.85rem', fontWeight: 600,
+                    borderRadius: 10, padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 600,
                     flexShrink: 0,
                   }}
                 >
-                  Modifier
+                  {t('common.edit')}
                 </button>
               )}
             </div>
@@ -342,7 +346,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
               marginBottom: '1rem', width: '100%',
             }}
           >
-            Réinitialiser mon mot de passe
+            {t('profile.resetPassword')}
           </button>
 
           <a
@@ -354,7 +358,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
               textDecoration: 'none',
             }}
           >
-            Application mobile (Android et iPhone)
+            {t('profile.appLink')}
           </a>
 
           <section
@@ -365,38 +369,32 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
             }}
           >
             <h2 id="push-title" style={{ fontSize: '0.95rem', margin: '0 0 0.3rem', color: 'var(--text-primary)' }}>
-              Rappels sur cet appareil
+              {t('profile.push.title')}
             </h2>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 0.8rem', lineHeight: 1.5 }}>
-              Activez les notifications pour recevoir vos rappels d'événements. Chaque appareil
-              (téléphone, ordinateur) s'active séparément. Le rappel de chaque événement se choisit
-              dans l'onglet Événements d'un calendrier.
+              {t('profile.push.intro')}
             </p>
 
             {pushState === null && (
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>Vérification en cours...</p>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>{t('profile.push.checking')}</p>
             )}
 
             {pushState?.kind === 'unsupported' && (
               <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', margin: 0, lineHeight: 1.5 }}>
                 {pushState.reason === 'ios_needs_install' && (
                   <>
-                    Sur iPhone, les rappels fonctionnent uniquement depuis l'application ajoutée à l'écran
-                    d'accueil (iOS 16.4 ou plus récent). Ouvrez calendraft.fr dans Safari, touchez Partager,
-                    puis « Sur l'écran d'accueil ». <a href="/application" style={{ color: 'var(--accent-text)', fontWeight: 600 }}>Voir les explications</a>
+                    {t('profile.push.ios.text')}{' '}
+                    <a href="/application" style={{ color: 'var(--accent-text)', fontWeight: 600 }}>{t('profile.push.ios.link')}</a>
                   </>
                 )}
-                {pushState.reason === 'no_service_worker' &&
-                  "Les rappels ne sont pas disponibles dans cette fenêtre. Ouvrez Calendraft sur calendraft.fr puis actualisez la page."}
-                {pushState.reason === 'no_push' &&
-                  "Ce navigateur ne gère pas les notifications. Essayez avec Chrome, Edge ou Firefox."}
+                {pushState.reason === 'no_service_worker' && t('profile.push.noServiceWorker')}
+                {pushState.reason === 'no_push' && t('profile.push.noPush')}
               </p>
             )}
 
             {pushState?.kind === 'denied' && (
               <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', margin: 0, lineHeight: 1.5 }}>
-                Les notifications sont bloquées pour Calendraft. Autorisez-les dans les réglages du navigateur
-                (le cadenas à côté de l'adresse, puis Notifications), puis actualisez cette page.
+                {t('profile.push.denied')}
               </p>
             )}
 
@@ -410,14 +408,14 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                   width: '100%', opacity: pushBusy ? 0.6 : 1,
                 }}
               >
-                {pushBusy ? 'Activation...' : 'Activer les rappels sur cet appareil'}
+                {pushBusy ? t('profile.push.enabling') : t('profile.push.enable')}
               </button>
             )}
 
             {pushState?.kind === 'on' && (
               <>
                 <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--success-strong)', margin: '0 0 0.7rem' }}>
-                  Les rappels sont activés sur cet appareil.
+                  {t('profile.push.on')}
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <button
@@ -429,7 +427,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                       flex: '1 1 120px', opacity: pushBusy ? 0.6 : 1,
                     }}
                   >
-                    Désactiver
+                    {t('profile.push.disable')}
                   </button>
                 </div>
               </>
@@ -443,15 +441,15 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                     color: pushNote.kind === 'ok' ? 'var(--success)' : 'var(--danger)',
                   }}
                 >
-                  {pushNote.text}
+                  {t(pushNote.text)}
                 </p>
               )}
 
             </div>
           </section>
 
-          {message && <p style={{ color: 'var(--success)', fontSize: '0.85rem' }}>{message}</p>}
-          {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>}
+          {message && <p style={{ color: 'var(--success)', fontSize: '0.85rem' }}>{noticeText(message, t)}</p>}
+          {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', wordBreak: 'break-word' }}>{noticeText(error, t)}</p>}
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '1.5rem 0' }} />
 
@@ -468,7 +466,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                 borderRadius: 10, padding: '0.6rem 1.2rem', fontSize: '0.85rem', fontWeight: 600,
               }}
             >
-              ← Retour
+              ← {t('common.back')}
             </button>
             <button
               onClick={() => supabase.auth.signOut()}
@@ -477,7 +475,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                 borderRadius: 10, padding: '0.6rem 1.2rem', fontSize: '0.85rem', fontWeight: 600,
               }}
             >
-              Se déconnecter
+              {t('common.signOut')}
             </button>
           </div>
 
@@ -489,7 +487,7 @@ export default function ProfilePage({ user, onBack, onUpdated }: ProfilePageProp
                 fontSize: '0.8rem', fontWeight: 600, textDecoration: 'underline',
               }}
             >
-              Supprimer mon compte
+              {t('profile.deleteAccount')}
             </button>
           </div>
         </div>

@@ -1,46 +1,27 @@
 import type { CSSProperties, ReactNode } from 'react'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
+import { useI18n } from '../hooks/useI18n'
+import type { TranslationKey } from '../i18n'
 
 const APK_URL = '/Calendraft.apk'
 
 interface Step {
-  title: string
-  text: string
+  title: TranslationKey
+  text: TranslationKey
 }
 
 const ANDROID_STEPS: Step[] = [
-  {
-    title: 'Téléchargez le fichier',
-    text: 'Appuyez sur le bouton ci-dessus. Votre navigateur peut demander de confirmer le téléchargement : acceptez.',
-  },
-  {
-    title: 'Ouvrez le fichier',
-    text: 'Ouvrez «\u00A0Calendraft.apk\u00A0» depuis la notification de téléchargement ou depuis l’application Fichiers.',
-  },
-  {
-    title: 'Autorisez l’installation',
-    text: 'Android peut demander d’autoriser l’installation depuis cette source (votre navigateur ou Fichiers). Activez l’option pour cette fois.',
-  },
-  {
-    title: 'Passez l’avertissement',
-    text: 'Si Play Protect affiche un avertissement, choisissez «\u00A0Installer quand même\u00A0» : l’application n’est pas distribuée par le Play Store.',
-  },
+  { title: 'app.android.step1.title', text: 'app.android.step1.text' },
+  { title: 'app.android.step2.title', text: 'app.android.step2.text' },
+  { title: 'app.android.step3.title', text: 'app.android.step3.text' },
+  { title: 'app.android.step4.title', text: 'app.android.step4.text' },
 ]
 
 const IOS_STEPS: Step[] = [
-  {
-    title: 'Ouvrez calendraft.fr dans Safari',
-    text: 'L’ajout à l’écran d’accueil ne fonctionne que depuis Safari.',
-  },
-  {
-    title: 'Appuyez sur Partager',
-    text: 'C’est le bouton carré avec une flèche vers le haut, en bas de l’écran (en haut sur iPad).',
-  },
-  {
-    title: 'Choisissez «\u00A0Sur l’écran d’accueil\u00A0»',
-    text: 'Faites défiler la liste des actions si besoin, puis appuyez sur Ajouter. L’icône Calendraft apparaît avec vos autres applications.',
-  },
+  { title: 'app.ios.step1.title', text: 'app.ios.step1.text' },
+  { title: 'app.ios.step2.title', text: 'app.ios.step2.text' },
+  { title: 'app.ios.step3.title', text: 'app.ios.step3.text' },
 ]
 
 const cardStyle: CSSProperties = {
@@ -59,6 +40,7 @@ const textStyle: CSSProperties = {
 }
 
 function StepList({ steps }: { steps: Step[] }) {
+  const { t } = useI18n()
   return (
     <ol
       style={{
@@ -79,9 +61,9 @@ function StepList({ steps }: { steps: Step[] }) {
             {index + 1}
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{step.title}</div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{t(step.title)}</div>
             <div style={{ color: 'var(--text-body)', fontSize: '0.88rem', lineHeight: 1.55, marginTop: 2 }}>
-              {step.text}
+              {t(step.text)}
             </div>
           </div>
         </li>
@@ -99,6 +81,7 @@ function Section({
   isYours: boolean
   children: ReactNode
 }) {
+  const { t } = useI18n()
   return (
     <section style={cardStyle}>
       <div
@@ -115,7 +98,7 @@ function Section({
               borderRadius: 999, padding: '0.15rem 0.7rem', fontSize: '0.75rem', fontWeight: 700,
             }}
           >
-            Votre appareil
+            {t('app.yourDevice')}
           </span>
         )}
       </div>
@@ -125,6 +108,7 @@ function Section({
 }
 
 export default function AppDownloadPage() {
+  const { t } = useI18n()
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
   const isAndroid = /Android/i.test(ua)
   const isIOS = /iPhone|iPad|iPod/i.test(ua)
@@ -132,8 +116,7 @@ export default function AppDownloadPage() {
   const android = (
     <Section key="android" title="Android" isYours={isAndroid}>
       <p style={textStyle}>
-        Installez le fichier d’application (APK) : Calendraft s’ouvre en plein écran, avec son icône
-        sur l’écran d’accueil.
+        {t('app.android.intro')}
       </p>
       <a
         href={APK_URL}
@@ -144,21 +127,19 @@ export default function AppDownloadPage() {
           textDecoration: 'none', boxShadow: 'var(--shadow-accent-md)',
         }}
       >
-        Télécharger pour Android
+        {t('app.android.download')}
       </a>
       <p style={{ margin: '0.6rem 0 1.4rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-        Fichier APK, environ 1,5 Mo
+        {t('app.android.fileInfo')}
       </p>
       <StepList steps={ANDROID_STEPS} />
     </Section>
   )
 
   const ios = (
-    <Section key="ios" title="iPhone et iPad" isYours={isIOS}>
+    <Section key="ios" title={t('app.ios.title')} isYours={isIOS}>
       <p style={textStyle}>
-        Apple n’autorise pas l’installation de fichiers d’application en dehors de l’App Store.
-        Ajoutez simplement Calendraft à l’écran d’accueil : vous obtenez la même application, en plein
-        écran et avec son icône.
+        {t('app.ios.intro')}
       </p>
       <StepList steps={IOS_STEPS} />
     </Section>
@@ -190,7 +171,7 @@ export default function AppDownloadPage() {
               padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none',
             }}
           >
-            Retour à Calendraft
+            {t('common.backToApp')}
           </a>
         </div>
       </header>
@@ -206,11 +187,10 @@ export default function AppDownloadPage() {
           />
           <div style={{ flex: '1 1 260px', minWidth: 0 }}>
             <h1 style={{ margin: '0 0 0.3rem', fontSize: '1.6rem', color: 'var(--text-primary)' }}>
-              Calendraft sur votre téléphone
+              {t('app.title')}
             </h1>
             <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: 1.6, color: 'var(--text-strong)' }}>
-              Retrouvez vos calendriers comme dans une vraie application, gratuite, depuis l’écran
-              d’accueil de votre téléphone.
+              {t('app.intro')}
             </p>
           </div>
         </div>
@@ -218,14 +198,12 @@ export default function AppDownloadPage() {
         {isIOS ? [ios, android] : [android, ios]}
 
         <section style={cardStyle}>
-          <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.15rem', color: 'var(--text-primary)' }}>À savoir</h2>
+          <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.15rem', color: 'var(--text-primary)' }}>{t('app.know.title')}</h2>
           <p style={{ ...textStyle, marginBottom: '0.6rem' }}>
-            L’application affiche calendraft.fr : vos calendriers sont toujours à jour, sans
-            réinstaller. Une connexion internet est nécessaire.
+            {t('app.know.text1')}
           </p>
           <p style={{ ...textStyle, marginBottom: 0 }}>
-            Sur ordinateur, Chrome et Edge proposent aussi «&nbsp;Installer Calendraft&nbsp;» dans la barre
-            d’adresse.
+            {t('app.know.text2')}
           </p>
         </section>
       </main>
