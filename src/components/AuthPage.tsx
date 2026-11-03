@@ -3,8 +3,10 @@ import { supabase } from '../lib/supabaseClient'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import Icon from './icons'
+import TermsConsent from './TermsConsent'
 import { useI18n } from '../hooks/useI18n'
 import { noticeFromAuthError, noticeText, type Notice } from '../lib/authErrors'
+import { TERMS_VERSION, rememberPendingTerms } from '../lib/terms'
 import type { TranslationKey } from '../i18n'
 
 type Mode = 'login' | 'signup' | 'forgot'
@@ -68,11 +70,17 @@ export default function AuthPage() {
   const [message, setMessage] = useState<Notice | null>(null)
   const [error, setError] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const termsMissing = !!error && 'key' in error && error.key === 'terms.required'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setMessage(null)
     setError(null)
+    if (mode === 'signup' && !acceptedTerms) {
+      setError({ key: 'terms.required' })
+      return
+    }
     setLoading(true)
 
     if (mode === 'login') {
@@ -81,7 +89,8 @@ export default function AuthPage() {
     }
 
     if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({ email, password })
+      // La version acceptée part avec la création du compte : la base l'enregistre aussitôt (voir terms_acceptances.sql).
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { terms_version: TERMS_VERSION } } })
       if (error) setError(noticeFromAuthError(error))
       else setMessage({ key: 'auth.message.signedUp' })
     }
@@ -98,6 +107,14 @@ export default function AuthPage() {
   const handleOAuth = async (provider: Provider) => {
     setMessage(null)
     setError(null)
+    if (mode === 'signup') {
+      if (!acceptedTerms) {
+        setError({ key: 'terms.required' })
+        return
+      }
+      // Le compte sera créé chez Google ou GitHub : on garde la case cochée en mémoire pour l'enregistrer au retour.
+      rememberPendingTerms()
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: `${window.location.origin}/` },
@@ -241,6 +258,23 @@ export default function AuthPage() {
                 style={inputStyle}
               />
             )}
+            {mode === 'signup' && (
+              <>
+                <TermsConsent
+                  checked={acceptedTerms}
+                  onChange={(checked) => {
+                    setAcceptedTerms(checked)
+                    if (checked && termsMissing) setError(null)
+                  }}
+                  invalid={termsMissing}
+                />
+                {termsMissing && (
+                  <p role="alert" style={{ color: 'var(--danger)', fontSize: '0.85rem', margin: 0 }}>
+                    {t('terms.required')}
+                  </p>
+                )}
+              </>
+            )}
             <button
               type="submit"
               disabled={loading}
@@ -295,7 +329,7 @@ export default function AuthPage() {
             </>
           )}
 
-          {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{noticeText(error, t)}</p>}
+          {error && !termsMissing && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{noticeText(error, t)}</p>}
           {message && <p style={{ color: 'var(--success)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{noticeText(message, t)}</p>}
 
           <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2rem' }}>
