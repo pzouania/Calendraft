@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { generateAllOccurrences } from '../lib/occurrenceEngine'
-import { MONTH_NAMES } from '../lib/dateUtils'
+import { useI18n } from '../hooks/useI18n'
+import type { TranslationKey } from '../i18n'
 import MonthGrid from './MonthGrid'
 import DayDetail from './DayDetail'
 import Icon from './icons'
@@ -73,6 +74,9 @@ function useIsNarrow(maxWidth = 640): boolean {
   return narrow
 }
 
+// Première lettre en majuscule (les mois s'écrivent en minuscules en français).
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
 // Sur téléphone, la grille des 12 mois est masquée à l'écran mais reste utilisée pour l'impression (PDF).
 const PRINT_RULES = `
 @media print {
@@ -90,13 +94,15 @@ export default function YearCalendar({
   yearMode = 'calendar',
   staticData,
 }: YearCalendarProps) {
+  const { t, monthName } = useI18n()
   const [periods, setPeriods] = useState<Period[]>(staticData?.periods ?? [])
   const [exceptions, setExceptions] = useState<PeriodException[]>(staticData?.exceptions ?? [])
   const [year, setYear] = useState(() => currentStartYear(yearMode))
   const [loading, setLoading] = useState(!staticData)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [feed, setFeed] = useState<FeedInfo | null>(null)
-  const [feedNotice, setFeedNotice] = useState<string | null>(null)
+  // Clé de traduction (et non le texte) : le message suit la langue même si elle change pendant qu'il est affiché.
+  const [feedNotice, setFeedNotice] = useState<TranslationKey | null>(null)
   const isNarrow = useIsNarrow()
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month')
 
@@ -161,12 +167,12 @@ export default function YearCalendar({
         } else if (body.ok && !body.configured) {
           setFeed(null)
         } else if (body.reason === 'feed_unreachable') {
-          setFeedNotice("L'emploi du temps en ligne est momentanément indisponible.")
+          setFeedNotice('calendar.feed.unavailable')
         } else if (body.reason === 'secret_missing') {
-          setFeedNotice("L'emploi du temps en ligne n'est pas encore configuré côté serveur.")
+          setFeedNotice('calendar.feed.notConfigured')
         }
       } catch {
-        if (!cancelled) setFeedNotice("L'emploi du temps en ligne est momentanément indisponible.")
+        if (!cancelled) setFeedNotice('calendar.feed.unavailable')
       }
     }
 
@@ -263,11 +269,11 @@ export default function YearCalendar({
     setViewMode('month')
   }
 
-  if (loading) return <p style={{ color: 'var(--text-secondary)' }}>Chargement du calendrier...</p>
+  if (loading) return <p style={{ color: 'var(--text-secondary)' }}>{t('calendar.loading')}</p>
 
   const hasLegend = periods.length > 0 || !!feed
   const navButtonSize = isNarrow ? 40 : 32
-  const toolbarTitle = monthView ? `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}` : yearLabel
+  const toolbarTitle = monthView ? `${capitalize(monthName(currentMonth.month))} ${currentMonth.year}` : yearLabel
 
   const navButtonStyle: React.CSSProperties = {
     background: 'var(--surface-alt)', border: 'none', borderRadius: 8,
@@ -307,10 +313,10 @@ export default function YearCalendar({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', gap: 2, background: 'var(--surface-alt)', padding: 3, borderRadius: 10 }}>
               <button type="button" onClick={() => setViewMode('month')} style={modeButtonStyle(viewMode === 'month')}>
-                Mois
+                {t('calendar.view.month')}
               </button>
               <button type="button" onClick={() => setViewMode('year')} style={modeButtonStyle(viewMode === 'year')}>
-                Année
+                {t('calendar.view.year')}
               </button>
             </div>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -323,13 +329,13 @@ export default function YearCalendar({
                     borderRadius: 10, padding: '0.45rem 0.8rem', fontSize: '0.82rem', fontWeight: 700,
                   }}
                 >
-                  Aujourd'hui
+                  {t('calendar.today')}
                 </button>
               )}
               <button
                 type="button"
                 onClick={handleExportPDF}
-                aria-label="Exporter en PDF"
+                aria-label={t('calendar.exportPdf')}
                 style={{
                   background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
                   borderRadius: 10, padding: '0.45rem 0.9rem', fontSize: '0.82rem', fontWeight: 700,
@@ -343,7 +349,7 @@ export default function YearCalendar({
             <button
               type="button"
               onClick={goPrev}
-              aria-label={monthView ? 'Mois précédent' : 'Année précédente'}
+              aria-label={monthView ? t('calendar.prevMonth') : t('calendar.prevYear')}
               style={navButtonStyle}
             >
               ◀
@@ -358,7 +364,7 @@ export default function YearCalendar({
             <button
               type="button"
               onClick={goNext}
-              aria-label={monthView ? 'Mois suivant' : 'Année suivante'}
+              aria-label={monthView ? t('calendar.nextMonth') : t('calendar.nextYear')}
               style={navButtonStyle}
             >
               ▶
@@ -375,7 +381,7 @@ export default function YearCalendar({
         >
           <button
             onClick={goPrev}
-            aria-label="Année précédente"
+            aria-label={t('calendar.prevYear')}
             style={{ background: 'var(--surface-alt)', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
           >
             ◀
@@ -385,7 +391,7 @@ export default function YearCalendar({
           </strong>
           <button
             onClick={goNext}
-            aria-label="Année suivante"
+            aria-label={t('calendar.nextYear')}
             style={{ background: 'var(--surface-alt)', border: 'none', borderRadius: 8, width: 32, height: 32, color: 'var(--text-primary)', fontWeight: 700 }}
           >
             ▶
@@ -397,7 +403,7 @@ export default function YearCalendar({
               borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
             }}
           >
-            Exporter en PDF
+            {t('calendar.exportPdf')}
           </button>
         </div>
       )}
@@ -410,13 +416,13 @@ export default function YearCalendar({
             background: 'var(--warning-bg)', color: 'var(--warning-text)', fontSize: '0.85rem',
           }}
         >
-          {feedNotice}
+          {t(feedNotice)}
         </p>
       )}
 
       {periods.length === 0 && !feed && (
         <p className="no-print" style={{ color: 'var(--text-secondary)' }}>
-          Aucun événement défini{canEdit ? ' — ajoutez-en dans l\'onglet "Événements".' : '.'}
+          {t(canEdit ? 'calendar.noEvents.canEdit' : 'calendar.noEvents')}
         </p>
       )}
 
@@ -459,7 +465,7 @@ export default function YearCalendar({
       {isNarrow && viewMode === 'year' && (
         <div className="no-print">
           <p style={{ margin: '0 0 0.7rem', fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-            Touchez un mois pour l'ouvrir.
+            {t('calendar.tapMonth')}
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.6rem' }}>
             {months.map(({ year: y, month: m }, index) => (

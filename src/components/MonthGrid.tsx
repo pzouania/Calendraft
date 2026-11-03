@@ -1,8 +1,11 @@
-import { getMonthMatrix, toDateOnly, MONTH_NAMES, DAY_LETTERS } from '../lib/dateUtils'
+import { getMonthMatrix, toDateOnly } from '../lib/dateUtils'
+import { useI18n } from '../hooks/useI18n'
 import type { Occurrence } from '../types'
 
-const DAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 const MAX_BARS = 3
+
+// Première lettre en majuscule (les mois et les jours s'écrivent en minuscules en français).
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 
 interface MonthGridProps {
   year: number
@@ -27,9 +30,13 @@ export default function MonthGrid({
   large = false,
   compact = false,
 }: MonthGridProps) {
+  const { monthName, weekdayName } = useI18n()
   const weeks = getMonthMatrix(year, month)
   const todayStr = toDateOnly(new Date())
-  const weekdayLabels = large ? DAY_SHORT : DAY_LETTERS
+  // Jours de la semaine, du lundi au dimanche : abrégés (« Lun ») en grand, une lettre sinon.
+  const weekdayLabels = Array.from({ length: 7 }, (_, i) =>
+    large ? capitalize(weekdayName(i, 'short').replace(/\.$/, '')) : capitalize(weekdayName(i, 'narrow')),
+  )
 
   // Mesures selon la taille d'affichage (la taille normale reste celle d'origine).
   const pad = large ? '0.8rem' : compact ? '0.4rem' : '0.7rem'
@@ -53,7 +60,7 @@ export default function MonthGrid({
           fontSize: large ? '1rem' : compact ? '0.8rem' : '0.9rem', fontWeight: 700,
         }}
       >
-        {MONTH_NAMES[month]}
+        {capitalize(monthName(month))}
         {showYear || large ? ` ${year}` : ''}
       </div>
       <div

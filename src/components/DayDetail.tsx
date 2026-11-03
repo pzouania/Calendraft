@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { useI18n } from '../hooks/useI18n'
+import type { Params, TranslationKey } from '../i18n'
 import type { Occurrence } from '../types'
+
+type Translate = (key: TranslationKey, params?: Params) => string
 
 interface DayDetailProps {
   date: string
@@ -31,17 +35,17 @@ function timeToMinutes(t: string): number {
   return h * 60 + m
 }
 
-function getSpan(occ: Occurrence): Omit<Block, 'occ'> {
+function getSpan(occ: Occurrence, t: Translate): Omit<Block, 'occ'> {
   const start = occ.startTime!.slice(0, 5)
   const end = occ.endTime!.slice(0, 5)
   const segment = occ.segment ?? 'full'
   const place = occ.location ? ` · ${occ.location}` : ''
 
   if (segment === 'start') {
-    return { startMin: timeToMinutes(start), endMin: 24 * 60, subtitle: `${start} → ${end} (lendemain)${place}` }
+    return { startMin: timeToMinutes(start), endMin: 24 * 60, subtitle: `${t('dayDetail.endsNextDay', { start, end })}${place}` }
   }
   if (segment === 'end') {
-    return { startMin: 0, endMin: timeToMinutes(end), subtitle: `${start} (veille) → ${end}${place}` }
+    return { startMin: 0, endMin: timeToMinutes(end), subtitle: `${t('dayDetail.startedPreviousDay', { start, end })}${place}` }
   }
 
   const startMin = timeToMinutes(start)
@@ -81,12 +85,12 @@ function layoutBlocks(items: Block[]): Placed[] {
   return placed
 }
 
-function TrashButton({ onClick }: { onClick: () => void }) {
+function TrashButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
-      title="Supprimer ce jour"
-      aria-label="Supprimer ce jour"
+      title={label}
+      aria-label={label}
       style={{
         width: 24, height: 24, borderRadius: 7, border: 'none',
         background: 'var(--hover-veil)', color: 'var(--text-body)',
@@ -102,13 +106,14 @@ function TrashButton({ onClick }: { onClick: () => void }) {
 }
 
 export default function DayDetail({ date, occurrences, canEdit = true, onClose, onChanged }: DayDetailProps) {
+  const { t, formatDate } = useI18n()
   const scrollRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
 
   const timed = occurrences.filter((o) => o.startTime && o.endTime)
   const allDay = occurrences.filter((o) => !o.startTime || !o.endTime)
-  const blocks = layoutBlocks(timed.map((occ) => ({ occ, ...getSpan(occ) })))
+  const blocks = layoutBlocks(timed.map((occ) => ({ occ, ...getSpan(occ, t) })))
 
   useEffect(() => {
     const scroller = scrollRef.current
@@ -122,7 +127,7 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
 
   const handleDeleteLocal = async (occ: Occurrence) => {
     const confirmed = window.confirm(
-      `Supprimer "${occ.name}" uniquement pour le ${occ.date} ? Les autres dates de cette période récurrente ne seront pas affectées.`
+      t('dayDetail.confirmDelete', { name: occ.name, date: formatDate(occ.date, { day: 'numeric', month: 'long', year: 'numeric' }) })
     )
     if (!confirmed) return
 
@@ -132,15 +137,13 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
     })
 
     if (error) {
-      alert('Erreur : ' + error.message)
+      alert(t('common.errorWithMessage', { message: error.message }))
       return
     }
     onChanged()
   }
 
-  const label = new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  })
+  const label = formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const title = label.charAt(0).toUpperCase() + label.slice(1)
 
   return (
@@ -172,7 +175,7 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
           <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{title}</h3>
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t('common.close')}
             style={{
               width: 32, height: 32, borderRadius: 10, border: 'none',
               background: 'var(--surface-alt)', color: 'var(--text-body)', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
@@ -184,7 +187,7 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
 
         <div style={{ padding: '1rem 1.25rem 1.25rem' }}>
           {occurrences.length === 0 && (
-            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Aucun événement ce jour-là.</p>
+            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{t('dayDetail.empty')}</p>
           )}
 
           {allDay.length > 0 && (
@@ -202,9 +205,9 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
                 >
                   <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{occ.name}</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-body)' }}>
-                    Journée entière{occ.location ? ` · ${occ.location}` : ''}
+                    {t('event.allDay')}{occ.location ? ` · ${occ.location}` : ''}
                   </span>
-                  {canEdit && !occ.readOnly && <TrashButton onClick={() => handleDeleteLocal(occ)} />}
+                  {canEdit && !occ.readOnly && <TrashButton label={t('dayDetail.deleteDay')} onClick={() => handleDeleteLocal(occ)} />}
                 </div>
               ))}
             </div>
@@ -253,7 +256,7 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-strong)' }}>{b.subtitle}</div>
                       {deletable && (
                         <div style={{ position: 'absolute', top: 4, right: 4 }}>
-                          <TrashButton onClick={() => handleDeleteLocal(b.occ)} />
+                          <TrashButton label={t('dayDetail.deleteDay')} onClick={() => handleDeleteLocal(b.occ)} />
                         </div>
                       )}
                     </div>
