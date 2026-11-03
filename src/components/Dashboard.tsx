@@ -8,11 +8,15 @@ import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import Icon from './icons'
 import CalendarFormModal from './CalendarFormModal'
+import { useI18n } from '../hooks/useI18n'
+import { noticeText, type Notice } from '../lib/authErrors'
+import type { Params, TranslationKey } from '../i18n'
 import type { Calendar, Occurrence, Period, PeriodException } from '../types'
 
 type ShareRole = 'viewer' | 'editor'
+type Translate = (key: TranslationKey, params?: Params) => string
 
-const ROLE_LABELS: Record<ShareRole, string> = { viewer: 'Lecteur', editor: 'Éditeur' }
+const ROLE_KEYS: Record<ShareRole, TranslationKey> = { viewer: 'role.viewer', editor: 'role.editor' }
 
 interface DashboardProps {
   user: User
@@ -48,12 +52,12 @@ function sortKey(o: Occurrence): number {
   return timeToMin(o.startTime)
 }
 
-function timeLabel(o: Occurrence): string {
-  if (!o.startTime || !o.endTime) return 'Journée entière'
+function timeLabel(o: Occurrence, t: Translate): string {
+  if (!o.startTime || !o.endTime) return t('event.allDay')
   const s = o.startTime.slice(0, 5)
   const e = o.endTime.slice(0, 5)
-  if (o.segment === 'start') return `dès ${s}`
-  if (o.segment === 'end') return `jusqu'à ${e}`
+  if (o.segment === 'start') return t('event.from', { time: s })
+  if (o.segment === 'end') return t('event.until', { time: e })
   return `${s} – ${e}`
 }
 
@@ -64,12 +68,16 @@ function isPast(o: Occurrence, todayStr: string, nowMin: number): boolean {
   return timeToMin(o.endTime) <= nowMin
 }
 
-function dayLabel(dateStr: string, todayStr: string, tomorrowStr: string): string {
-  if (dateStr === todayStr) return "Aujourd'hui"
-  if (dateStr === tomorrowStr) return 'Demain'
-  const s = new Date(dateStr + 'T00:00:00').toLocaleDateString('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  })
+function dayLabel(
+  dateStr: string,
+  todayStr: string,
+  tomorrowStr: string,
+  t: Translate,
+  formatDate: (value: Date | string, options: Intl.DateTimeFormatOptions) => string,
+): string {
+  if (dateStr === todayStr) return t('dashboard.upcoming.today')
+  if (dateStr === tomorrowStr) return t('dashboard.upcoming.tomorrow')
+  const s = formatDate(dateStr, { weekday: 'long', day: 'numeric', month: 'long' })
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
@@ -91,6 +99,7 @@ function useIsNarrow(maxWidth = 640): boolean {
 }
 
 export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: DashboardProps) {
+  const { t, formatDate } = useI18n()
   const [calendars, setCalendars] = useState<Calendar[]>([])
   const [periods, setPeriods] = useState<Period[]>([])
   const [exceptions, setExceptions] = useState<PeriodException[]>([])
@@ -100,7 +109,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
   const [roles, setRoles] = useState<Record<string, ShareRole>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Notice | null>(null)
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; calendar?: Calendar } | null>(null)
   const [now, setNow] = useState(() => new Date())
   const [showAllEvents, setShowAllEvents] = useState(false)
@@ -183,7 +192,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
       supabase.from('period_exceptions').select('*'),
     ])
 
-    if (calRes.error) setError(calRes.error.message)
+    if (calRes.error) setError({ raw: calRes.error.message })
     else setCalendars(calRes.data ?? [])
 
     if (!perRes.error) setPeriods((perRes.data ?? []) as Period[])
@@ -207,12 +216,12 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const confirmed = window.confirm('Supprimer ce calendrier ? Cette action est irréversible.')
+    const confirmed = window.confirm(t('dashboard.confirmDelete'))
     if (!confirmed) return
 
     const { error } = await supabase.from('calendars').delete().eq('id', id)
     if (error) {
-      setError(error.message)
+      setError({ raw: error.message })
       return
     }
     loadCalendars()
@@ -220,9 +229,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
 
   const handleLeave = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const confirmed = window.confirm(
-      'Quitter ce calendrier ? Vous n’y aurez plus accès, sauf nouvelle invitation.'
-    )
+    const confirmed = window.confirm(t('dashboard.confirmLeave'))
     if (!confirmed) return
 
     const { error } = await supabase
@@ -231,7 +238,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
       .eq('calendar_id', id)
       .eq('email', myEmail)
     if (error) {
-      setError(error.message)
+      setError({ raw: error.message })
       return
     }
     loadCalendars()
@@ -315,11 +322,11 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
   const isCollapsed = canCollapse && !showAllEvents
   const visibleDays = isCollapsed ? collapsedDays : upcoming.days
 
-  const stats = [
-    { icon: 'calendar', label: 'Calendriers', value: ownedCount },
-    { icon: 'users', label: 'Partagés avec moi', value: sharedCount },
-    { icon: 'briefcase', label: 'Événements créés', value: periods.length },
-    { icon: 'star', label: 'Événements (7 jours)', value: upcoming.count },
+  const stats: { icon: string; label: TranslationKey; value: number }[] = [
+    { icon: 'calendar', label: 'dashboard.stat.calendars', value: ownedCount },
+    { icon: 'users', label: 'dashboard.sharedWithMe', value: sharedCount },
+    { icon: 'briefcase', label: 'dashboard.stat.created', value: periods.length },
+    { icon: 'star', label: 'dashboard.stat.week', value: upcoming.count },
   ]
 
   const username = user.user_metadata?.username as string | undefined
@@ -365,7 +372,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
             borderRadius: 999, padding: '0.15rem 0.6rem', fontSize: '0.7rem', fontWeight: 700,
           }}
         >
-          {ROLE_LABELS[roles[cal.id] ?? 'viewer']}
+          {t(ROLE_KEYS[roles[cal.id] ?? 'viewer'])}
         </span>
       ) : (
         <button
@@ -373,7 +380,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
             e.stopPropagation()
             setModal({ mode: 'edit', calendar: cal })
           }}
-          title="Modifier"
+          title={t('common.edit')}
           style={{
             position: 'absolute', top: 10, right: 10, background: 'var(--surface-alt)', border: 'none',
             borderRadius: 8, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -394,7 +401,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
       </div>
       <h3 style={{ margin: '0 0 0.3rem', fontSize: '1rem', color: 'var(--text-primary)', paddingRight: '1.5rem' }}>{cal.name}</h3>
       <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.8rem' }}>
-        Modifié le {new Date(cal.updated_at).toLocaleDateString('fr-FR')}
+        {t('dashboard.modified', { date: formatDate(new Date(cal.updated_at), {}) })}
       </p>
 
       {isShared ? (
@@ -405,7 +412,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
             borderRadius: 8, padding: '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600,
           }}
         >
-          Quitter
+          {t('dashboard.leave')}
         </button>
       ) : (
         <button
@@ -415,7 +422,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
             borderRadius: 8, padding: '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600,
           }}
         >
-          Supprimer
+          {t('common.delete')}
         </button>
       )}
     </div>
@@ -447,7 +454,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
         </div>
         {!isNarrow && (
           <span style={{ color: 'var(--on-accent)', fontSize: '1rem', fontWeight: 600, opacity: 0.95 }}>
-            Mes calendriers
+            {t('dashboard.myCalendars')}
           </span>
         )}
       </div>
@@ -456,7 +463,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
         <ThemeToggle />
         <button
           onClick={onOpenProfile}
-          title="Mon profil"
+          title={t('profile.title')}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.6rem',
             background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 999,
@@ -525,7 +532,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
               {loading ? '–' : s.value}
             </div>
             <div style={{ fontSize: isNarrow ? '0.7rem' : '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.25 }}>
-              {s.label}
+              {t(s.label)}
             </div>
           </div>
         </div>
@@ -552,11 +559,11 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
           boxShadow: 'var(--shadow-accent)',
         }}
       >
-        + Nouveau calendrier
+        {t('dashboard.new')}
       </button>
       <input
         type="text"
-        placeholder="Rechercher un calendrier..."
+        placeholder={t('dashboard.search')}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         style={{
@@ -569,10 +576,10 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
     </div>
   )
 
-  const errorBlock = error ? <p style={{ color: 'var(--danger)' }}>{error}</p> : null
+  const errorBlock = error ? <p style={{ color: 'var(--danger)' }}>{noticeText(error, t)}</p> : null
 
   const calendarsList = loading ? (
-    <p style={{ color: 'var(--text-secondary)' }}>Chargement...</p>
+    <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
   ) : owned.length === 0 && shared.length === 0 ? (
     <div
       style={{
@@ -580,19 +587,19 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
         color: 'var(--text-secondary)', boxShadow: 'var(--shadow-md)',
       }}
     >
-      Aucun calendrier pour l'instant. Créez-en un pour commencer.
+      {t('dashboard.empty')}
     </div>
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       {owned.length > 0 && (
         <section>
-          {hasShared && <h2 style={sectionTitle}>Mes calendriers</h2>}
+          {hasShared && <h2 style={sectionTitle}>{t('dashboard.myCalendars')}</h2>}
           <div style={gridStyle}>{owned.map((cal) => renderCard(cal, false))}</div>
         </section>
       )}
       {shared.length > 0 && (
         <section>
-          <h2 style={sectionTitle}>Partagés avec moi</h2>
+          <h2 style={sectionTitle}>{t('dashboard.sharedWithMe')}</h2>
           <div style={gridStyle}>{shared.map((cal) => renderCard(cal, true))}</div>
         </section>
       )}
@@ -615,27 +622,27 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
       }
     >
       <h2 style={{ margin: '0 0 0.2rem', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-        Prochains événements
+        {t('dashboard.upcoming.title')}
       </h2>
       <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-        Les 7 prochains jours, tous calendriers confondus
+        {t('dashboard.upcoming.subtitle')}
       </p>
 
       {loading ? (
-        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Chargement...</p>
+        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
       ) : (
         <>
           {upcoming.days.length === 0 && !feedsLoading && (
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               {periods.length === 0 && !hasFeeds
-                ? 'Ajoutez des événements ou un emploi du temps en ligne à vos calendriers pour les voir apparaître ici.'
-                : 'Aucun événement prévu dans les 7 prochains jours.'}
+                ? t('dashboard.upcoming.setup')
+                : t('dashboard.upcoming.none')}
             </p>
           )}
 
           {isCollapsed && visibleDays.length === 0 && (
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Plus rien de prévu pour le moment.
+              {t('dashboard.upcoming.nothingLeft')}
             </p>
           )}
 
@@ -648,7 +655,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
                     color: day.date === todayStr ? 'var(--accent-text)' : 'var(--text-body)',
                   }}
                 >
-                  {dayLabel(day.date, todayStr, tomorrowStr)}
+                  {dayLabel(day.date, todayStr, tomorrowStr, t, formatDate)}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   {day.items.map((item, i) => {
@@ -667,7 +674,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
                           {item.occ.name}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-body)' }}>
-                          {timeLabel(item.occ)}
+                          {timeLabel(item.occ, t)}
                           {item.occ.location ? ` · ${item.occ.location}` : ''}
                           {item.calendarName ? ` · ${item.calendarName}` : ''}
                         </div>
@@ -689,14 +696,14 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
               }}
             >
               {isCollapsed
-                ? `Voir toute la semaine (${totalItems - collapsedCount} de plus)`
-                : 'Réduire'}
+                ? t('dashboard.upcoming.showAll', { count: totalItems - collapsedCount })
+                : t('dashboard.upcoming.showLess')}
             </button>
           )}
 
           {feedsLoading && (
             <p style={{ margin: '0.8rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Chargement de l'emploi du temps...
+              {t('dashboard.upcoming.loadingFeed')}
             </p>
           )}
         </>

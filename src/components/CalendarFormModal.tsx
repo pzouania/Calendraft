@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Icon, { ICON_KEYS } from './icons'
+import { useI18n } from '../hooks/useI18n'
+import { noticeText, type Notice } from '../lib/authErrors'
+import type { TranslationKey } from '../i18n'
 import type { Calendar, YearMode } from '../types'
 
 const COLOR_OPTIONS = ['#2563eb', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#475569']
 
-const YEAR_MODES: { value: YearMode; title: string; desc: string }[] = [
-  { value: 'calendar', title: 'Année civile', desc: 'De janvier à décembre' },
-  { value: 'school', title: 'Année scolaire', desc: 'De septembre à août' },
+const YEAR_MODES: { value: YearMode; title: TranslationKey; desc: TranslationKey }[] = [
+  { value: 'calendar', title: 'yearMode.calendar.title', desc: 'yearMode.calendar.desc' },
+  { value: 'school', title: 'yearMode.school.title', desc: 'yearMode.school.desc' },
 ]
 
 interface CalendarFormModalProps {
@@ -18,11 +21,12 @@ interface CalendarFormModalProps {
 }
 
 export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: CalendarFormModalProps) {
+  const { t } = useI18n()
   const [name, setName] = useState(calendar?.name ?? '')
   const [icon, setIcon] = useState(calendar?.icon ?? 'calendar')
   const [color, setColor] = useState(calendar?.color ?? COLOR_OPTIONS[0])
   const [yearMode, setYearMode] = useState<YearMode>(calendar?.year_mode ?? 'calendar')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Notice | null>(null)
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,7 +49,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
 
       setSaving(false)
       if (error) {
-        setError(error.message)
+        setError({ raw: error.message })
         return
       }
       if (data) onSaved(data.id)
@@ -63,7 +67,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
 
       setSaving(false)
       if (error) {
-        setError(error.message)
+        setError({ raw: error.message })
         return
       }
       onSaved(calendar.id)
@@ -98,7 +102,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
         }}
       >
         <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>
-          {mode === 'create' ? 'Nouveau calendrier' : 'Modifier le calendrier'}
+          {mode === 'create' ? t('calendarForm.createTitle') : t('calendarForm.editTitle')}
         </h3>
 
         <div
@@ -111,7 +115,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
         </div>
 
         <div>
-          <label style={labelStyle}>Nom</label>
+          <label style={labelStyle}>{t('calendarForm.name')}</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -125,7 +129,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
         </div>
 
         <div>
-          <label style={labelStyle}>Type d'année</label>
+          <label style={labelStyle}>{t('calendarForm.yearType')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {YEAR_MODES.map((m) => {
               const active = yearMode === m.value
@@ -140,8 +144,8 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
                     background: active ? 'var(--surface-tint)' : 'var(--surface)',
                   }}
                 >
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{m.title}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.desc}</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t(m.title)}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t(m.desc)}</div>
                 </button>
               )
             })}
@@ -149,7 +153,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
         </div>
 
         <div>
-          <label style={labelStyle}>Icône</label>
+          <label style={labelStyle}>{t('calendarForm.icon')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
             {ICON_KEYS.map((key) => (
               <button
@@ -170,7 +174,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
         </div>
 
         <div>
-          <label style={labelStyle}>Couleur</label>
+          <label style={labelStyle}>{t('common.color')}</label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {COLOR_OPTIONS.map((c) => (
               <button
@@ -186,7 +190,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
           </div>
         </div>
 
-        {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', margin: 0 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', margin: 0 }}>{noticeText(error, t)}</p>}
 
         <div style={{ display: 'flex', gap: '0.6rem' }}>
           <button
@@ -197,7 +201,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
               borderRadius: 10, padding: '0.7rem', fontSize: '0.9rem', fontWeight: 700,
             }}
           >
-            {saving ? 'Enregistrement...' : mode === 'create' ? 'Créer' : 'Enregistrer'}
+            {saving ? t('common.saving') : mode === 'create' ? t('common.create') : t('common.save')}
           </button>
           <button
             type="button"
@@ -207,7 +211,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
               borderRadius: 10, padding: '0.7rem 1.1rem', fontSize: '0.9rem', fontWeight: 600,
             }}
           >
-            Annuler
+            {t('common.cancel')}
           </button>
         </div>
       </form>
