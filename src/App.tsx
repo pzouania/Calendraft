@@ -7,15 +7,17 @@ import CalendarEditor from './components/CalendarEditor'
 import ProfilePage from './components/ProfilePage'
 import ResetPasswordForm from './components/ResetPasswordForm'
 import SharedCalendarPage from './components/SharedCalendarPage'
+import PartialShareView from './components/PartialShareView'
 import PrivacyPage from './components/PrivacyPage'
 import TermsPage from './components/TermsPage'
 import AppDownloadPage from './components/AppDownloadPage'
 import TermsGate from './components/TermsGate'
 import { useI18n } from './hooks/useI18n'
 
-type View = { screen: 'dashboard' } | { screen: 'calendar'; id: string } | { screen: 'profile' }
+type View = { screen: 'dashboard' } | { screen: 'calendar'; id: string } | { screen: 'profile' } | { screen: 'partial'; id: string }
 
 const SHARE_PATH = /^\/s\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i
+const PARTIAL_PATH = /^\/j\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i
 
 function App() {
   const { session, loading } = useAuth()
@@ -41,6 +43,9 @@ function App() {
   const shareMatch = window.location.pathname.match(SHARE_PATH)
   if (shareMatch) return <SharedCalendarPage token={shareMatch[1]} />
 
+  const partialMatch = window.location.pathname.match(PARTIAL_PATH)
+  if (partialMatch) return <PartialShareView token={partialMatch[1]} />
+
   if (loading) return <p style={{ padding: '2rem' }}>{t('common.loading')}</p>
 
   if (isRecovery) return <ResetPasswordForm />
@@ -56,6 +61,8 @@ function App() {
         onBack={() => setView({ screen: 'dashboard' })}
       />
     )
+  } else if (view.screen === 'partial') {
+    current = <PartialShareView key={view.id} id={view.id} onBack={() => setView({ screen: 'dashboard' })} />
   } else if (view.screen === 'profile') {
     current = (
       <ProfilePage
@@ -72,6 +79,7 @@ function App() {
         user={session.user}
         onOpenCalendar={(id) => setView({ screen: 'calendar', id })}
         onOpenProfile={() => setView({ screen: 'profile' })}
+        onOpenPartialShare={(id) => setView({ screen: 'partial', id })}
       />
     )
   }
