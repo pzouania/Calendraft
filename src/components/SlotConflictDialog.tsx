@@ -40,6 +40,9 @@ export default function SlotConflictDialog({
   const cardRef = useRef<HTMLDivElement | null>(null)
   const name = eventName.trim() || 'cet événement'
   const { blockers } = conflict
+  const importedCount = blockers.filter((b) => b.imported).length
+  // Supprimer un événement du calendrier ne sert à rien si trois événements importés (ou plus) occupent déjà le créneau.
+  const canFix = blockers.some((b) => !b.imported) && importedCount < 3
 
   // Le focus passe dans la boîte à l'ouverture et revient où il était à la fermeture.
   useEffect(() => {
@@ -114,11 +117,16 @@ export default function SlotConflictDialog({
                 {' '}Le <strong>{longDate(conflict.date)}</strong>, {blockers.length} événements occupent déjà ce créneau.
               </>
             )}
+            {importedCount > 0 && <> Les événements de l'emploi du temps importé comptent aussi.</>}
           </p>
           <p style={{ margin: '0 0 0.9rem', fontSize: '0.9rem', color: 'var(--text-strong)', lineHeight: 1.5 }}>
-            {blockers.length > 0
-              ? `Pour enregistrer « ${name} », supprimez l'un d'eux :`
-              : `Changez la date ou l'horaire de « ${name} » pour l'enregistrer.`}
+            {canFix
+              ? importedCount > 0
+                ? `Pour enregistrer « ${name} », supprimez l'un des événements de votre calendrier ci-dessous (un événement importé ne peut pas être supprimé d'ici) :`
+                : `Pour enregistrer « ${name} », supprimez l'un d'eux :`
+              : blockers.length > 0
+                ? `Les événements importés ne peuvent pas être supprimés depuis Calendraft : changez la date ou l'horaire de « ${name} » pour l'enregistrer.`
+                : `Changez la date ou l'horaire de « ${name} » pour l'enregistrer.`}
           </p>
         </div>
 
@@ -139,6 +147,16 @@ export default function SlotConflictDialog({
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <strong style={{ color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>{b.name}</strong>
+                    {b.imported && (
+                      <span
+                        style={{
+                          marginLeft: 8, padding: '1px 8px', borderRadius: 999, fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap',
+                          background: 'var(--surface-tint)', border: '1px solid var(--tint-border)', color: 'var(--tint-text)',
+                        }}
+                      >
+                        Importé
+                      </span>
+                    )}
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
                       {shortDate(b.date)}
                       {b.start && b.end && ` — ${b.start} à ${b.end}`}
@@ -146,46 +164,49 @@ export default function SlotConflictDialog({
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                  {b.recurring && (
+                {canFix && !b.imported && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                    {b.recurring && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => onDeleteDay(b)}
+                        aria-label={`Supprimer ${b.name} uniquement le ${shortDate(b.date)}`}
+                        style={{ ...smallButton, border: '1px solid var(--tint-border)', color: 'var(--accent-link)', opacity: busy ? 0.6 : 1 }}
+                      >
+                        Supprimer ce jour seulement
+                      </button>
+                    )}
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => onDeleteDay(b)}
-                      aria-label={`Supprimer ${b.name} uniquement le ${shortDate(b.date)}`}
-                      style={{ ...smallButton, border: '1px solid var(--tint-border)', color: 'var(--accent-link)', opacity: busy ? 0.6 : 1 }}
+                      onClick={() => onDeleteEvent(b)}
+                      aria-label={`Supprimer l'événement ${b.name} en entier`}
+                      style={{ ...smallButton, border: '1px solid var(--danger-border)', color: 'var(--danger)', opacity: busy ? 0.6 : 1 }}
                     >
-                      Supprimer ce jour seulement
+                      {b.recurring ? "Supprimer l'événement entier" : "Supprimer l'événement"}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => onDeleteEvent(b)}
-                    aria-label={`Supprimer l'événement ${b.name} en entier`}
-                    style={{ ...smallButton, border: '1px solid var(--danger-border)', color: 'var(--danger)', opacity: busy ? 0.6 : 1 }}
-                  >
-                    {b.recurring ? "Supprimer l'événement entier" : "Supprimer l'événement"}
-                  </button>
-                </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
         )}
 
-        {conflict.dates > 1 && blockers.length > 0 && (
+        {conflict.dates > 1 && canFix && (
           <p
             style={{
               margin: '0 0 0.9rem', padding: '0.6rem 0.8rem', borderRadius: 10, fontSize: '0.82rem', lineHeight: 1.5,
               background: 'var(--surface-tint)', border: '1px solid var(--tint-border)', color: 'var(--tint-text)',
             }}
           >
-            Ce conflit se retrouve à {conflict.dates} dates. Supprimer l'événement entier les règle toutes d'un coup ;
-            supprimer un seul jour ne règle que le jour indiqué, et cette fenêtre se rouvrira si un autre jour est encore complet.
+            {importedCount > 0
+              ? `Ce conflit se retrouve à ${conflict.dates} dates. Cette fenêtre se rouvrira tant qu'un autre jour est encore complet.`
+              : `Ce conflit se retrouve à ${conflict.dates} dates. Supprimer l'événement entier les règle toutes d'un coup ; supprimer un seul jour ne règle que le jour indiqué, et cette fenêtre se rouvrira si un autre jour est encore complet.`}
           </p>
         )}
 
-        {blockers.length > 0 && (
+        {canFix && (
           <p style={{ margin: '0 0 0.9rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             Dès qu'une place est libre, « {name} » est enregistré automatiquement.
           </p>
@@ -211,7 +232,7 @@ export default function SlotConflictDialog({
             borderRadius: 10, padding: '0.7rem 1.3rem', fontSize: '0.9rem', fontWeight: 600, opacity: busy ? 0.6 : 1,
           }}
         >
-          {blockers.length > 0 ? 'Annuler et revenir au formulaire' : 'Fermer'}
+          {canFix ? 'Annuler et revenir au formulaire' : blockers.length > 0 ? 'Revenir au formulaire' : 'Fermer'}
         </button>
       </div>
     </div>

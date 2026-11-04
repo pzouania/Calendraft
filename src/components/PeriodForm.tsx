@@ -11,7 +11,16 @@ import {
   requestReminderSync,
   saveReminder,
 } from '../lib/reminders'
-import { parseLimitError, removeBlockerDay, removeBlockerEvent, type SlotBlocker, type SlotConflict } from '../lib/slotLimit'
+import {
+  checkWithImported,
+  parseLimitError,
+  removeBlockerDay,
+  removeBlockerEvent,
+  type FeedCache,
+  type ImportedNotice,
+  type SlotBlocker,
+  type SlotConflict,
+} from '../lib/slotLimit'
 import type { Frequency, Period } from '../types'
 import SlotConflictDialog from './SlotConflictDialog'
 
@@ -181,6 +190,8 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
   const [conflictBusy, setConflictBusy] = useState(false)
   const [conflictError, setConflictError] = useState<string | null>(null)
   const submitRef = useRef<HTMLButtonElement | null>(null)
+  // Emploi du temps importé déjà lu pendant que ce formulaire est ouvert (évite de le relire après chaque suppression).
+  const [feedCache] = useState<FeedCache>(() => new Map())
 
   useEffect(() => {
     let cancelled = false
@@ -327,12 +338,51 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
     }
   }
 
+  // Vrai si les jours ou les heures diffèrent de l'événement enregistré (toujours vrai à la création).
+  const scheduleChanged = (s: Schedule): boolean =>
+    period === undefined ||
+    s.start_date !== period.start_date ||
+    s.frequency !== period.frequency ||
+    s.interval_weeks !== period.interval_weeks ||
+    s.week_of_month !== period.week_of_month ||
+    s.duration_days !== period.duration_days ||
+    hhmm(s.start_time) !== hhmm(period.start_time) ||
+    hhmm(s.end_time) !== hhmm(period.end_time)
+
   const save = async () => {
     setError(null)
     setSaving(true)
 
     const schedule = buildSchedule()
     let savedId: string
+
+    // Les événements importés (emploi du temps en ligne) comptent aussi dans la limite, mais la base ne les voit pas :
+    // on les lui soumet avant d'enregistrer. Inutile si l'événement est sans horaire ou si ses jours et heures ne changent pas.
+    let importedNotice: ImportedNotice | null = null
+    const { start_time: from, end_time: until } = schedule
+    if (from && until && scheduleChanged(schedule)) {
+      const check = await checkWithImported({
+        calendarId,
+        excludeId: period?.id ?? null,
+        schedule: {
+          start_date: schedule.start_date,
+          frequency: schedule.frequency,
+          duration_days: schedule.duration_days,
+          interval_weeks: schedule.interval_weeks,
+          week_of_month: schedule.week_of_month,
+          start_time: from,
+          end_time: until,
+        },
+        cache: feedCache,
+      })
+      if (check.conflict) {
+        setSaving(false)
+        setConflictError(null)
+        setConflict(check.conflict)
+        return
+      }
+      importedNotice = check.notice
+    }
 
     if (period) {
       const { data: updated, error: dbError } = await supabase
@@ -381,6 +431,15 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
     }
     // Préparation immédiate des notifications : utile seulement si un rappel est en jeu.
     if (!notice && (reminder !== null || originalReminder !== null)) requestReminderSync()
+
+    // L'emploi du temps importé n'a pas pu être lu (en entier) : l'événement est enregistré, on le dit.
+    if (importedNotice) {
+      const detail =
+        importedNotice === 'unreachable'
+          ? "L'emploi du temps importé ne répond pas : ses événements n'ont pas été comptés dans la limite de 3 événements en même temps."
+          : "L'emploi du temps importé est trop long pour être lu en entier : certains de ses événements n'ont pas été comptés dans la limite de 3 événements en même temps."
+      notice = notice ? `${notice} ${detail}` : `L'événement est ${editing ? 'modifié' : 'créé'}. ${detail}`
+    }
 
     setSaving(false)
     onSaved(notice)
@@ -594,7 +653,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
                 L'heure de fin est avant celle de début : l'événement se termine le lendemain.
               </p>
             )}
-            <p style={hintStyle}>Un calendrier accepte au plus 3 événements à horaire précis en même temps.</p>
+            <p style={hintStyle}>Au plus 3 événements à horaire précis en même temps par calendrier, importés compris.</p>
           </>
         )}
       </div>
