@@ -186,8 +186,9 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
     setInfoLoaded(true)
   }
 
-  const loadPeriods = async () => {
-    setLoading(true)
+  // « quiet » : rafraîchit la liste sans l'effacer (utile quand un formulaire est ouvert).
+  const loadPeriods = async (quiet = false) => {
+    if (!quiet) setLoading(true)
     const { data, error } = await supabase
       .from('periods')
       .select('*')
@@ -451,6 +452,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                     setNotice(message ?? null)
                     loadPeriods()
                   }}
+                  onChanged={() => loadPeriods(true)}
                   onCancel={() => setShowForm(false)}
                 />
               </div>
@@ -516,6 +518,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                           setFlash("L'événement a été modifié.")
                           loadPeriods()
                         }}
+                        onChanged={() => loadPeriods(true)}
                         onCancel={() => setEditingId(null)}
                       />
                     </div>

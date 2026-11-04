@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabaseClient'
 import { toDateOnly } from '../lib/dateUtils'
 import { getPushState, type PushState } from '../lib/push'
@@ -10,7 +11,9 @@ import {
   requestReminderSync,
   saveReminder,
 } from '../lib/reminders'
+import { parseLimitError, removeBlockerDay, removeBlockerEvent, type SlotBlocker, type SlotConflict } from '../lib/slotLimit'
 import type { Frequency, Period } from '../types'
+import SlotConflictDialog from './SlotConflictDialog'
 
 interface PeriodFormProps {
   calendarId: string
@@ -19,6 +22,8 @@ interface PeriodFormProps {
   // Le message éventuel signale un souci sans gravité (par exemple : événement enregistré, rappel non enregistré).
   onSaved: (notice?: string) => void
   onCancel: () => void
+  // Appelé quand le formulaire a supprimé quelque chose pour libérer un créneau (la liste des événements doit se rafraîchir).
+  onChanged?: () => void
 }
 
 type Repeat = 'none' | 'weekly' | 'monthly'
@@ -147,7 +152,7 @@ function Segmented<T extends string>({
   )
 }
 
-export default function PeriodForm({ calendarId, period, onSaved, onCancel }: PeriodFormProps) {
+export default function PeriodForm({ calendarId, period, onSaved, onCancel, onChanged }: PeriodFormProps) {
   const editing = period !== undefined
   const originalTimeMode: TimeMode = period?.start_time ? 'timed' : 'allday'
 
@@ -171,6 +176,11 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel }: Pe
   const [pushState, setPushState] = useState<PushState | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  // Créneau complet : la boîte propose de supprimer un des événements qui l'occupent, puis l'enregistrement reprend tout seul.
+  const [conflict, setConflict] = useState<SlotConflict | null>(null)
+  const [conflictBusy, setConflictBusy] = useState(false)
+  const [conflictError, setConflictError] = useState<string | null>(null)
+  const submitRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -298,14 +308,26 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel }: Pe
     return null
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const problem = validate()
-    if (problem) {
-      setError(problem)
+  // Erreur de la base : limite atteinte (créneau complet, trop de créations) ou erreur ordinaire.
+  const failWith = (dbError: { message?: string; details?: string | null; code?: string }, fallback: string) => {
+    setSaving(false)
+    const limit = parseLimitError(dbError)
+    if (limit?.kind === 'slot_full') {
+      setConflictError(null)
+      setConflict(limit.conflict)
       return
     }
+    setConflict(null)
+    if (limit?.kind === 'rate_limit') {
+      setError(`Vous créez des événements trop vite (10 par minute au maximum). Réessayez dans ${limit.retryAfter} seconde${limit.retryAfter > 1 ? 's' : ''}.`)
+    } else if (limit?.kind === 'invalid') {
+      setError("Les valeurs de l'événement ne sont pas acceptées (durée de 1 à 366 jours, répétition de 1 à 52 semaines).")
+    } else {
+      setError(dbError.message || fallback)
+    }
+  }
 
+  const save = async () => {
     setError(null)
     setSaving(true)
 
@@ -320,14 +342,12 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel }: Pe
         .select('id')
 
       if (dbError) {
-        setSaving(false)
-        setError(dbError.message)
+        failWith(dbError, "L'événement n'a pas pu être modifié.")
         return
       }
       // Sans droit d'écriture (ou événement supprimé entre-temps), la base ne signale pas d'erreur : aucune ligne n'est modifiée.
       if (!updated || updated.length === 0) {
-        setSaving(false)
-        setError("L'événement n'a pas pu être modifié : il a peut-être été supprimé, ou vous n'avez plus le droit de le modifier.")
+        failWith({ message: "L'événement n'a pas pu être modifié : il a peut-être été supprimé, ou vous n'avez plus le droit de le modifier." }, '')
         return
       }
       savedId = period.id
@@ -339,8 +359,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel }: Pe
         .single()
 
       if (dbError || !created) {
-        setSaving(false)
-        setError(dbError ? dbError.message : "L'événement n'a pas pu être créé.")
+        failWith(dbError ?? {}, "L'événement n'a pas pu être créé.")
         return
       }
       savedId = created.id as string
@@ -365,6 +384,47 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel }: Pe
 
     setSaving(false)
     onSaved(notice)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const problem = validate()
+    if (problem) {
+      setError(problem)
+      return
+    }
+    await save()
+  }
+
+  // Ferme la boîte sans rien enregistrer ; le focus revient sur le bouton d'enregistrement.
+  const closeConflict = () => {
+    setConflict(null)
+    window.setTimeout(() => submitRef.current?.focus(), 0)
+  }
+
+  // Libère une place en supprimant un jour (ou tout) d'un événement qui occupe le créneau, puis relance l'enregistrement.
+  const freeSlot = async (blocker: SlotBlocker, scope: 'day' | 'event') => {
+    const when = new Date(blocker.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    const confirmed = window.confirm(
+      scope === 'day'
+        ? `Supprimer « ${blocker.name} » uniquement le ${when} ? Les autres dates de cet événement ne seront pas affectées.`
+        : `Supprimer définitivement « ${blocker.name} » ? Toutes ses dates seront supprimées.`
+    )
+    if (!confirmed) return
+
+    setConflictBusy(true)
+    setConflictError(null)
+    try {
+      const failure = scope === 'day' ? await removeBlockerDay(blocker) : await removeBlockerEvent(blocker)
+      if (failure) {
+        setConflictError(failure)
+        return
+      }
+      onChanged?.()
+      await save()
+    } finally {
+      setConflictBusy(false)
+    }
   }
 
   return (
@@ -534,6 +594,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel }: Pe
                 L'heure de fin est avant celle de début : l'événement se termine le lendemain.
               </p>
             )}
+            <p style={hintStyle}>Un calendrier accepte au plus 3 événements à horaire précis en même temps.</p>
           </>
         )}
       </div>
@@ -600,6 +661,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel }: Pe
       <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
         <button
           type="submit"
+          ref={submitRef}
           disabled={saving}
           style={{
             background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
@@ -620,6 +682,20 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel }: Pe
           Annuler
         </button>
       </div>
+
+      {conflict &&
+        createPortal(
+          <SlotConflictDialog
+            conflict={conflict}
+            eventName={name}
+            busy={conflictBusy}
+            error={conflictError}
+            onDeleteDay={(b) => void freeSlot(b, 'day')}
+            onDeleteEvent={(b) => void freeSlot(b, 'event')}
+            onCancel={closeConflict}
+          />,
+          document.body
+        )}
     </form>
   )
 }
