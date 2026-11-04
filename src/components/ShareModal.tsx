@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import PartialSharesList, { useOwnerPartialShares } from './PartialSharesList'
 
 interface ShareModalProps {
   calendarId: string
@@ -69,6 +70,7 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
   const [invited, setInvited] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
+  const partial = useOwnerPartialShares(calendarId)
 
   const load = async () => {
     const [sharesRes, linkRes] = await Promise.all([
@@ -360,6 +362,17 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
               </>
             )}
           </section>
+
+          {partial.shares.length > 0 && (
+            <section>
+              <h4 style={sectionTitle}>Jours et événements partagés</h4>
+              <p style={{ margin: '0 0 0.7rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                Ces partages ne donnent accès qu’à un jour ou à un événement précis, en lecture seule. Pour en créer un, ouvrez un jour du
+                calendrier puis « Partager ».
+              </p>
+              <PartialSharesList shares={partial.shares} onRemoved={partial.reload} onError={setError} />
+            </section>
+          )}
 
           {error && (
             <p style={{ margin: 0, color: 'var(--danger)', fontSize: '0.85rem', wordBreak: 'break-word' }}>{error}</p>

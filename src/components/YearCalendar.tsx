@@ -14,6 +14,8 @@ interface YearCalendarProps {
   calendarIcon: string
   calendarColor: string
   canEdit: boolean
+  // Propriétaire du calendrier : peut partager un jour ou un événement.
+  canShare?: boolean
   yearMode?: YearMode
   staticData?: { periods: Period[]; exceptions: PeriodException[] }
 }
@@ -91,6 +93,7 @@ export default function YearCalendar({
   calendarIcon,
   calendarColor,
   canEdit,
+  canShare = false,
   yearMode = 'calendar',
   staticData,
 }: YearCalendarProps) {
@@ -539,6 +542,7 @@ export default function YearCalendar({
             date={selectedDate}
             occurrences={occurrencesByDate.get(selectedDate) ?? []}
             canEdit={canEdit}
+            shareCalendarId={canShare && !staticData && calendarId ? calendarId : undefined}
             onClose={() => setSelectedDate(null)}
             onChanged={() => {
               if (!staticData) loadData()

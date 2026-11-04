@@ -8,6 +8,7 @@ import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import Icon from './icons'
 import CalendarFormModal from './CalendarFormModal'
+import PartialSharesInbox from './PartialSharesInbox'
 import { useI18n } from '../hooks/useI18n'
 import { noticeText, type Notice } from '../lib/authErrors'
 import type { Params, TranslationKey } from '../i18n'
@@ -22,6 +23,7 @@ interface DashboardProps {
   user: User
   onOpenCalendar: (id: string) => void
   onOpenProfile: () => void
+  onOpenPartialShare: (id: string) => void
 }
 
 interface UpcomingItem {
@@ -98,7 +100,7 @@ function useIsNarrow(maxWidth = 640): boolean {
   return narrow
 }
 
-export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: DashboardProps) {
+export default function Dashboard({ user, onOpenCalendar, onOpenProfile, onOpenPartialShare }: DashboardProps) {
   const { t, formatDate } = useI18n()
   const [calendars, setCalendars] = useState<Calendar[]>([])
   const [periods, setPeriods] = useState<Period[]>([])
@@ -722,6 +724,7 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
             {actions}
             {errorBlock}
             {calendarsList}
+            <PartialSharesInbox onOpen={onOpenPartialShare} />
             {statsGrid}
           </>
         ) : (
@@ -730,7 +733,10 @@ export default function Dashboard({ user, onOpenCalendar, onOpenProfile }: Dashb
             {actions}
             {errorBlock}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'flex-start' }}>
-              <div style={{ flex: '2 1 460px', minWidth: 0 }}>{calendarsList}</div>
+              <div style={{ flex: '2 1 460px', minWidth: 0 }}>
+                {calendarsList}
+                <PartialSharesInbox onOpen={onOpenPartialShare} />
+              </div>
               {recap}
             </div>
           </>

@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useI18n } from '../hooks/useI18n'
 import type { Params, TranslationKey } from '../i18n'
+import PartialShareModal from './PartialShareModal'
 import type { Occurrence } from '../types'
 
 type Translate = (key: TranslationKey, params?: Params) => string
@@ -10,6 +11,8 @@ interface DayDetailProps {
   date: string
   occurrences: Occurrence[]
   canEdit?: boolean
+  // Renseigné pour le propriétaire du calendrier : affiche le bouton « Partager ».
+  shareCalendarId?: string
   onClose: () => void
   onChanged: () => void
 }
@@ -105,8 +108,9 @@ function TrashButton({ onClick, label }: { onClick: () => void; label: string })
   )
 }
 
-export default function DayDetail({ date, occurrences, canEdit = true, onClose, onChanged }: DayDetailProps) {
+export default function DayDetail({ date, occurrences, canEdit = true, shareCalendarId, onClose, onChanged }: DayDetailProps) {
   const { t, formatDate } = useI18n()
+  const [sharing, setSharing] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -145,128 +149,155 @@ export default function DayDetail({ date, occurrences, canEdit = true, onClose, 
 
   const label = formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const title = label.charAt(0).toUpperCase() + label.slice(1)
+  const canShare = !!shareCalendarId && occurrences.some((o) => !o.readOnly)
 
   return (
-    <div
-      style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'var(--overlay)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem',
-      }}
-      onClick={onClose}
-    >
+    <>
       <div
-        ref={scrollRef}
         style={{
-          backgroundColor: 'var(--surface)', borderRadius: 16, position: 'relative',
-          width: 'min(520px, 92vw)', maxHeight: '85vh', overflowY: 'auto',
-          boxShadow: 'var(--shadow-modal)',
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'var(--overlay)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={onClose}
       >
         <div
-          ref={headerRef}
+          ref={scrollRef}
           style={{
-            position: 'sticky', top: 0, zIndex: 3, background: 'var(--surface)',
-            padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-soft)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+            backgroundColor: 'var(--surface)', borderRadius: 16, position: 'relative',
+            width: 'min(520px, 92vw)', maxHeight: '85vh', overflowY: 'auto',
+            boxShadow: 'var(--shadow-modal)',
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{title}</h3>
-          <button
-            onClick={onClose}
-            aria-label={t('common.close')}
+          <div
+            ref={headerRef}
             style={{
-              width: 32, height: 32, borderRadius: 10, border: 'none',
-              background: 'var(--surface-alt)', color: 'var(--text-body)', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
+              position: 'sticky', top: 0, zIndex: 3, background: 'var(--surface)',
+              padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-soft)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
             }}
           >
-            ×
-          </button>
-        </div>
-
-        <div style={{ padding: '1rem 1.25rem 1.25rem' }}>
-          {occurrences.length === 0 && (
-            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{t('dayDetail.empty')}</p>
-          )}
-
-          {allDay.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: timed.length > 0 ? '1.2rem' : 0 }}>
-              {allDay.map((occ, i) => (
-                <div
-                  key={`${occ.periodId}-${i}`}
+            <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{title}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              {canShare && (
+                <button
+                  onClick={() => setSharing(true)}
+                  aria-label="Partager ce jour ou un événement"
+                  title="Partager ce jour ou un événement"
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    backgroundColor: 'var(--surface)',
-                    backgroundImage: `linear-gradient(${occ.color}1f, ${occ.color}1f)`,
-                    borderLeft: `4px solid ${occ.color}`, borderRadius: 10,
-                    padding: '0.55rem 0.6rem 0.55rem 0.8rem',
+                    width: 32, height: 32, borderRadius: 10, border: 'none', padding: 0, flexShrink: 0,
+                    background: 'var(--surface-tint)', color: 'var(--accent-text)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{occ.name}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-body)' }}>
-                    {t('event.allDay')}{occ.location ? ` · ${occ.location}` : ''}
-                  </span>
-                  {canEdit && !occ.readOnly && <TrashButton label={t('dayDetail.deleteDay')} onClick={() => handleDeleteLocal(occ)} />}
-                </div>
-              ))}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <path d="M8.6 10.6l6.8-4M8.6 13.4l6.8 4" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                aria-label={t('common.close')}
+                style={{
+                  width: 32, height: 32, borderRadius: 10, border: 'none',
+                  background: 'var(--surface-alt)', color: 'var(--text-body)', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
+                }}
+              >
+                ×
+              </button>
             </div>
-          )}
+          </div>
 
-          {blocks.length > 0 && (
-            <div ref={gridRef} style={{ position: 'relative', borderTop: '1px solid var(--border-soft)' }}>
-              {HOURS.map((h) => (
-                <div
-                  key={h}
-                  style={{
-                    height: ROW_HEIGHT, borderBottom: '1px solid var(--border-soft)',
-                    display: 'flex', alignItems: 'flex-start',
-                  }}
-                >
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', width: 40, flexShrink: 0, paddingTop: 2 }}>
-                    {String(h).padStart(2, '0')}:00
-                  </span>
-                </div>
-              ))}
+          <div style={{ padding: '1rem 1.25rem 1.25rem' }}>
+            {occurrences.length === 0 && (
+              <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{t('dayDetail.empty')}</p>
+            )}
 
-              <div style={{ position: 'absolute', top: 0, left: 44, right: 4, bottom: 0 }}>
-                {blocks.map((b, i) => {
-                  const top = (b.startMin / 60) * ROW_HEIGHT
-                  const height = Math.max(((b.endMin - b.startMin) / 60) * ROW_HEIGHT - 2, MIN_BLOCK)
-                  const deletable = canEdit && !b.occ.readOnly
-                  return (
-                    <div
-                      key={`${b.occ.periodId}-${b.occ.segment}-${i}`}
-                      style={{
-                        position: 'absolute', top: top + 1, height,
-                        left: `calc(${b.col} * 100% / ${b.cols})`,
-                        width: `calc(100% / ${b.cols} - 4px)`,
-                        backgroundColor: 'var(--surface)',
-                        backgroundImage: `linear-gradient(${b.occ.color}26, ${b.occ.color}26)`,
-                        borderLeft: `4px solid ${b.occ.color}`,
-                        borderRadius: 8,
-                        padding: deletable ? '4px 32px 4px 8px' : '4px 8px',
-                        overflow: 'hidden',
-                        boxShadow: 'var(--shadow-event)',
-                      }}
-                    >
-                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {b.occ.name}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-strong)' }}>{b.subtitle}</div>
-                      {deletable && (
-                        <div style={{ position: 'absolute', top: 4, right: 4 }}>
-                          <TrashButton label={t('dayDetail.deleteDay')} onClick={() => handleDeleteLocal(b.occ)} />
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+            {allDay.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: timed.length > 0 ? '1.2rem' : 0 }}>
+                {allDay.map((occ, i) => (
+                  <div
+                    key={`${occ.periodId}-${i}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      backgroundColor: 'var(--surface)',
+                      backgroundImage: `linear-gradient(${occ.color}1f, ${occ.color}1f)`,
+                      borderLeft: `4px solid ${occ.color}`, borderRadius: 10,
+                      padding: '0.55rem 0.6rem 0.55rem 0.8rem',
+                    }}
+                  >
+                    <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{occ.name}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-body)' }}>
+                      {t('event.allDay')}{occ.location ? ` · ${occ.location}` : ''}
+                    </span>
+                    {canEdit && !occ.readOnly && <TrashButton label={t('dayDetail.deleteDay')} onClick={() => handleDeleteLocal(occ)} />}
+                  </div>
+                ))}
               </div>
-            </div>
-          )}
+            )}
+
+            {blocks.length > 0 && (
+              <div ref={gridRef} style={{ position: 'relative', borderTop: '1px solid var(--border-soft)' }}>
+                {HOURS.map((h) => (
+                  <div
+                    key={h}
+                    style={{
+                      height: ROW_HEIGHT, borderBottom: '1px solid var(--border-soft)',
+                      display: 'flex', alignItems: 'flex-start',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', width: 40, flexShrink: 0, paddingTop: 2 }}>
+                      {String(h).padStart(2, '0')}:00
+                    </span>
+                  </div>
+                ))}
+
+                <div style={{ position: 'absolute', top: 0, left: 44, right: 4, bottom: 0 }}>
+                  {blocks.map((b, i) => {
+                    const top = (b.startMin / 60) * ROW_HEIGHT
+                    const height = Math.max(((b.endMin - b.startMin) / 60) * ROW_HEIGHT - 2, MIN_BLOCK)
+                    const deletable = canEdit && !b.occ.readOnly
+                    return (
+                      <div
+                        key={`${b.occ.periodId}-${b.occ.segment}-${i}`}
+                        style={{
+                          position: 'absolute', top: top + 1, height,
+                          left: `calc(${b.col} * 100% / ${b.cols})`,
+                          width: `calc(100% / ${b.cols} - 4px)`,
+                          backgroundColor: 'var(--surface)',
+                          backgroundImage: `linear-gradient(${b.occ.color}26, ${b.occ.color}26)`,
+                          borderLeft: `4px solid ${b.occ.color}`,
+                          borderRadius: 8,
+                          padding: deletable ? '4px 32px 4px 8px' : '4px 8px',
+                          overflow: 'hidden',
+                          boxShadow: 'var(--shadow-event)',
+                        }}
+                      >
+                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {b.occ.name}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-strong)' }}>{b.subtitle}</div>
+                        {deletable && (
+                          <div style={{ position: 'absolute', top: 4, right: 4 }}>
+                            <TrashButton label={t('dayDetail.deleteDay')} onClick={() => handleDeleteLocal(b.occ)} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+      {sharing && shareCalendarId && (
+        <PartialShareModal calendarId={shareCalendarId} date={date} occurrences={occurrences} onClose={() => setSharing(false)} />
+      )}
+    </>
   )
 }

@@ -596,6 +596,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               calendarIcon={calendarIcon}
               calendarColor={calendarColor}
               canEdit={canEdit}
+              canShare={isOwner}
               yearMode={yearMode}
             />
           ) : (
