@@ -1,19 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { toDateOnly } from '../lib/dateUtils'
 import { getPushState, type PushState } from '../lib/push'
 import {
   choicesFor,
+  loadMyReminders,
   pushHint,
   reminderInSentence,
   requestReminderSync,
   saveReminder,
 } from '../lib/reminders'
+import type { Frequency, Period } from '../types'
 
 interface PeriodFormProps {
   calendarId: string
-  // Le message éventuel signale un souci sans gravité (par exemple : événement créé, rappel non enregistré).
-  onCreated: (notice?: string) => void
+  // Absent : création d'un nouvel événement. Présent : modification de cet événement.
+  period?: Period
+  // Le message éventuel signale un souci sans gravité (par exemple : événement enregistré, rappel non enregistré).
+  onSaved: (notice?: string) => void
   onCancel: () => void
 }
 
@@ -59,6 +63,39 @@ const hintStyle: React.CSSProperties = {
 const sectionStyle: React.CSSProperties = {
   paddingTop: '1.1rem',
   borderTop: '1px solid var(--border-soft)',
+}
+
+// Les colonnes qui décident des jours où tombe l'événement.
+type Schedule = Pick<
+  Period,
+  'start_date' | 'frequency' | 'duration_days' | 'interval_weeks' | 'week_of_month' | 'start_time' | 'end_time'
+>
+
+// Les anciennes répétitions « alternance » et « jours personnalisés » s'affichent comme une répétition par semaines.
+function repeatOf(p: Period): Repeat {
+  if (p.frequency === 'once') return 'none'
+  if (p.frequency === 'monthly') return 'monthly'
+  return 'weekly'
+}
+
+function intervalOf(p: Period): number {
+  return p.frequency === 'custom_days' ? 1 : Math.max(1, p.interval_weeks || 1)
+}
+
+// « 08:00:00 » (base de données) -> « 08:00 » (champ d'heure)
+function hhmm(time: string | null): string {
+  return time ? time.slice(0, 5) : ''
+}
+
+// Empreinte des jours de l'événement. Quand elle change (date de départ, répétition, durée, passage de minuit),
+// les jours retirés un par un n'ont plus de sens : la base de données les remet à zéro (voir periods_edit.sql,
+// dont la fonction period_structure_key suit exactement la même règle).
+function structureKey(s: Schedule): string {
+  const kind = s.frequency === 'once' ? 'once' : s.frequency === 'monthly' ? 'monthly' : 'weekly'
+  const interval = kind === 'weekly' ? (s.frequency === 'custom_days' ? 1 : s.interval_weeks) : 0
+  const week = kind === 'monthly' ? (s.week_of_month ?? 1) : 0
+  const overnight = !!s.start_time && !!s.end_time && s.end_time <= s.start_time ? 1 : 0
+  return [s.start_date, kind, interval, week, s.duration_days, overnight].join('|')
 }
 
 function weekdayOf(date: string): string {
@@ -110,18 +147,27 @@ function Segmented<T extends string>({
   )
 }
 
-export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFormProps) {
-  const [name, setName] = useState('')
-  const [color, setColor] = useState(COLORS[0])
-  const [startDate, setStartDate] = useState(() => toDateOnly(new Date()))
-  const [repeat, setRepeat] = useState<Repeat>('none')
-  const [intervalWeeks, setIntervalWeeks] = useState(1)
-  const [weekOfMonth, setWeekOfMonth] = useState(1)
-  const [durationDays, setDurationDays] = useState(1)
-  const [timeMode, setTimeMode] = useState<TimeMode>('allday')
-  const [startTime, setStartTime] = useState('')
-  const [endTime, setEndTime] = useState('')
+export default function PeriodForm({ calendarId, period, onSaved, onCancel }: PeriodFormProps) {
+  const editing = period !== undefined
+  const originalTimeMode: TimeMode = period?.start_time ? 'timed' : 'allday'
+
+  const [name, setName] = useState(period?.name ?? '')
+  const [color, setColor] = useState(period?.color ?? COLORS[0])
+  const [startDate, setStartDate] = useState(() => period?.start_date ?? toDateOnly(new Date()))
+  const [repeat, setRepeat] = useState<Repeat>(period ? repeatOf(period) : 'none')
+  const [intervalWeeks, setIntervalWeeks] = useState(period ? intervalOf(period) : 1)
+  const [weekOfMonth, setWeekOfMonth] = useState(period?.week_of_month ?? 1)
+  const [durationDays, setDurationDays] = useState(period?.duration_days ?? 1)
+  const [timeMode, setTimeMode] = useState<TimeMode>(originalTimeMode)
+  const [startTime, setStartTime] = useState(hhmm(period?.start_time ?? null))
+  const [endTime, setEndTime] = useState(hhmm(period?.end_time ?? null))
   const [reminder, setReminder] = useState<number | null>(null)
+  // Rappel déjà enregistré pour cet événement (modification seulement) : il se charge après l'ouverture du formulaire.
+  const [originalReminder, setOriginalReminder] = useState<number | null>(null)
+  const [reminderReady, setReminderReady] = useState(!editing)
+  const [reminderFailed, setReminderFailed] = useState(false)
+  // Nombre de jours retirés un par un de cet événement (voir l'avertissement plus bas).
+  const [exceptionCount, setExceptionCount] = useState(0)
   const [pushState, setPushState] = useState<PushState | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -138,14 +184,51 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
     }
   }, [])
 
+  const modeRef = useRef(timeMode)
+  modeRef.current = timeMode
+
+  const periodId = period?.id
+  useEffect(() => {
+    if (!periodId) return
+    let cancelled = false
+
+    loadMyReminders([periodId])
+      .then((map) => {
+        if (cancelled) return
+        const value = map[periodId] ?? null
+        setOriginalReminder(value)
+        setReminderReady(true)
+        // Si l'horaire a déjà été changé pendant le chargement, le rappel repart de « Aucun rappel ».
+        if (modeRef.current === originalTimeMode) setReminder(value)
+      })
+      .catch(() => {
+        if (!cancelled) setReminderFailed(true)
+      })
+
+    void (async () => {
+      try {
+        const { data, error: countError } = await supabase.from('period_exceptions').select('id').eq('period_id', periodId)
+        if (!cancelled && !countError) setExceptionCount((data ?? []).length)
+      } catch {
+        // Sans conséquence : l'avertissement n'est qu'une information.
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodId])
+
   const timed = timeMode === 'timed'
   const crossesMidnight = timed && !!startTime && !!endTime && endTime < startTime
   const weekday = weekdayOf(startDate)
 
   const chooseTimeMode = (mode: TimeMode) => {
     setTimeMode(mode)
-    // Les choix de rappel ne sont pas les mêmes avec ou sans horaire : on repart de « Aucun rappel ».
-    setReminder(null)
+    // Les choix de rappel ne sont pas les mêmes avec ou sans horaire : on repart de « Aucun rappel »
+    // (sauf si l'on revient à l'horaire d'origine d'un événement modifié : son rappel est alors conservé).
+    setReminder(editing && mode === originalTimeMode ? originalReminder : null)
     if (mode === 'timed') {
       if (!startTime) setStartTime('08:00')
       if (!endTime) setEndTime('17:00')
@@ -180,6 +263,27 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
     return `${when}${days}${time}.${remind}`
   }, [startDate, repeat, intervalWeeks, weekOfMonth, durationDays, timed, startTime, endTime, crossesMidnight, weekday, reminder])
 
+  // Colonnes enregistrées. Un événement ancien « alternance » ou « jours personnalisés » garde sa valeur
+  // tant que son rythme ne change pas, pour ne rien modifier sans raison.
+  const buildSchedule = (): Schedule => {
+    const keepsRhythm =
+      period !== undefined && repeat === 'weekly' && repeatOf(period) === 'weekly' && intervalOf(period) === intervalWeeks
+    const frequency: Frequency =
+      repeat === 'none' ? 'once' : repeat === 'monthly' ? 'monthly' : period !== undefined && keepsRhythm ? period.frequency : 'weekly'
+    return {
+      start_date: startDate,
+      frequency,
+      duration_days: durationDays,
+      interval_weeks: repeat === 'weekly' ? (period !== undefined && keepsRhythm ? period.interval_weeks : intervalWeeks) : 1,
+      week_of_month: repeat === 'monthly' ? weekOfMonth : null,
+      start_time: timed ? startTime : null,
+      end_time: timed ? endTime : null,
+    }
+  }
+
+  const exceptionsWillReset =
+    period !== undefined && exceptionCount > 0 && structureKey(buildSchedule()) !== structureKey(period)
+
   const validate = (): string | null => {
     if (!name.trim()) return 'Donnez un nom à l\'événement.'
     if (!startDate) return 'Choisissez une date.'
@@ -205,47 +309,62 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
     setError(null)
     setSaving(true)
 
-    const { data: created, error: dbError } = await supabase
-      .from('periods')
-      .insert({
-        calendar_id: calendarId,
-        name: name.trim(),
-        color,
-        start_date: startDate,
-        frequency: repeat === 'none' ? 'once' : repeat,
-        duration_days: durationDays,
-        interval_weeks: repeat === 'weekly' ? intervalWeeks : 1,
-        week_of_month: repeat === 'monthly' ? weekOfMonth : null,
-        start_time: timed ? startTime : null,
-        end_time: timed ? endTime : null,
-      })
-      .select('id')
-      .single()
+    const schedule = buildSchedule()
+    let savedId: string
 
-    if (dbError || !created) {
-      setSaving(false)
-      setError(dbError ? dbError.message : "L'événement n'a pas pu être créé.")
-      return
+    if (period) {
+      const { data: updated, error: dbError } = await supabase
+        .from('periods')
+        .update({ name: name.trim(), color, ...schedule })
+        .eq('id', period.id)
+        .select('id')
+
+      if (dbError) {
+        setSaving(false)
+        setError(dbError.message)
+        return
+      }
+      // Sans droit d'écriture (ou événement supprimé entre-temps), la base ne signale pas d'erreur : aucune ligne n'est modifiée.
+      if (!updated || updated.length === 0) {
+        setSaving(false)
+        setError("L'événement n'a pas pu être modifié : il a peut-être été supprimé, ou vous n'avez plus le droit de le modifier.")
+        return
+      }
+      savedId = period.id
+    } else {
+      const { data: created, error: dbError } = await supabase
+        .from('periods')
+        .insert({ calendar_id: calendarId, name: name.trim(), color, ...schedule })
+        .select('id')
+        .single()
+
+      if (dbError || !created) {
+        setSaving(false)
+        setError(dbError ? dbError.message : "L'événement n'a pas pu être créé.")
+        return
+      }
+      savedId = created.id as string
     }
 
     // Le rappel est personnel : il est enregistré pour la personne connectée, séparément de l'événement.
     let notice: string | undefined
-    if (reminder !== null) {
+    const reminderChanged = editing ? reminderReady && reminder !== originalReminder : reminder !== null
+    if (reminderChanged) {
       let reminderError: string | null
       try {
-        reminderError = await saveReminder(created.id as string, reminder)
+        reminderError = await saveReminder(savedId, reminder)
       } catch {
         reminderError = 'Erreur réseau.'
       }
       if (reminderError) {
-        notice = "L'événement est créé, mais son rappel n'a pas pu être enregistré. Réglez-le depuis la liste des événements."
-      } else {
-        requestReminderSync()
+        notice = `L'événement est ${editing ? 'modifié' : 'créé'}, mais son rappel n'a pas pu être enregistré. Réglez-le depuis la liste des événements.`
       }
     }
+    // Préparation immédiate des notifications : utile seulement si un rappel est en jeu.
+    if (!notice && (reminder !== null || originalReminder !== null)) requestReminderSync()
 
     setSaving(false)
-    onCreated(notice)
+    onSaved(notice)
   }
 
   return (
@@ -257,7 +376,9 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
         boxShadow: 'var(--shadow-md)', maxWidth: 640,
       }}
     >
-      <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>Nouvel événement</h3>
+      <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+        {editing ? "Modifier l'événement" : 'Nouvel événement'}
+      </h3>
 
       <div>
         <label style={labelStyle}>Nom</label>
@@ -423,6 +544,7 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
           id="period-reminder"
           style={inputStyle}
           value={reminder === null ? '' : String(reminder)}
+          disabled={editing && !reminderReady}
           onChange={(e) => setReminder(e.target.value === '' ? null : Number(e.target.value))}
         >
           {choicesFor(timed, reminder).map((c) => (
@@ -440,7 +562,26 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
         {reminder !== null && pushHint(pushState) && (
           <p style={{ ...hintStyle, color: 'var(--accent-link)' }}>{pushHint(pushState)}</p>
         )}
+        {reminderFailed && (
+          <p style={{ ...hintStyle, color: 'var(--danger)' }}>
+            Votre rappel actuel n'a pas pu être chargé : il ne sera pas modifié.
+          </p>
+        )}
       </div>
+
+      {exceptionsWillReset && (
+        <p
+          role="status"
+          style={{
+            margin: 0, padding: '0.65rem 0.9rem', borderRadius: 10, fontSize: '0.85rem', lineHeight: 1.45,
+            background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', color: 'var(--warning-text)',
+          }}
+        >
+          {exceptionCount > 1
+            ? `Vous aviez retiré ${exceptionCount} jours de cet événement. Comme les dates ou la répétition changent, ces retraits sont annulés : tous les jours de la nouvelle série seront affichés.`
+            : 'Vous aviez retiré un jour de cet événement. Comme les dates ou la répétition changent, ce retrait est annulé : tous les jours de la nouvelle série seront affichés.'}
+        </p>
+      )}
 
       {summary && (
         <div
@@ -466,7 +607,7 @@ export default function PeriodForm({ calendarId, onCreated, onCancel }: PeriodFo
             opacity: saving ? 0.7 : 1,
           }}
         >
-          {saving ? 'Enregistrement...' : "Créer l'événement"}
+          {saving ? 'Enregistrement...' : editing ? 'Enregistrer les modifications' : "Créer l'événement"}
         </button>
         <button
           type="button"

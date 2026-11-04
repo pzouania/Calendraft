@@ -138,6 +138,9 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
   const [showShare, setShowShare] = useState(false)
   const [periods, setPeriods] = useState<Period[]>([])
   const [showForm, setShowForm] = useState(false)
+  // Événement dont le formulaire de modification est ouvert à la place de sa ligne.
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -223,6 +226,12 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!flash) return
+    const timer = window.setTimeout(() => setFlash(null), 4000)
+    return () => window.clearTimeout(timer)
+  }, [flash])
 
   const handleReminderChange = async (periodId: string, minutes: number | null) => {
     const previous = myReminders[periodId] ?? null
@@ -418,6 +427,8 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               <button
                 onClick={() => {
                   setNotice(null)
+                  setFlash(null)
+                  setEditingId(null)
                   setShowForm(true)
                 }}
                 style={{
@@ -435,7 +446,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               <div style={{ marginBottom: isNarrow ? '1rem' : '1.5rem' }}>
                 <PeriodForm
                   calendarId={calendarId}
-                  onCreated={(message) => {
+                  onSaved={(message) => {
                     setShowForm(false)
                     setNotice(message ?? null)
                     loadPeriods()
@@ -454,6 +465,18 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                 }}
               >
                 {notice}
+              </p>
+            )}
+
+            {flash && (
+              <p
+                role="status"
+                style={{
+                  margin: '0 0 1rem', padding: '0.65rem 0.9rem', borderRadius: 10, fontSize: '0.85rem', lineHeight: 1.45, fontWeight: 600,
+                  background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-strong)',
+                }}
+              >
+                {flash}
               </p>
             )}
 
@@ -481,7 +504,22 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                {periods.map((p) => (
+                {periods.map((p) =>
+                  canEdit && editingId === p.id ? (
+                    <div key={p.id}>
+                      <PeriodForm
+                        calendarId={calendarId}
+                        period={p}
+                        onSaved={(message) => {
+                          setEditingId(null)
+                          setNotice(message ?? null)
+                          setFlash("L'événement a été modifié.")
+                          loadPeriods()
+                        }}
+                        onCancel={() => setEditingId(null)}
+                      />
+                    </div>
+                  ) : (
                   <div
                     key={p.id}
                     style={{
@@ -509,18 +547,37 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                       )}
                     </div>
                     {canEdit && (
-                      <button
-                        onClick={() => handleDelete(p.id)}
-                        style={{
-                          background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
-                          borderRadius: 8, padding: isNarrow ? '0.4rem 0.6rem' : '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0,
-                        }}
-                      >
-                        Supprimer
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: isNarrow ? 'column' : 'row', gap: 6, flexShrink: 0 }}>
+                        <button
+                          onClick={() => {
+                            setNotice(null)
+                            setFlash(null)
+                            setShowForm(false)
+                            setEditingId(p.id)
+                          }}
+                          aria-label={`Modifier ${p.name}`}
+                          style={{
+                            background: 'transparent', border: '1px solid var(--tint-border)', color: 'var(--accent-link)',
+                            borderRadius: 8, padding: isNarrow ? '0.4rem 0.6rem' : '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600,
+                          }}
+                        >
+                          Modifier
+                        </button>
+                        <button
+                          onClick={() => handleDelete(p.id)}
+                          aria-label={`Supprimer ${p.name}`}
+                          style={{
+                            background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
+                            borderRadius: 8, padding: isNarrow ? '0.4rem 0.6rem' : '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600,
+                          }}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
                     )}
                   </div>
-                ))}
+                  )
+                )}
               </div>
             )}
           </>
