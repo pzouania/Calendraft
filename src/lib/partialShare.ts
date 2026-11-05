@@ -111,6 +111,13 @@ export function sortItems(items: PartialItem[]): PartialItem[] {
   return [...items].sort((a, b) => a.date.localeCompare(b.date) || key(a) - key(b) || a.name.localeCompare(b.name))
 }
 
+// « 20 octobre à 17:32 » : date d'une copie de secours (horodatage ISO envoyé par le serveur) ; vide si illisible.
+export function snapshotLabel(iso: string, formatDate: FormatDate): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return formatDate(d, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+}
+
 export function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
@@ -143,6 +150,8 @@ export interface SharedFeedResult {
   // 'unavailable' : l'emploi du temps n'a pas pu être lu pour le moment (le reste du partage s'affiche quand même).
   status: 'ok' | 'unavailable'
   items: PartialItem[]
+  // Emploi du temps injoignable mais copie de secours disponible : date de cette copie (sinon null).
+  staleAt: string | null
 }
 
 interface SharedFeedEvent {
@@ -155,7 +164,7 @@ interface SharedFeedEvent {
 }
 
 export async function fetchSharedFeed(target: { token: string } | { id: string }): Promise<SharedFeedResult> {
-  const unavailable: SharedFeedResult = { status: 'unavailable', items: [] }
+  const unavailable: SharedFeedResult = { status: 'unavailable', items: [], staleAt: null }
   try {
     const headers: Record<string, string> = {
       'content-type': 'application/json',
@@ -170,7 +179,7 @@ export async function fetchSharedFeed(target: { token: string } | { id: string }
     const res = await fetch('/api/feed/shared', { method: 'POST', headers, body: JSON.stringify(target) })
     const body = await res.json().catch(() => null)
     if (!body || !body.ok) return unavailable
-    if (!body.configured) return { status: 'ok', items: [] }
+    if (!body.configured) return { status: 'ok', items: [], staleAt: null }
     const color = typeof body.color === 'string' ? body.color : '#7c3aed'
     const items = (body.events as SharedFeedEvent[]).map((e): PartialItem => ({
       date: e.date,
@@ -181,7 +190,7 @@ export async function fetchSharedFeed(target: { token: string } | { id: string }
       end: e.end,
       location: e.location || undefined,
     }))
-    return { status: 'ok', items }
+    return { status: 'ok', items, staleAt: body.stale && typeof body.snapshotAt === 'string' ? body.snapshotAt : null }
   } catch {
     return unavailable
   }
