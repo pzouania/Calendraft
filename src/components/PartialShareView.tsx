@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useI18n } from '../hooks/useI18n'
-import { dateRangeLabel, itemTimeLabel, longDay, partialShareError, sortItems, type PartialItem, type PartialPayload } from '../lib/partialShare'
+import {
+  dateRangeLabel, fetchSharedFeed, itemTimeLabel, longDay, partialShareError, sortItems, type PartialItem, type PartialPayload,
+} from '../lib/partialShare'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import Icon from './icons'
@@ -27,6 +29,10 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
   const [status, setStatus] = useState<Status>('loading')
   const [removing, setRemoving] = useState(false)
   const [removeError, setRemoveError] = useState<string | null>(null)
+  // Événements importés (emploi du temps en ligne) : lus à part, en direct.
+  const [feedItems, setFeedItems] = useState<PartialItem[]>([])
+  const [feedState, setFeedState] = useState<'idle' | 'loading' | 'ok' | 'unavailable'>('idle')
+  const [feedTry, setFeedTry] = useState(0)
 
   useEffect(() => {
     if (!token) return
@@ -65,15 +71,36 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
     }
   }, [token, id])
 
+  const withFeed = !!data?.include_feed
+  useEffect(() => {
+    if (!withFeed) {
+      setFeedItems([])
+      setFeedState('idle')
+      return
+    }
+    let cancelled = false
+    setFeedState('loading')
+    fetchSharedFeed(token ? { token } : { id: id ?? '' }).then((result) => {
+      if (cancelled) return
+      setFeedItems(result.items)
+      setFeedState(result.status)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [withFeed, token, id, feedTry])
+
+  const allItems = useMemo(() => [...(data?.items ?? []), ...feedItems], [data, feedItems])
+
   const days = useMemo(() => {
     const byDay = new Map<string, PartialItem[]>()
-    for (const item of sortItems(data?.items ?? [])) {
+    for (const item of sortItems(allItems)) {
       const list = byDay.get(item.date) ?? []
       list.push(item)
       byDay.set(item.date, list)
     }
     return [...byDay.entries()]
-  }, [data])
+  }, [allItems])
 
   const handleRemove = async () => {
     if (!id) return
@@ -168,7 +195,13 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
 
   const isDay = data.scope === 'day'
   const title = isDay ? longDay(data.date, formatDate) : data.event_name ?? 'Événement'
-  const subtitle = isDay ? 'Programme de la journée' : dateRangeLabel(data.date, data.last_date, formatDate)
+  // Un événement importé peut couvrir plusieurs jours (début le soir, fin le lendemain) : la période suit ce qui est affiché.
+  const shownDates = withFeed && !isDay ? allItems.map((i) => i.date).sort() : []
+  const subtitle = isDay
+    ? 'Programme de la journée'
+    : shownDates.length > 0
+      ? dateRangeLabel(shownDates[0], shownDates[shownDates.length - 1], formatDate)
+      : dateRangeLabel(data.date, data.last_date, formatDate)
   const color = data.calendar.color ?? '#2563eb'
 
   return (
@@ -198,7 +231,33 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
             </div>
           </div>
 
-          {days.length === 0 ? (
+          {feedState === 'unavailable' && (
+            <div
+              role="status"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap', marginBottom: '1rem',
+                padding: '0.6rem 0.8rem', borderRadius: 10, background: 'var(--surface-faint)',
+                color: 'var(--text-body)', fontSize: '0.82rem',
+              }}
+            >
+              <span style={{ flex: '1 1 200px' }}>
+                Les événements importés de l’emploi du temps en ligne n’ont pas pu être chargés pour le moment.
+              </span>
+              <button
+                onClick={() => setFeedTry((n) => n + 1)}
+                style={{
+                  background: 'var(--surface-tint)', color: 'var(--accent-text)', border: '1px solid var(--tint-border)',
+                  borderRadius: 8, padding: '0.3rem 0.7rem', fontSize: '0.78rem', fontWeight: 600,
+                }}
+              >
+                Réessayer
+              </button>
+            </div>
+          )}
+
+          {days.length === 0 && feedState === 'loading' ? (
+            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Chargement des événements importés...</p>
+          ) : days.length === 0 && feedState === 'unavailable' ? null : days.length === 0 ? (
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
               Ce partage ne contient plus d’événement : il a probablement été modifié ou supprimé depuis.
             </p>
@@ -223,18 +282,25 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
                         }}
                       >
                         <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-word' }}>{item.name}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-body)' }}>{itemTimeLabel(item, t)}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-body)', wordBreak: 'break-word' }}>
+                          {itemTimeLabel(item, t)}
+                          {item.location ? ` · ${item.location}` : ''}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </section>
               ))}
+              {feedState === 'loading' && (
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Chargement des événements importés...</p>
+              )}
             </div>
           )}
         </div>
 
         <p style={{ margin: '1rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
           Vue en lecture seule : le propriétaire partage ici uniquement {isDay ? 'ce jour' : 'cet événement'}.
+          {withFeed && ' Les événements importés sont lus en direct dans son emploi du temps en ligne.'}
         </p>
 
         {id && (

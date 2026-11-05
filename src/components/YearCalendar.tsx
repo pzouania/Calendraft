@@ -214,6 +214,7 @@ export default function YearCalendar({
           segment: e.segment,
           readOnly: true,
           location: e.location,
+          feedUid: e.uid || undefined,
         })
       }
     }

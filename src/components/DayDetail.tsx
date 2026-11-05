@@ -149,7 +149,7 @@ export default function DayDetail({ date, occurrences, canEdit = true, shareCale
 
   const label = formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const title = label.charAt(0).toUpperCase() + label.slice(1)
-  const canShare = !!shareCalendarId && occurrences.some((o) => !o.readOnly)
+  const canShare = !!shareCalendarId && occurrences.length > 0
 
   return (
     <>

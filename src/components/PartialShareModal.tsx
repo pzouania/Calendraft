@@ -13,7 +13,11 @@ interface PartialShareModalProps {
 }
 
 interface EventOption {
-  periodId: string
+  // Identifiant de l'option : l'événement du calendrier (periodId) ou « feed:<identifiant> » pour un événement importé.
+  key: string
+  periodId: string | null
+  feedUid: string | null
+  imported: boolean
   name: string
   color: string
   detail: string
@@ -78,19 +82,37 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [invited, setInvited] = useState<{ email: string; label: string } | null>(null)
+  // Journée entière : inclure aussi les événements importés d'un emploi du temps en ligne (coché par défaut).
+  const [includeImported, setIncludeImported] = useState(true)
 
   const options = useMemo<EventOption[]>(() => {
     const seen = new Map<string, EventOption>()
     for (const occ of occurrences) {
-      if (occ.readOnly || seen.has(occ.periodId)) continue
-      seen.set(occ.periodId, { periodId: occ.periodId, name: occ.name, color: occ.color, detail: detailOf(occ) })
+      const imported = !!occ.readOnly
+      if (imported && !occ.feedUid) continue
+      const key = imported ? `feed:${occ.feedUid}` : occ.periodId
+      if (seen.has(key)) continue
+      seen.set(key, {
+        key, periodId: imported ? null : occ.periodId, feedUid: imported ? occ.feedUid ?? null : null, imported,
+        name: occ.name, color: occ.color, detail: detailOf(occ),
+      })
     }
     return [...seen.values()]
   }, [occurrences])
-  const hasImported = occurrences.some((o) => o.readOnly)
+  const ownOptions = options.filter((o) => !o.imported)
+  // Nombre d'événements importés de ce jour (un événement qui passe minuit compte pour un).
+  const importedCount = useMemo(() => {
+    const keys = new Set<string>()
+    for (const occ of occurrences) if (occ.readOnly) keys.add(occ.feedUid ?? `${occ.name}|${occ.startTime}|${occ.endTime}`)
+    return keys.size
+  }, [occurrences])
+  const hasImported = importedCount > 0
+  // Sans événement du calendrier ce jour-là, la journée n'a de sens qu'avec les événements importés.
+  const includeFeed = hasImported && (ownOptions.length === 0 || includeImported)
   const dayTitle = longDay(date, formatDate)
-  const targetOption = options.find((o) => o.periodId === target)
+  const targetOption = options.find((o) => o.key === target)
   const targetLabel = targetOption ? `« ${targetOption.name} »` : 'Tout le jour'
+  const dayCount = ownOptions.length + (includeFeed ? importedCount : 0)
 
   // Le clavier (et les lecteurs d'écran) arrivent directement dans la fenêtre à son ouverture.
   useEffect(() => {
@@ -108,13 +130,21 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
   const scope: PartialScope = target === 'day' ? 'day' : 'occurrence'
 
   const create = async (recipient: string | null) => {
-    const { data, error: err } = await supabase.rpc('create_partial_share', {
+    const picked = scope === 'occurrence' ? targetOption : undefined
+    const args: Record<string, unknown> = {
       p_calendar: calendarId,
       p_scope: scope,
       p_date: date,
-      p_period: scope === 'occurrence' ? target : null,
+      p_period: picked && !picked.imported ? picked.periodId : null,
       p_email: recipient,
-    })
+    }
+    // Les paramètres des événements importés ne sont envoyés que s'ils servent.
+    if (scope === 'day' && includeFeed) args.p_include_feed = true
+    if (picked?.imported) {
+      args.p_feed_uid = picked.feedUid
+      args.p_feed_title = picked.name
+    }
+    const { data, error: err } = await supabase.rpc('create_partial_share', args)
     return { data: data as { id: string; token: string | null; existing: boolean } | null, err }
   }
 
@@ -166,7 +196,7 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
   // Partages qui concernent ce jour (le jour lui-même, ou un événement dont l'occurrence couvre ce jour).
   const dayShares = shares.filter((s) => s.date <= date && date <= (s.last_date ?? s.date))
 
-  const nothing = options.length === 0
+  const nothing = options.length === 0 && !hasImported
 
   return (
     <div
@@ -216,7 +246,7 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
         <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {nothing ? (
             <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              Ce jour ne contient aucun événement du calendrier à partager.
+              Ce jour ne contient aucun événement à partager.
             </p>
           ) : (
             <>
@@ -234,36 +264,50 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
                     <span>
                       <span style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tout le jour</span>
                       <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                        {options.length === 1 ? '1 événement' : `${options.length} événements`} de ce jour
+                        {dayCount === 1 ? '1 événement' : `${dayCount} événements`} de ce jour
                       </span>
                     </span>
                   </label>
+                  {target === 'day' && hasImported && ownOptions.length > 0 && (
+                    <label
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.1rem 0.7rem 0.3rem 2rem',
+                        fontSize: '0.82rem', color: 'var(--text-body)', cursor: 'pointer',
+                      }}
+                    >
+                      <input type="checkbox" checked={includeImported} onChange={(e) => setIncludeImported(e.target.checked)} style={{ marginTop: 3 }} />
+                      <span>
+                        Inclure {importedCount === 1 ? 'l’événement importé' : `les ${importedCount} événements importés`} de l’emploi du temps en ligne
+                      </span>
+                    </label>
+                  )}
                   {options.map((o) => (
                     <label
-                      key={o.periodId}
+                      key={o.key}
                       style={{
                         display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.55rem 0.7rem', borderRadius: 10,
-                        background: target === o.periodId ? 'var(--surface-tint)' : 'var(--surface-faint)',
+                        background: target === o.key ? 'var(--surface-tint)' : 'var(--surface-faint)',
                         borderStyle: 'solid', borderWidth: '1px 1px 1px 4px',
-                        borderTopColor: target === o.periodId ? 'var(--tint-border)' : 'transparent',
-                        borderRightColor: target === o.periodId ? 'var(--tint-border)' : 'transparent',
-                        borderBottomColor: target === o.periodId ? 'var(--tint-border)' : 'transparent',
+                        borderTopColor: target === o.key ? 'var(--tint-border)' : 'transparent',
+                        borderRightColor: target === o.key ? 'var(--tint-border)' : 'transparent',
+                        borderBottomColor: target === o.key ? 'var(--tint-border)' : 'transparent',
                         borderLeftColor: o.color, cursor: 'pointer',
                       }}
                     >
-                      <input type="radio" name="partial-target" checked={target === o.periodId} onChange={() => setTarget(o.periodId)} style={{ marginTop: 3 }} />
+                      <input type="radio" name="partial-target" checked={target === o.key} onChange={() => setTarget(o.key)} style={{ marginTop: 3 }} />
                       <span style={{ minWidth: 0 }}>
                         <span style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-word' }}>{o.name}</span>
                         <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                          {o.detail} · seulement cette occurrence
+                          {o.detail} · {o.imported ? 'événement importé' : 'seulement cette occurrence'}
                         </span>
                       </span>
                     </label>
                   ))}
                 </div>
-                {hasImported && (
+                {(targetOption?.imported || (target === 'day' && includeFeed)) && (
                   <p style={{ margin: '0.6rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    Les événements importés d’un emploi du temps en ligne ne sont pas inclus dans un partage.
+                    Les événements importés sont lus en direct dans votre emploi du temps en ligne : la personne les voit à jour, sans
+                    jamais recevoir l’adresse de l’emploi du temps.
                   </p>
                 )}
               </fieldset>
