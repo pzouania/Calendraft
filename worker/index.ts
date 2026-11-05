@@ -317,7 +317,113 @@ async function handleCheck(request: Request, env: Env): Promise<Response> {
   })
 }
 
-async function handleEvents(request: Request, env: Env): Promise<Response> {
+// ---- Copie de secours des événements importés ------------------------------------------------------------------
+// Chaque lecture réussie de l'emploi du temps en ligne est gardée dans la base (une copie par calendrier, voir
+// feed_snapshots.sql). Si l'école est injoignable, c'est cette copie qui est servie (avec stale + snapshotAt).
+
+interface Snapshot {
+  fetchedAt: string
+  recurring: number
+  events: RawEvent[]
+}
+
+const SNAPSHOT_MAX_EVENTS = 5000
+const SNAPSHOT_MAX_CHARS = 2_900_000
+const SNAPSHOT_REFRESH_MS = 30 * 60 * 1000
+
+// Dernière copie envoyée par ce serveur (par calendrier) : évite de renvoyer le même contenu à chaque ouverture.
+const recentlySaved = new Map<string, { hash: string; at: number }>()
+
+function rpcHeaders(key: string, userToken: string | null): Record<string, string> {
+  const headers: Record<string, string> = { 'content-type': 'application/json', apikey: key }
+  // Jeton de la personne connectée si elle en a un ; sinon l'ancienne clé publique (un jeton JWT) sert d'autorisation.
+  // Une clé « publishable » ne s'envoie que dans apikey.
+  if (userToken) headers.authorization = `Bearer ${userToken}`
+  else if (key.startsWith('eyJ')) headers.authorization = `Bearer ${key}`
+  return headers
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+function background(ctx: ExecutionContextLike | undefined, task: Promise<unknown>): void {
+  // Une copie ratée ne doit jamais gêner la réponse : on avale l'erreur.
+  const safe = task.catch(() => undefined)
+  if (ctx) ctx.waitUntil(safe)
+}
+
+async function saveSnapshot(
+  env: Env,
+  key: string,
+  userToken: string | null,
+  calendarId: string,
+  parsed: { events: RawEvent[]; recurring: number }
+): Promise<void> {
+  // Un emploi du temps vide ne remplace pas une bonne copie.
+  const events = parsed.events
+    .filter((e) => !e.cancelled)
+    .slice(0, SNAPSHOT_MAX_EVENTS)
+    .map((e) => ({ uid: e.uid, summary: e.summary, location: e.location, start: e.start, end: e.end, cancelled: false }))
+  if (events.length === 0) return
+
+  const body = JSON.stringify(events)
+  if (body.length > SNAPSHOT_MAX_CHARS) return
+  const hash = await sha256Hex(`${parsed.recurring}:${body}`)
+
+  const now = Date.now()
+  const previous = recentlySaved.get(calendarId)
+  if (previous && previous.hash === hash && now - previous.at < SNAPSHOT_REFRESH_MS) return
+
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/save_feed_snapshot`, {
+    method: 'POST',
+    headers: rpcHeaders(key, userToken),
+    body: JSON.stringify({
+      p_secret: env.FEED_WORKER_SECRET,
+      p_calendar: calendarId,
+      p_hash: hash,
+      p_recurring: parsed.recurring,
+      p_events: events,
+    }),
+  })
+  if (!res.ok) return
+  if ((await res.json().catch(() => null)) !== true) return
+  if (recentlySaved.size > 200) recentlySaved.clear()
+  recentlySaved.set(calendarId, { hash, at: now })
+}
+
+// Relit la copie ; null s'il n'y en a pas (ou si elle est trop ancienne : la base décide). Le contenu est revalidé ici.
+async function loadSnapshot(env: Env, key: string, userToken: string | null, fn: string, args: Record<string, unknown>): Promise<Snapshot | null> {
+  try {
+    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: rpcHeaders(key, userToken),
+      body: JSON.stringify({ p_secret: env.FEED_WORKER_SECRET, ...args }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { fetched_at?: unknown; recurring?: unknown; events?: unknown } | null
+    if (!data || typeof data.fetched_at !== 'string' || !Array.isArray(data.events)) return null
+    const events: RawEvent[] = []
+    for (const item of data.events.slice(0, SNAPSHOT_MAX_EVENTS)) {
+      const e = item as Partial<Record<keyof RawEvent, unknown>> | null
+      if (!e || typeof e.start !== 'string' || !e.start) continue
+      events.push({
+        uid: typeof e.uid === 'string' ? e.uid : '',
+        summary: typeof e.summary === 'string' ? e.summary : '',
+        location: typeof e.location === 'string' ? e.location : '',
+        start: e.start,
+        end: typeof e.end === 'string' ? e.end : '',
+        cancelled: false,
+      })
+    }
+    return { fetchedAt: data.fetched_at, recurring: typeof data.recurring === 'number' ? data.recurring : 0, events }
+  } catch {
+    return null
+  }
+}
+
+async function handleEvents(request: Request, env: Env, ctx?: ExecutionContextLike): Promise<Response> {
   if (request.method !== 'POST') return json({ ok: false, reason: 'method_not_allowed' }, 405)
 
   const token = bearer(request)
@@ -364,10 +470,21 @@ async function handleEvents(request: Request, env: Env): Promise<Response> {
   if (!data.configured) return json({ ok: true, configured: false, events: [] })
 
   const feed = await fetchFeed(data.url)
-  if (!feed.ok) return json({ ok: false, reason: 'feed_unreachable', detail: feed.reason })
+  let parsed: { events: RawEvent[]; recurring: number }
+  let snapshotAt: string | null = null
 
-  const { events, recurring } = parseIcs(feed.text)
-  const all = events
+  if (feed.ok) {
+    parsed = parseIcs(feed.text)
+    background(ctx, saveSnapshot(env, key, token, calendarId, parsed))
+  } else {
+    // École injoignable : on affiche la dernière copie, si on en a une.
+    const snapshot = await loadSnapshot(env, key, token, 'get_feed_snapshot', { p_calendar: calendarId })
+    if (!snapshot) return json({ ok: false, reason: 'feed_unreachable', detail: feed.reason })
+    parsed = { events: snapshot.events, recurring: snapshot.recurring }
+    snapshotAt = snapshot.fetchedAt
+  }
+
+  const all = parsed.events
     .filter((e) => !e.cancelled)
     .flatMap(expand)
     .filter((e) => e.date >= from && e.date <= to)
@@ -378,9 +495,10 @@ async function handleEvents(request: Request, env: Env): Promise<Response> {
     configured: true,
     label: data.label,
     color: data.color,
-    recurring,
+    recurring: parsed.recurring,
     truncated: all.length > MAX_EVENTS,
     events: all.slice(0, MAX_EVENTS),
+    ...(snapshotAt ? { stale: true, snapshotAt } : {}),
   })
 }
 
@@ -413,19 +531,12 @@ async function handleSharedEvents(request: Request, env: Env): Promise<Response>
   const user = hasId ? bearer(request) : null
   if (hasId && !user) return json({ ok: false, reason: 'unauthorized' }, 401)
 
-  const headers: Record<string, string> = { 'content-type': 'application/json', apikey: key }
-  // Ancienne clé (jeton JWT) : elle sert aussi d'autorisation ; une clé « publishable » ne s'envoie que dans apikey.
-  if (user) headers.authorization = `Bearer ${user}`
-  else if (key.startsWith('eyJ')) headers.authorization = `Bearer ${key}`
+  const shareArgs = { p_token: hasToken ? body.token : null, p_id: hasId ? body.id : null }
 
   const rpc = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_partial_share_feed`, {
     method: 'POST',
-    headers,
-    body: JSON.stringify({
-      p_secret: env.FEED_WORKER_SECRET,
-      p_token: hasToken ? body.token : null,
-      p_id: hasId ? body.id : null,
-    }),
+    headers: rpcHeaders(key, user),
+    body: JSON.stringify({ p_secret: env.FEED_WORKER_SECRET, ...shareArgs }),
   })
 
   if (rpc.status === 401) return json({ ok: false, reason: 'unauthorized' }, 401)
@@ -450,10 +561,20 @@ async function handleSharedEvents(request: Request, env: Env): Promise<Response>
   if (!DAY_RE.test(String(data.date))) return json({ ok: false, reason: 'database_error' }, 502)
 
   const feed = await fetchFeed(data.url)
-  if (!feed.ok) return json({ ok: false, reason: 'feed_unreachable', detail: feed.reason })
+  let rawEvents: RawEvent[]
+  let snapshotAt: string | null = null
 
-  const { events } = parseIcs(feed.text)
-  const active = events.filter((e) => !e.cancelled)
+  if (feed.ok) {
+    rawEvents = parseIcs(feed.text).events
+  } else {
+    // École injoignable : dernière copie enregistrée, avec les mêmes droits que le partage lui-même.
+    const snapshot = await loadSnapshot(env, key, user, 'get_partial_share_feed_snapshot', shareArgs)
+    if (!snapshot) return json({ ok: false, reason: 'feed_unreachable', detail: feed.reason })
+    rawEvents = snapshot.events
+    snapshotAt = snapshot.fetchedAt
+  }
+
+  const active = rawEvents.filter((e) => !e.cancelled)
   let picked: FeedEvent[]
 
   if (data.scope === 'day' || !data.feed_uid) {
@@ -476,6 +597,7 @@ async function handleSharedEvents(request: Request, env: Env): Promise<Response>
     color: data.color,
     truncated: picked.length > MAX_EVENTS,
     events: picked.slice(0, MAX_EVENTS),
+    ...(snapshotAt ? { stale: true, snapshotAt } : {}),
   })
 }
 
@@ -665,12 +787,12 @@ async function handlePushTest(request: Request, env: Env): Promise<Response> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx?: ExecutionContextLike): Promise<Response> {
     const { pathname } = new URL(request.url)
 
     if (pathname === '/.well-known/assetlinks.json') return handleAssetLinks(request, env)
     if (pathname === '/api/feed/check') return handleCheck(request, env)
-    if (pathname === '/api/feed/events') return handleEvents(request, env)
+    if (pathname === '/api/feed/events') return handleEvents(request, env, ctx)
     if (pathname === '/api/feed/shared') return handleSharedEvents(request, env)
     if (pathname === '/api/push/config') return handlePushConfig(request, env)
     if (pathname === '/api/push/test') return handlePushTest(request, env)
