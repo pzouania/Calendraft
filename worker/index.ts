@@ -384,6 +384,101 @@ async function handleEvents(request: Request, env: Env): Promise<Response> {
   })
 }
 
+// Événements importés d'un partage (jour ou événement seul), lus en direct dans le flux du propriétaire.
+// - Lien secret : body { token } — sans compte, seule la clé publique du site est utilisée ;
+// - Partage reçu par email : body { id } + jeton de connexion de la personne invitée (ou du propriétaire).
+// La base décide de tout (secret, droits, jour, événement) : le serveur ne renvoie que le jour ou l'événement partagé, et
+// l'adresse du flux ne sort jamais d'ici.
+async function handleSharedEvents(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return json({ ok: false, reason: 'method_not_allowed' }, 405)
+
+  const key = apiKey(request)
+  if (!key) return json({ ok: false, reason: 'unauthorized' }, 401)
+  if (!env.FEED_WORKER_SECRET) return json({ ok: false, reason: 'secret_missing' }, 500)
+
+  let body: { token?: unknown; id?: unknown }
+  try {
+    body = (await request.json()) as typeof body
+  } catch {
+    return json({ ok: false, reason: 'bad_request' }, 400)
+  }
+
+  const hasToken = typeof body.token === 'string'
+  const hasId = typeof body.id === 'string'
+  if (hasToken === hasId) return json({ ok: false, reason: 'bad_request' }, 400)
+  if (hasToken && !UUID_RE.test(body.token as string)) return json({ ok: false, reason: 'bad_request' }, 400)
+  if (hasId && !UUID_RE.test(body.id as string)) return json({ ok: false, reason: 'bad_request' }, 400)
+
+  // Partage reçu par email : il faut être connecté.
+  const user = hasId ? bearer(request) : null
+  if (hasId && !user) return json({ ok: false, reason: 'unauthorized' }, 401)
+
+  const headers: Record<string, string> = { 'content-type': 'application/json', apikey: key }
+  // Ancienne clé (jeton JWT) : elle sert aussi d'autorisation ; une clé « publishable » ne s'envoie que dans apikey.
+  if (user) headers.authorization = `Bearer ${user}`
+  else if (key.startsWith('eyJ')) headers.authorization = `Bearer ${key}`
+
+  const rpc = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_partial_share_feed`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      p_secret: env.FEED_WORKER_SECRET,
+      p_token: hasToken ? body.token : null,
+      p_id: hasId ? body.id : null,
+    }),
+  })
+
+  if (rpc.status === 401) return json({ ok: false, reason: 'unauthorized' }, 401)
+  if (!rpc.ok) return json({ ok: false, reason: 'database_error' }, 502)
+
+  const data = (await rpc.json()) as
+    | null
+    | { configured: false }
+    | {
+        configured: true
+        url: string
+        label: string
+        color: string
+        scope: 'day' | 'occurrence'
+        date: string
+        feed_uid: string | null
+      }
+
+  // Secret faux, partage inconnu, accès refusé ou partage sans événements importés : même réponse, rien de plus.
+  if (!data) return json({ ok: false, reason: 'not_found' }, 404)
+  if (!data.configured) return json({ ok: true, configured: false, events: [] })
+  if (!DAY_RE.test(String(data.date))) return json({ ok: false, reason: 'database_error' }, 502)
+
+  const feed = await fetchFeed(data.url)
+  if (!feed.ok) return json({ ok: false, reason: 'feed_unreachable', detail: feed.reason })
+
+  const { events } = parseIcs(feed.text)
+  const active = events.filter((e) => !e.cancelled)
+  let picked: FeedEvent[]
+
+  if (data.scope === 'day' || !data.feed_uid) {
+    picked = active.flatMap(expand).filter((e) => e.date === data.date)
+  } else {
+    // Un événement seul : tous les morceaux des événements de cet identifiant qui tombent le jour partagé
+    // (un événement qui passe minuit a un morceau « début » et un morceau « fin »).
+    picked = active
+      .filter((e) => e.uid === data.feed_uid)
+      .map(expand)
+      .filter((parts) => parts.some((p) => p.date === data.date))
+      .flat()
+  }
+
+  picked.sort(byDateTime)
+  return json({
+    ok: true,
+    configured: true,
+    label: data.label,
+    color: data.color,
+    truncated: picked.length > MAX_EVENTS,
+    events: picked.slice(0, MAX_EVENTS),
+  })
+}
+
 async function handleAssetLinks(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return json({ ok: false, reason: 'method_not_allowed' }, 405)
@@ -576,6 +671,7 @@ export default {
     if (pathname === '/.well-known/assetlinks.json') return handleAssetLinks(request, env)
     if (pathname === '/api/feed/check') return handleCheck(request, env)
     if (pathname === '/api/feed/events') return handleEvents(request, env)
+    if (pathname === '/api/feed/shared') return handleSharedEvents(request, env)
     if (pathname === '/api/push/config') return handlePushConfig(request, env)
     if (pathname === '/api/push/test') return handlePushTest(request, env)
     if (pathname === '/api/reminders/sync') return handleReminderSync(request, env)
