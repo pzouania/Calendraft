@@ -44,4 +44,6 @@ export interface Occurrence {
   segment?: 'full' | 'start' | 'end'
   readOnly?: boolean
   location?: string
+  // Événement importé d'un emploi du temps en ligne : identifiant de l'événement dans le flux (sert à le partager seul).
+  feedUid?: string
 }
