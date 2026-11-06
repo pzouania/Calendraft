@@ -4,6 +4,7 @@ import PeriodForm from './PeriodForm'
 import YearCalendar from './YearCalendar'
 import ShareModal from './ShareModal'
 import FeedSettings from './FeedSettings'
+import RhythmTemplateDialog from './RhythmTemplateDialog'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import { getPushState, type PushState } from '../lib/push'
@@ -138,6 +139,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
   const [showShare, setShowShare] = useState(false)
   const [periods, setPeriods] = useState<Period[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
   // Événement dont le formulaire de modification est ouvert à la place de sa ligne.
   const [editingId, setEditingId] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
@@ -425,22 +427,44 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
         {tab === 'events' && (
           <>
             {canEdit && !showForm && (
-              <button
-                onClick={() => {
-                  setNotice(null)
-                  setFlash(null)
-                  setEditingId(null)
-                  setShowForm(true)
-                }}
+              <div
                 style={{
-                  background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
-                  borderRadius: 12, padding: '0.8rem 1.4rem', fontSize: '0.9rem', fontWeight: 700,
-                  boxShadow: 'var(--shadow-accent)', marginBottom: isNarrow ? '1rem' : '1.5rem',
-                  width: isNarrow ? '100%' : undefined,
+                  display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: isNarrow ? '1rem' : '1.5rem',
+                  flexDirection: isNarrow ? 'column' : 'row',
                 }}
               >
-                + Ajouter un événement
-              </button>
+                <button
+                  onClick={() => {
+                    setNotice(null)
+                    setFlash(null)
+                    setEditingId(null)
+                    setShowForm(true)
+                  }}
+                  style={{
+                    background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
+                    borderRadius: 12, padding: '0.8rem 1.4rem', fontSize: '0.9rem', fontWeight: 700,
+                    boxShadow: 'var(--shadow-accent)',
+                    width: isNarrow ? '100%' : undefined,
+                  }}
+                >
+                  + Ajouter un événement
+                </button>
+                <button
+                  onClick={() => {
+                    setNotice(null)
+                    setFlash(null)
+                    setEditingId(null)
+                    setShowTemplates(true)
+                  }}
+                  style={{
+                    background: 'var(--surface)', color: 'var(--accent-link)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--tint-border)',
+                    borderRadius: 12, padding: '0.8rem 1.4rem', fontSize: '0.9rem', fontWeight: 700,
+                    width: isNarrow ? '100%' : undefined,
+                  }}
+                >
+                  Modèles de rythmes
+                </button>
+              </div>
             )}
 
             {canEdit && showForm && (
@@ -603,6 +627,19 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             <p style={{ color: 'var(--text-secondary)' }}>Chargement du calendrier...</p>
           ))}
       </main>
+
+      {showTemplates && canEdit && (
+        <RhythmTemplateDialog
+          calendarId={calendarId}
+          onClose={() => setShowTemplates(false)}
+          onCreated={(count, message) => {
+            setShowTemplates(false)
+            setNotice(message)
+            setFlash(count > 1 ? `${count} événements ont été ajoutés.` : "L'événement a été ajouté.")
+            loadPeriods()
+          }}
+        />
+      )}
 
       {showShare && (
         <ShareModal
