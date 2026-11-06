@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ICS_MAX_EVENTS, buildIcsEvents, buildIcsFile, dayString, exceptionsByPeriod, icsFileName, rollingWindow } from '../lib/icsExport'
+import { useI18n } from '../hooks/useI18n'
+import { ICS_MAX_EVENTS, buildAllIcsEvents, buildIcsFile, dayString, exceptionsByPeriod, icsFileName, rollingWindow } from '../lib/icsExport'
+import { fetchImportedEvents, type ImportedFeed } from '../lib/icsFeed'
 import { createIcsLink, deleteIcsLink, fetchIcsLink, fetchIcsReady, icsUrl, webcalUrl } from '../lib/icsLink'
+import { snapshotLabel } from '../lib/partialShare'
 import type { Period, PeriodException } from '../types'
 
 type Range = 'upcoming' | 'year'
@@ -10,6 +13,8 @@ type LinkView =
   | { state: 'none' }
   | { state: 'ready'; token: string }
 type Confirm = 'regenerate' | 'delete' | null
+// Emploi du temps en ligne : en cours de lecture, ou résultat (voir lib/icsFeed.ts).
+type Imported = { state: 'loading' } | ImportedFeed
 
 export interface IcsExportDialogProps {
   calendarId: string
@@ -23,8 +28,9 @@ export interface IcsExportDialogProps {
   yearTo: string
   // Le propriétaire d'un calendrier enregistré peut créer le lien de synchronisation.
   canManageLink: boolean
-  // Un emploi du temps en ligne est relié au calendrier (ses événements ne sont pas exportés).
-  hasImported: boolean
+  // Calendrier enregistré : le serveur peut avoir un emploi du temps en ligne à ajouter au fichier (faux pour une page partagée
+  // par lien, dont les données sont fixes).
+  loadImported: boolean
   onClose: () => void
 }
 
@@ -44,8 +50,9 @@ function download(text: string, fileName: string) {
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString('fr-FR')} ${n > 1 ? many : one}`
 
 export default function IcsExportDialog({
-  calendarId, calendarName, calendarColor, periods, exceptions, yearLabel, yearFrom, yearTo, canManageLink, hasImported, onClose,
+  calendarId, calendarName, calendarColor, periods, exceptions, yearLabel, yearFrom, yearTo, canManageLink, loadImported, onClose,
 }: IcsExportDialogProps) {
+  const { formatDate } = useI18n()
   const dialogRef = useRef<HTMLDivElement>(null)
   const linkFieldRef = useRef<HTMLInputElement>(null)
   const [range, setRange] = useState<Range>('upcoming')
@@ -56,6 +63,10 @@ export default function IcsExportDialog({
   const [busy, setBusy] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'ok' | 'fail' | null>(null)
+  const [imported, setImported] = useState<Imported>(loadImported ? { state: 'loading' } : { state: 'none' })
+  const [importedTry, setImportedTry] = useState(0)
+  // « À partir d'aujourd'hui » : fixé à l'ouverture, pour que le fichier et le nombre annoncé couvrent les mêmes jours.
+  const todayWindow = useMemo(() => rollingWindow(dayString(new Date())), [])
 
   // Le focus passe dans la fenêtre à l'ouverture et revient où il était à la fermeture.
   useEffect(() => {
@@ -93,24 +104,47 @@ export default function IcsExportDialog({
     }
   }, [calendarId, canManageLink])
 
-  const span = useMemo(() => (range === 'upcoming' ? rollingWindow(dayString(new Date())) : { from: yearFrom, to: yearTo }), [range, yearFrom, yearTo])
-  const eventCount = useMemo(
-    () => buildIcsEvents(periods, exceptionsByPeriod(exceptions), span.from, span.to).length,
-    [periods, exceptions, span],
-  )
+  // Emploi du temps en ligne : lu une fois pour les deux périodes proposées (la plus large des deux), puis découpé ici.
+  useEffect(() => {
+    if (!loadImported) return
+    const controller = new AbortController()
+    setImported({ state: 'loading' })
+    const from = yearFrom < todayWindow.from ? yearFrom : todayWindow.from
+    const to = yearTo > todayWindow.to ? yearTo : todayWindow.to
+    fetchImportedEvents(calendarId, from, to, controller.signal).then((result) => {
+      if (!controller.signal.aborted) setImported(result)
+    })
+    return () => controller.abort()
+  }, [calendarId, loadImported, yearFrom, yearTo, todayWindow, importedTry])
+
+  const span = useMemo(() => (range === 'upcoming' ? todayWindow : { from: yearFrom, to: yearTo }), [range, todayWindow, yearFrom, yearTo])
+  const importedEvents = imported.state === 'ok' ? imported.events : undefined
+  const counts = useMemo(() => {
+    const all = buildAllIcsEvents(periods, exceptionsByPeriod(exceptions), importedEvents, span.from, span.to)
+    return { total: all.length, imported: all.filter((e) => e.imported).length }
+  }, [periods, exceptions, importedEvents, span])
+  const eventCount = counts.total
+  const loadingImported = imported.state === 'loading'
+  // Un emploi du temps en ligne est relié au calendrier (lu, ou injoignable pour le moment) : le lien de synchronisation le contient.
+  const hasTimetable = imported.state === 'ok' || imported.state === 'error'
 
   const doDownload = () => {
-    const file = buildIcsFile({ name: calendarName, color: calendarColor }, periods, exceptions, span, { stamp: new Date() })
+    if (loadingImported) return
+    const file = buildIcsFile({ name: calendarName, color: calendarColor }, periods, exceptions, span, { stamp: new Date(), feed: importedEvents })
     if (file.eventCount === 0) {
       setDownloadNotice({ tone: 'warn', text: 'Aucun événement sur cette période : il n’y a rien à exporter.' })
       return
     }
     download(file.text, icsFileName(calendarName))
-    setDownloadNotice(
-      file.truncated
-        ? { tone: 'warn', text: `Fichier téléchargé, mais le calendrier est trop long : seuls les ${plural(file.eventCount, 'événement', 'événements')} les plus proches sont dedans.` }
-        : { tone: 'ok', text: `Fichier téléchargé : ${plural(file.eventCount, 'événement', 'événements')}.` },
-    )
+    const total = plural(file.eventCount, 'événement', 'événements')
+    const withFeed = file.importedCount > 0 ? `, dont ${file.importedCount.toLocaleString('fr-FR')} de l’emploi du temps en ligne` : ''
+    if (file.truncated) {
+      setDownloadNotice({ tone: 'warn', text: `Fichier téléchargé, mais le calendrier est trop long : seuls les ${total} les plus proches sont dedans.` })
+    } else if (imported.state === 'error') {
+      setDownloadNotice({ tone: 'warn', text: `Fichier téléchargé : ${total}, sans l’emploi du temps en ligne (injoignable).` })
+    } else {
+      setDownloadNotice({ tone: 'ok', text: `Fichier téléchargé : ${total}${withFeed}.` })
+    }
   }
 
   const runLink = async (action: 'create' | 'regenerate' | 'delete') => {
@@ -273,17 +307,51 @@ export default function IcsExportDialog({
               </div>
             </fieldset>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
-              <button type="button" data-testid="ics-download" onClick={doDownload} disabled={eventCount === 0} style={{ ...primary, opacity: eventCount === 0 ? 0.5 : 1 }}>
+              <button
+                type="button" data-testid="ics-download" onClick={doDownload} disabled={eventCount === 0 || loadingImported}
+                style={{ ...primary, opacity: eventCount === 0 || loadingImported ? 0.5 : 1 }}
+              >
                 Télécharger le fichier (.ics)
               </button>
               <span data-testid="ics-count" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                {eventCount === 0
-                  ? 'Aucun événement sur cette période.'
-                  : eventCount > ICS_MAX_EVENTS
-                    ? `${plural(eventCount, 'événement', 'événements')} (le fichier en contient ${ICS_MAX_EVENTS.toLocaleString('fr-FR')} au maximum)`
-                    : plural(eventCount, 'événement', 'événements')}
+                {loadingImported
+                  ? 'Chargement de l’emploi du temps en ligne…'
+                  : eventCount === 0
+                    ? 'Aucun événement sur cette période.'
+                    : eventCount > ICS_MAX_EVENTS
+                      ? `${plural(eventCount, 'événement', 'événements')} (le fichier en contient ${ICS_MAX_EVENTS.toLocaleString('fr-FR')} au maximum)`
+                      : `${plural(eventCount, 'événement', 'événements')}${counts.imported > 0 ? `, dont ${counts.imported.toLocaleString('fr-FR')} de l’emploi du temps en ligne` : ''}`}
               </span>
             </div>
+            {imported.state === 'error' && (
+              <div
+                role="status" data-testid="ics-feed-error"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', padding: '0.5rem 0.75rem', borderRadius: 10, background: 'var(--warning-bg)', color: 'var(--warning-text)', fontSize: '0.82rem' }}
+              >
+                <span style={{ flex: '1 1 14rem' }}>
+                  L’emploi du temps en ligne est injoignable pour le moment : le fichier ne contiendra que les événements de ce calendrier.
+                </span>
+                <button type="button" data-testid="ics-feed-retry" onClick={() => setImportedTry((n) => n + 1)} style={{ ...secondary, padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                  Réessayer
+                </button>
+              </div>
+            )}
+            {imported.state === 'ok' && imported.staleAt && (
+              <p
+                role="status" data-testid="ics-feed-stale"
+                style={{ margin: 0, padding: '0.5rem 0.75rem', borderRadius: 10, background: 'var(--warning-bg)', color: 'var(--warning-text)', fontSize: '0.82rem' }}
+              >
+                L’emploi du temps en ligne est injoignable : les événements importés viennent de la dernière copie enregistrée
+                {snapshotLabel(imported.staleAt, formatDate) ? ` le ${snapshotLabel(imported.staleAt, formatDate)}` : ''}.
+              </p>
+            )}
+            {imported.state === 'ok' && imported.recurring > 0 && (
+              <p style={hint} data-testid="ics-feed-recurring">
+                {imported.recurring > 1
+                  ? `${imported.recurring.toLocaleString('fr-FR')} événements de l’emploi du temps en ligne se répètent : ils ne figurent qu’une fois dans le fichier, comme à l’écran.`
+                  : 'Un événement de l’emploi du temps en ligne se répète : il ne figure qu’une fois dans le fichier, comme à l’écran.'}
+              </p>
+            )}
             {downloadNotice && (
               <p
                 role="status"
@@ -310,6 +378,12 @@ export default function IcsExportDialog({
                 Abonnez votre agenda à ce calendrier : ce que vous changez dans Calendraft apparaît ensuite tout seul dans
                 votre agenda.
               </p>
+              {hasTimetable && (
+                <p style={hint} data-testid="ics-sync-feed">
+                  L’emploi du temps en ligne est aussi dans le lien. Il se met à jour quand vous ouvrez Calendraft ou cette
+                  fenêtre (la dernière copie est gardée 30 jours).
+                </p>
+              )}
 
               {ready === false && (
                 <p
@@ -369,8 +443,8 @@ export default function IcsExportDialog({
                   </div>
 
                   <p style={hint}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Gardez ce lien pour vous :</strong> toute personne qui l’a peut voir ce calendrier. S’il a été
-                    partagé par erreur, remplacez-le : l’ancien cessera de fonctionner.
+                    <strong style={{ color: 'var(--text-primary)' }}>Gardez ce lien pour vous :</strong> toute personne qui l’a peut voir ce calendrier
+                    {hasTimetable ? ', emploi du temps en ligne compris' : ''}. S’il a été partagé par erreur, remplacez-le : l’ancien cessera de fonctionner.
                   </p>
 
                   {confirm === null && (
@@ -427,12 +501,6 @@ export default function IcsExportDialog({
                 </p>
               )}
             </section>
-          )}
-
-          {hasImported && (
-            <p style={hint}>
-              Les événements importés d’un emploi du temps en ligne ne sont pas exportés : ils restent dans l’agenda d’origine.
-            </p>
           )}
         </div>
       </div>

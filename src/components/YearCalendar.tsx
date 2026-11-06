@@ -642,7 +642,7 @@ export default function YearCalendar({
           yearFrom={toDateOnly(exportRangeStart)}
           yearTo={toDateOnly(exportRangeEnd)}
           canManageLink={canShare && !staticData && Boolean(calendarId)}
-          hasImported={Boolean(feed)}
+          loadImported={!staticData && Boolean(calendarId)}
           onClose={() => setIcsOpen(false)}
         />
       )}
