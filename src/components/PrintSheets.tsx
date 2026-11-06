@@ -46,6 +46,18 @@ const MUTED = '#64748b'
 const LINE = '#cbd5e1'
 const SOFT = '#f1f5f9'
 
+// Couleur de l'événement éclaircie vers le blanc (ratio = part de la couleur) : un fond opaque, pour que les lignes des
+// heures passent derrière les événements et non à travers leur texte.
+function tint(color: string, ratio: number): string {
+  let hex = /^#([0-9a-f]{6})$/i.exec(color)?.[1]
+  const short = /^#([0-9a-f]{3})$/i.exec(color)?.[1]
+  if (!hex && short) hex = short.split('').map((c) => c + c).join('')
+  if (!hex) return '#eef2f7'
+  const n = parseInt(hex, 16)
+  const mix = (c: number) => Math.round(255 - (255 - c) * ratio)
+  return `rgb(${mix((n >> 16) & 255)}, ${mix((n >> 8) & 255)}, ${mix(n & 255)})`
+}
+
 function Header({ calendarName, calendarIcon, calendarColor, title }: Pick<SheetBase, 'calendarName' | 'calendarIcon' | 'calendarColor'> & { title: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6mm', marginBottom: '3mm', flexShrink: 0 }}>
@@ -103,7 +115,7 @@ function Chip({ occ, size }: { occ: Occurrence; size: string }) {
     <div
       style={{
         fontSize: size, lineHeight: 1.25, padding: '0 1mm', marginTop: '0.4mm', borderLeft: `0.8mm solid ${occ.color}`,
-        background: `${occ.color}22`, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        background: tint(occ.color, 0.14), color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         borderRadius: '0.5mm',
       }}
     >
@@ -184,8 +196,6 @@ export function MonthSheet({ year, month, ...base }: SheetBase & { year: number;
 // ---------------------------------------------------------------------------------------------------------------------
 
 const AXIS_MM = 12
-// Hauteur approximative de la zone des heures (sert seulement à choisir combien de lignes de texte tiennent dans un bloc).
-const BODY_MM = 145
 
 function timeLabel(occ: Occurrence): string {
   const start = hhmm(occ.startTime)
@@ -195,18 +205,43 @@ function timeLabel(occ: Occurrence): string {
   return `${start} – ${end}`
 }
 
-function WeekBlock({ block, from, to }: { block: PlacedBlock; from: number; to: number }) {
+const ellipsis: React.CSSProperties = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+
+// Texte sur plusieurs lignes, coupé proprement (avec « … ») après le nombre de lignes qui tiennent dans le bloc.
+const clamp = (lines: number, narrow: boolean): React.CSSProperties => ({
+  display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: lines, overflow: 'hidden',
+  overflowWrap: narrow ? 'anywhere' : 'break-word', hyphens: narrow ? 'auto' : 'manual',
+})
+
+function WeekBlock({ block, from, to, bodyMm, dayMm }: { block: PlacedBlock; from: number; to: number; bodyMm: number; dayMm: number }) {
   const { occ } = block
   const span = to - from
   const start = Math.max(block.startMin, from)
   const end = Math.min(block.endMin, to)
-  const approxMm = ((end - start) / span) * BODY_MM
-  const lines = approxMm >= 10.5 ? 3 : approxMm >= 6.5 ? 2 : 1
-  const time = timeLabel(occ)
-  const text: React.CSSProperties = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-  // Colonnes étroites (événements superposés) : texte un peu plus petit, qui passe à la ligne au lieu d'être coupé.
+  const heightMm = ((end - start) / span) * bodyMm
+  // Événements superposés : colonne étroite, texte plus petit. Bloc large et haut : texte plus grand.
   const narrow = block.cols >= 3 && block.span === 1
-  const wrap: React.CSSProperties = { overflowWrap: 'anywhere', hyphens: 'auto' }
+  const fontPt = narrow ? 6 : block.cols === 1 && heightMm >= 14 ? 8 : 7
+  const lineMm = fontPt * 1.2 * 0.3528
+  // Nombre de lignes de texte qui tiennent dans le bloc (marges comprises).
+  const avail = Math.floor((heightMm - 1.4) / lineMm)
+  // Heure : la forme la plus complète qui tient dans la largeur du bloc (« 06:00 – 14:00 », « 06:00–14:00 », sur deux lignes,
+  // ou à défaut l'heure de début seule) ; jamais une heure coupée.
+  const widthMm = (dayMm * block.span) / block.cols - 2.6
+  const fits = (text: string) => text.length * fontPt * 0.194 <= widthMm
+  const full = timeLabel(occ)
+  const compact = full.replace(' – ', '–')
+  const crosses = occ.segment === 'start' || occ.segment === 'end'
+  const timeLines =
+    fits(full) ? [full]
+    : fits(compact) ? [compact]
+    : !crosses && avail >= 4 ? [`${hhmm(occ.startTime)} –`, hhmm(occ.endTime)]
+    : [hhmm(occ.startTime)]
+  const place = occ.location
+  // Heure et lieu sur des lignes séparées seulement s'il reste assez de place pour que le titre ne soit pas coupé trop tôt.
+  const separate = !!place && avail - timeLines.length >= 4
+  // Sur la même ligne que l'heure seulement dans un bloc large ; dans un bloc étroit, le lieu passe après (ou disparaît).
+  const inline = !!place && !separate && !narrow && timeLines.length === 1
 
   return (
     <div
@@ -218,24 +253,30 @@ function WeekBlock({ block, from, to }: { block: PlacedBlock; from: number; to: 
     >
       <div
         style={{
-          height: '100%', boxSizing: 'border-box', overflow: 'hidden', background: `${occ.color}26`,
-          borderLeft: `1mm solid ${occ.color}`, borderRadius: '0.8mm', padding: '0.6mm 1.2mm', fontSize: narrow ? '6pt' : '7pt', lineHeight: 1.2,
+          height: '100%', boxSizing: 'border-box', overflow: 'hidden', background: tint(occ.color, 0.16),
+          borderLeft: `1mm solid ${occ.color}`, borderRadius: '0.8mm', padding: '0.6mm 1.2mm', fontSize: `${fontPt}pt`, lineHeight: 1.2,
           borderTop: block.fromPrevious ? `0.4mm dashed ${occ.color}` : 'none',
           borderBottom: block.toNext ? `0.4mm dashed ${occ.color}` : 'none',
         }}
       >
-        {lines === 1 ? (
-          <div style={text}>
+        {avail <= 1 ? (
+          <div style={ellipsis}>
             <strong>{hhmm(occ.startTime)}</strong> {occ.name}
           </div>
+        ) : avail === 2 ? (
+          <>
+            <div style={{ ...ellipsis, fontWeight: 700 }}>{occ.name}</div>
+            <div style={{ ...ellipsis, color: '#334155' }}>{place && !narrow && fits(`${full} · ${place}`) ? `${full} · ${place}` : timeLines[0]}</div>
+          </>
         ) : (
           <>
-            <div style={lines === 3 ? { ...wrap, fontWeight: 700 } : { ...text, fontWeight: 700 }}>{occ.name}</div>
-            <div style={lines === 3 ? { ...wrap, color: '#334155' } : { ...text, color: '#334155' }}>
-              {time}
-              {lines === 2 && occ.location ? ` · ${occ.location}` : ''}
-            </div>
-            {lines === 3 && occ.location && <div style={{ ...wrap, color: '#334155' }}>{occ.location}</div>}
+            <div style={{ ...clamp(Math.max(1, avail - timeLines.length - (separate ? 1 : 0)), narrow), fontWeight: 700 }}>{occ.name}</div>
+            {timeLines.map((line, i) => (
+              <div key={i} style={{ ...ellipsis, color: '#334155' }}>
+                {inline ? `${line} · ${place}` : line}
+              </div>
+            ))}
+            {separate && <div style={{ ...ellipsis, color: '#475569' }}>{place}</div>}
           </>
         )}
       </div>
@@ -247,7 +288,6 @@ export function WeekSheet({ monday, ...base }: SheetBase & { monday: Date }) {
   const { formatDate } = useI18n()
   const days = weekDays(monday, base.byDate)
   const n = days.length
-  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6)
 
   const perDay = days.map((d) => sortDay(base.byDate.get(d.key) ?? []))
   const allDay = perDay.map((list) => list.filter((o) => !hasTimes(o)))
@@ -259,9 +299,14 @@ export function WeekSheet({ monday, ...base }: SheetBase & { monday: Date }) {
   const span = axis.to - axis.from
   const cols = `${AXIS_MM}mm repeat(${n}, minmax(0, 1fr))`
 
+  // Titre : du premier au dernier jour affiché (pas de week-end dans la grille → le titre s'arrête au vendredi).
+  const first = days[0].date
+  const last = days[n - 1].date
   const title =
-    `${formatDate(monday, { day: 'numeric', month: 'long' })} – ` +
-    formatDate(sunday, { day: 'numeric', month: 'long', year: 'numeric' })
+    `${formatDate(first, { day: 'numeric', month: 'long', ...(first.getFullYear() !== last.getFullYear() ? { year: 'numeric' as const } : {}) })} – ` +
+    formatDate(last, { day: 'numeric', month: 'long', year: 'numeric' })
+  // Zone des heures : hauteur approximative (la feuille a une hauteur fixe), pour savoir combien de lignes tiennent dans un bloc.
+  const bodyMm = hasAllDay ? 150 : 158
 
   return (
     <section className="pdf-sheet pdf-week" style={sheetStyle}>
@@ -304,24 +349,34 @@ export function WeekSheet({ monday, ...base }: SheetBase & { monday: Date }) {
       )}
 
       <div style={{ position: 'relative', flex: 1, minHeight: 0, border: `0.3mm solid ${LINE}` }}>
-        {hours.map((h) => {
-          const top = ((h * 60 - axis.from) / span) * 100
-          return (
-            <div key={h}>
-              {h > axis.from / 60 && h < axis.to / 60 && (
-                <div style={{ position: 'absolute', left: 0, right: 0, top: `${top}%`, borderTop: `0.2mm solid ${LINE}` }} />
-              )}
-              <div
-                style={{
-                  position: 'absolute', left: 0, width: `${AXIS_MM - 1.2}mm`, top: `${top}%`, textAlign: 'right', fontSize: '6.5pt',
-                  color: MUTED, transform: h === axis.from / 60 ? 'translateY(0.6mm)' : h === axis.to / 60 ? 'translateY(-100%)' : 'translateY(-50%)',
-                }}
-              >
-                {`${String(h % 24).padStart(2, '0')}:00`}
-              </div>
-            </div>
-          )
-        })}
+        <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${AXIS_MM}mm`, right: 0 }}>
+          {hours.flatMap((h) => {
+            const lines = []
+            if (h > axis.from / 60 && h < axis.to / 60) {
+              lines.push(
+                <div key={`h${h}`} style={{ position: 'absolute', left: 0, right: 0, top: `${((h * 60 - axis.from) / span) * 100}%`, borderTop: `0.2mm solid ${LINE}` }} />,
+              )
+            }
+            if (h * 60 + 30 < axis.to) {
+              lines.push(
+                <div key={`m${h}`} style={{ position: 'absolute', left: 0, right: 0, top: `${((h * 60 + 30 - axis.from) / span) * 100}%`, borderTop: '0.15mm dashed #e2e8f0' }} />,
+              )
+            }
+            return lines
+          })}
+        </div>
+        {hours.map((h) => (
+          <div
+            key={`l${h}`}
+            style={{
+              position: 'absolute', left: 0, width: `${AXIS_MM - 1.2}mm`, top: `${((h * 60 - axis.from) / span) * 100}%`, textAlign: 'right',
+              fontSize: '6.5pt', color: MUTED,
+              transform: h === axis.from / 60 ? 'translateY(0.6mm)' : h === axis.to / 60 ? 'translateY(-100%)' : 'translateY(-50%)',
+            }}
+          >
+            {`${String(h % 24).padStart(2, '0')}:00`}
+          </div>
+        ))}
         {days.map((d, i) => (
           <div
             key={d.key}
@@ -333,7 +388,7 @@ export function WeekSheet({ monday, ...base }: SheetBase & { monday: Date }) {
             }}
           >
             {placed[i].map((b, bi) => (
-              <WeekBlock key={bi} block={b} from={axis.from} to={axis.to} />
+              <WeekBlock key={bi} block={b} from={axis.from} to={axis.to} bodyMm={bodyMm} dayMm={(281 - AXIS_MM) / n} />
             ))}
           </div>
         ))}
