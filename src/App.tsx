@@ -19,10 +19,65 @@ type View = { screen: 'dashboard' } | { screen: 'calendar'; id: string } | { scr
 const SHARE_PATH = /^\/s\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i
 const PARTIAL_PATH = /^\/j\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i
 
+const DASHBOARD: View = { screen: 'dashboard' }
+
+// Page ouverte dans l'application (éditeur d'un calendrier, profil, partage reçu) : elle est mémorisée dans l'onglet
+// (sessionStorage) pour qu'une actualisation de la page ramène au même endroit au lieu du tableau de bord.
+//  - Seul cet onglet s'en souvient : fermer l'onglet, ou ouvrir le site ailleurs, ramène au tableau de bord (utile sur un
+//    ordinateur partagé : rien ne reste après la fermeture).
+//  - La mémoire est liée au compte connecté : une autre personne qui se connecte dans le même onglet n'en hérite pas.
+//  - Seul l'identifiant de la page est gardé, jamais son contenu ; l'accès au calendrier reste contrôlé par la base. Si le
+//    calendrier n'existe plus ou n'est plus accessible, la page affiche son message habituel et « Retour » ramène au tableau
+//    de bord.
+const VIEW_KEY = 'calendraft.view'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const ID_RE = /^[0-9A-Za-z_-]{1,64}$/
+
+interface SavedView {
+  userId: string
+  view: View
+}
+
+function readSavedView(): SavedView | null {
+  try {
+    const raw = window.sessionStorage.getItem(VIEW_KEY)
+    if (!raw) return null
+    const data: unknown = JSON.parse(raw)
+    if (typeof data !== 'object' || data === null) return null
+    const { userId, screen, id } = data as Record<string, unknown>
+    if (typeof userId !== 'string' || userId === '') return null
+    if (screen === 'profile') return { userId, view: { screen } }
+    if (screen === 'calendar' && typeof id === 'string' && UUID_RE.test(id)) return { userId, view: { screen, id } }
+    if (screen === 'partial' && typeof id === 'string' && ID_RE.test(id)) return { userId, view: { screen, id } }
+    return null
+  } catch {
+    return null
+  }
+}
+
+function writeSavedView(userId: string, view: View) {
+  try {
+    if (view.screen === 'dashboard') window.sessionStorage.removeItem(VIEW_KEY)
+    else window.sessionStorage.setItem(VIEW_KEY, JSON.stringify({ userId, ...view }))
+  } catch {
+    // Stockage indisponible (navigation privée stricte, par exemple) : après une actualisation, on revient au tableau de bord.
+  }
+}
+
+function clearSavedView() {
+  try {
+    window.sessionStorage.removeItem(VIEW_KEY)
+  } catch {
+    // Rien à effacer.
+  }
+}
+
 function App() {
   const { session, loading } = useAuth()
   const { t } = useI18n()
-  const [view, setView] = useState<View>({ screen: 'dashboard' })
+  // null = aucune navigation depuis le chargement de la page : on reprend alors la page mémorisée (voir plus bas).
+  const [view, setView] = useState<View | null>(null)
+  const [saved, setSaved] = useState<SavedView | null>(readSavedView)
   const [isRecovery, setIsRecovery] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -30,6 +85,12 @@ function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsRecovery(true)
+      }
+      // Déconnexion : la page mémorisée est oubliée, la prochaine connexion démarre sur le tableau de bord.
+      if (event === 'SIGNED_OUT') {
+        clearSavedView()
+        setSaved(null)
+        setView(null)
       }
     })
     return () => listener.subscription.unsubscribe()
@@ -52,23 +113,32 @@ function App() {
 
   if (!session) return <AuthPage />
 
+  // Page affichée : celle choisie depuis le chargement, sinon la page mémorisée par ce même compte, sinon le tableau de bord.
+  const restored = saved && saved.userId === session.user.id ? saved.view : null
+  const active: View = view ?? restored ?? DASHBOARD
+
+  const go = (next: View) => {
+    setView(next)
+    writeSavedView(session.user.id, next)
+  }
+
   let current: ReactNode
-  if (view.screen === 'calendar') {
+  if (active.screen === 'calendar') {
     current = (
       <CalendarEditor
-        key={view.id}
-        calendarId={view.id}
-        onBack={() => setView({ screen: 'dashboard' })}
+        key={active.id}
+        calendarId={active.id}
+        onBack={() => go(DASHBOARD)}
       />
     )
-  } else if (view.screen === 'partial') {
-    current = <PartialShareView key={view.id} id={view.id} onBack={() => setView({ screen: 'dashboard' })} />
-  } else if (view.screen === 'profile') {
+  } else if (active.screen === 'partial') {
+    current = <PartialShareView key={active.id} id={active.id} onBack={() => go(DASHBOARD)} />
+  } else if (active.screen === 'profile') {
     current = (
       <ProfilePage
         key={refreshKey}
         user={session.user}
-        onBack={() => setView({ screen: 'dashboard' })}
+        onBack={() => go(DASHBOARD)}
         onUpdated={() => setRefreshKey((k) => k + 1)}
       />
     )
@@ -77,9 +147,9 @@ function App() {
       <Dashboard
         key={refreshKey}
         user={session.user}
-        onOpenCalendar={(id) => setView({ screen: 'calendar', id })}
-        onOpenProfile={() => setView({ screen: 'profile' })}
-        onOpenPartialShare={(id) => setView({ screen: 'partial', id })}
+        onOpenCalendar={(id) => go({ screen: 'calendar', id })}
+        onOpenProfile={() => go({ screen: 'profile' })}
+        onOpenPartialShare={(id) => go({ screen: 'partial', id })}
       />
     )
   }
