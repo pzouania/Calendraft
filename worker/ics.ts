@@ -11,6 +11,14 @@ import type { Frequency, Period, PeriodException } from '../src/types'
 // Le fichier couvre une fenêtre glissante : 92 jours passés et 2 ans à venir. La réponse est gardée 5 minutes dans le
 // cache de Cloudflare, ce qui protège la base si un agenda interroge souvent (un lien supprimé ou remplacé cesse donc de
 // fonctionner au plus tard 5 minutes après).
+//
+// Si un emploi du temps en ligne est relié au calendrier, ses événements sont dans le fichier. C'est la base qui les met en
+// forme (fonction get_ics_calendar, à partir de la dernière copie gardée par l'application, voir feed_snapshots.sql) : le
+// serveur gratuit de Cloudflare n'a que ~10 ms de calcul par requête, trop peu pour lire et mettre en forme un emploi du temps
+// de plusieurs centaines de cours à chaque fois. Le serveur n'a donc qu'à insérer le bloc reçu, tel quel. Les événements
+// importés sont ceux de la dernière ouverture de l'application (la copie est gardée 30 jours) ; sans copie, le fichier ne
+// contient que les événements du calendrier et n'est gardé qu'une minute, pour que les événements importés arrivent dès
+// qu'une copie existe.
 
 export interface IcsEnv {
   SUPABASE_URL: string
@@ -29,6 +37,11 @@ interface EdgeCache {
 const TOKEN_PATH = /^\/api\/ics\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.ics$/i
 const CACHE_SECONDS = 300
 const MISS_SECONDS = 60
+// Emploi du temps en ligne relié mais sans copie lisible : on réessaie plus vite.
+const DEGRADED_SECONDS = 60
+// Bloc d'événements importés : au plus 5 000 événements (limite de la base), moins de 6 Mo.
+const MAX_IMPORTED = 5000
+const MAX_IMPORTED_CHARS = 6_000_000
 const TIMEOUT_MS = 8000
 const MAX_PERIODS = 2000
 const MAX_EXCEPTIONS = 50000
@@ -132,6 +145,25 @@ function toExceptions(raw: unknown): Pick<PeriodException, 'period_id' | 'except
   return out
 }
 
+// Emploi du temps en ligne tel que la base le renvoie : null = pas d'emploi du temps ; sinon la date de la dernière copie, le
+// nombre d'événements et leur bloc de texte (null partout s'il n'y a pas de copie). Le bloc est vérifié avant d'être inséré :
+// il doit être fait de VEVENT complets, sans fin de calendrier.
+function readImported(feed: unknown): { state: 'none' | 'copy' | 'unavailable'; block?: { text: string; count: number } } {
+  if (!isRecord(feed)) return { state: 'none' }
+  if (typeof feed.fetched_at !== 'string') return { state: 'unavailable' }
+  const count = intIn(feed.count, 0, MAX_IMPORTED)
+  const text = feed.text
+  if (count === null || typeof text !== 'string') return { state: 'unavailable' }
+  if (count === 0) return { state: 'copy' }
+  if (
+    text.length > MAX_IMPORTED_CHARS || !text.startsWith('BEGIN:VEVENT\r\n') || !text.endsWith('END:VEVENT\r\n') ||
+    text.includes('VCALENDAR')
+  ) {
+    return { state: 'unavailable' }
+  }
+  return { state: 'copy', block: { text, count } }
+}
+
 export async function handleIcs(request: Request, env: IcsEnv, ctx?: ContextLike): Promise<Response> {
   const url = new URL(request.url)
 
@@ -182,23 +214,26 @@ export async function handleIcs(request: Request, env: IcsEnv, ctx?: ContextLike
     // Lien inconnu, remplacé ou supprimé. Réponse gardée une minute : un agenda qui insiste ne sollicite pas la base.
     response = plain('Lien introuvable ou désactivé.', 404, MISS_SECONDS)
   } else {
-    const today = parisDay.format(new Date())
+    const span = rollingWindow(parisDay.format(new Date()))
+
+    // Emploi du temps en ligne : jamais bloquant, une copie absente ou illisible ne fait pas perdre le calendrier.
+    const imported = readImported(payload.feed)
+
     const file = buildIcsFile(
       { name: payload.name, color: typeof payload.color === 'string' ? payload.color : null },
       toPeriods(payload.periods),
       toExceptions(payload.exceptions),
-      rollingWindow(today),
-      { stamp: new Date(), subscription: true }
+      span,
+      { stamp: new Date(), subscription: true, importedBlock: imported.block }
     )
-    response = new Response(file.text, {
-      status: 200,
-      headers: {
-        ...SAFE_HEADERS,
-        'content-type': 'text/calendar; charset=utf-8',
-        'content-disposition': `inline; filename="${icsFileName(payload.name)}"`,
-        'cache-control': `public, max-age=${CACHE_SECONDS}`,
-      },
-    })
+    const headers: Record<string, string> = {
+      ...SAFE_HEADERS,
+      'content-type': 'text/calendar; charset=utf-8',
+      'content-disposition': `inline; filename="${icsFileName(payload.name)}"`,
+      'cache-control': `public, max-age=${imported.state === 'unavailable' ? DEGRADED_SECONDS : CACHE_SECONDS}`,
+    }
+    if (imported.state !== 'none') headers['x-calendraft-feed'] = imported.state
+    response = new Response(file.text, { status: 200, headers })
   }
 
   if (cache && ctx) ctx.waitUntil(cache.put(cacheKey, response.clone()).catch(() => undefined))

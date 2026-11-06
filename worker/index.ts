@@ -1,4 +1,5 @@
 import { handleIcs } from './ics'
+import type { FeedSourceEvent } from '../src/lib/icsExport'
 import { REFILL_SLICES, refillQueue, sendDueReminders } from './reminders'
 import { sendWebPush, type VapidConfig } from './webpush'
 
@@ -211,6 +212,45 @@ function byDateTime(a: FeedEvent, b: FeedEvent): number {
   return x < y ? -1 : x > y ? 1 : 0
 }
 
+// Événements du flux tels qu'ils sont écrits par l'école (un événement = une entrée, début et fin réels), pour l'export vers un
+// agenda. Contrairement à expand (un morceau par jour, pour l'écran), un événement de plusieurs jours reste entier. On ne
+// garde que ceux qui touchent la fenêtre [from, to] ; les plus anciens d'abord, au plus MAX_EVENTS.
+function toSourceEvents(raw: RawEvent[], from: string, to: string): FeedSourceEvent[] {
+  const out: FeedSourceEvent[] = []
+  for (const r of raw) {
+    if (r.cancelled) continue
+    const start = parseIcsDate(r.start)
+    if (!start) continue
+    const end = r.end ? parseIcsDate(r.end) : null
+    const base = { uid: r.uid, title: r.summary || 'Sans titre', location: r.location, startDate: start.date }
+
+    if (start.time === null) {
+      // Toute la journée : la fin est le jour SUIVANT le dernier (comme dans le fichier iCalendar).
+      let endDate: string
+      try {
+        endDate = end && end.date > start.date ? end.date : addOneDay(start.date)
+      } catch {
+        continue // jour impossible (30 février...) : événement ignoré, le reste de l'emploi du temps est gardé
+      }
+      if (start.date > to || endDate <= from) continue
+      out.push({ ...base, startTime: null, endDate, endTime: null })
+      continue
+    }
+
+    // Comme expand : sans fin lisible, l'événement finit à son heure de début ; une fin avant le début reste le même jour.
+    const endDate = end && end.date > start.date ? end.date : start.date
+    const endTime = end?.time ?? start.time
+    if (start.date > to || endDate < from) continue
+    out.push({ ...base, startTime: start.time, endDate, endTime })
+  }
+  out.sort((a, b) =>
+    a.startDate !== b.startDate ? (a.startDate < b.startDate ? -1 : 1)
+    : (a.startTime ?? '') !== (b.startTime ?? '') ? ((a.startTime ?? '') < (b.startTime ?? '') ? -1 : 1)
+    : a.title < b.title ? -1 : a.title > b.title ? 1 : 0
+  )
+  return out
+}
+
 function validateFeedUrl(raw: unknown): URL | null {
   let u: URL
   try {
@@ -401,6 +441,7 @@ async function loadSnapshot(env: Env, key: string, userToken: string | null, fn:
       method: 'POST',
       headers: rpcHeaders(key, userToken),
       body: JSON.stringify({ p_secret: env.FEED_WORKER_SECRET, ...args }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     })
     if (!res.ok) return null
     const data = (await res.json()) as { fetched_at?: unknown; recurring?: unknown; events?: unknown } | null
@@ -432,7 +473,7 @@ async function handleEvents(request: Request, env: Env, ctx?: ExecutionContextLi
   if (!token || !key) return json({ ok: false, reason: 'unauthorized' }, 401)
   if (!env.FEED_WORKER_SECRET) return json({ ok: false, reason: 'secret_missing' }, 500)
 
-  let body: { calendarId?: unknown; from?: unknown; to?: unknown }
+  let body: { calendarId?: unknown; from?: unknown; to?: unknown; format?: unknown }
   try {
     body = (await request.json()) as typeof body
   } catch {
@@ -448,6 +489,8 @@ async function handleEvents(request: Request, env: Env, ctx?: ExecutionContextLi
   ) {
     return json({ ok: false, reason: 'bad_request' }, 400)
   }
+  // format « source » : les événements entiers, pour l'export vers un agenda (voir toSourceEvents).
+  const asSource = body.format === 'source'
 
   const rpc = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_calendar_feed`, {
     method: 'POST',
@@ -483,6 +526,20 @@ async function handleEvents(request: Request, env: Env, ctx?: ExecutionContextLi
     if (!snapshot) return json({ ok: false, reason: 'feed_unreachable', detail: feed.reason })
     parsed = { events: snapshot.events, recurring: snapshot.recurring }
     snapshotAt = snapshot.fetchedAt
+  }
+
+  if (asSource) {
+    const whole = toSourceEvents(parsed.events, from, to)
+    return json({
+      ok: true,
+      configured: true,
+      label: data.label,
+      color: data.color,
+      recurring: parsed.recurring,
+      truncated: whole.length > MAX_EVENTS,
+      events: whole.slice(0, MAX_EVENTS),
+      ...(snapshotAt ? { stale: true, snapshotAt } : {}),
+    })
   }
 
   const all = parsed.events
