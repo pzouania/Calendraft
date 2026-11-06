@@ -5,6 +5,8 @@ import { useI18n } from '../hooks/useI18n'
 import type { TranslationKey } from '../i18n'
 import MonthGrid from './MonthGrid'
 import DayDetail from './DayDetail'
+import PdfExportDialog from './PdfExportDialog'
+import { toDateOnly } from '../lib/dateUtils'
 import { snapshotLabel } from '../lib/partialShare'
 import Icon from './icons'
 import type { Period, Occurrence, PeriodException, YearMode } from '../types'
@@ -62,6 +64,12 @@ function initialMonthIndex(year: number, isSchool: boolean): number {
   return idx >= 0 ? idx : 0
 }
 
+// Décale une date « AAAA-MM-JJ » de quelques jours.
+function shiftDate(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number)
+  return toDateOnly(new Date(y, m - 1, d + days))
+}
+
 function useIsNarrow(maxWidth = 640): boolean {
   const query = `(max-width: ${maxWidth}px)`
   const [narrow, setNarrow] = useState(() => window.matchMedia(query).matches)
@@ -111,6 +119,8 @@ export default function YearCalendar({
   const [feedStaleAt, setFeedStaleAt] = useState<string | null>(null)
   const isNarrow = useIsNarrow()
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month')
+  // Fenêtre « Exporter en PDF » (année, mois ou semaine).
+  const [exportOpen, setExportOpen] = useState(false)
 
   const isSchool = yearMode === 'school'
   const [monthIdx, setMonthIdx] = useState(() => initialMonthIndex(year, isSchool))
@@ -148,8 +158,9 @@ export default function YearCalendar({
     setFeedNotice(null)
     setFeedStaleAt(null)
 
-    const from = isSchool ? `${year}-09-01` : `${year}-01-01`
-    const to = isSchool ? `${year + 1}-08-31` : `${year}-12-31`
+    // 7 jours de marge de chaque côté : une semaine exportée en PDF peut déborder sur l'année voisine.
+    const from = shiftDate(isSchool ? `${year}-09-01` : `${year}-01-01`, -7)
+    const to = shiftDate(isSchool ? `${year + 1}-08-31` : `${year}-12-31`, 7)
 
     const loadFeed = async () => {
       const { data: sessionData } = await supabase.auth.getSession()
@@ -202,27 +213,32 @@ export default function YearCalendar({
 
   const months = useMemo(() => buildMonths(year, isSchool), [year, isSchool])
 
+  // Événements importés (emploi du temps en ligne), sous la même forme que les événements du calendrier.
+  const feedOccurrences = useMemo<Occurrence[]>(
+    () =>
+      feed
+        ? feed.events.map((e) => ({
+            periodId: 'feed',
+            name: e.title,
+            color: feed.color,
+            date: e.date,
+            startTime: e.start,
+            endTime: e.end,
+            segment: e.segment,
+            readOnly: true,
+            location: e.location,
+            feedUid: e.uid || undefined,
+          }))
+        : [],
+    [feed],
+  )
+
   const occurrencesByDate = useMemo(() => {
     const rangeStart = isSchool ? new Date(year, 8, 1) : new Date(year, 0, 1)
     const rangeEnd = isSchool ? new Date(year + 1, 7, 31) : new Date(year, 11, 31)
     const all: Occurrence[] = generateAllOccurrences(periods, rangeStart, rangeEnd, exceptionsByPeriod)
 
-    if (feed) {
-      for (const e of feed.events) {
-        all.push({
-          periodId: 'feed',
-          name: e.title,
-          color: feed.color,
-          date: e.date,
-          startTime: e.start,
-          endTime: e.end,
-          segment: e.segment,
-          readOnly: true,
-          location: e.location,
-          feedUid: e.uid || undefined,
-        })
-      }
-    }
+    all.push(...feedOccurrences)
 
     const map = new Map<string, Occurrence[]>()
     for (const o of all) {
@@ -231,8 +247,21 @@ export default function YearCalendar({
       map.set(o.date, list)
     }
     return map
-  }, [periods, year, isSchool, exceptionsByPeriod, feed])
+  }, [periods, year, isSchool, exceptionsByPeriod, feedOccurrences])
 
+  // Bornes de l'année affichée et événements entre deux dates (la semaine à exporter peut déborder sur l'année voisine).
+  const exportRangeStart = useMemo(() => (isSchool ? new Date(year, 8, 1) : new Date(year, 0, 1)), [year, isSchool])
+  const exportRangeEnd = useMemo(() => (isSchool ? new Date(year + 1, 7, 31) : new Date(year, 11, 31)), [year, isSchool])
+  const getOccurrencesBetween = (start: Date, end: Date): Occurrence[] => {
+    const first = toDateOnly(start)
+    const last = toDateOnly(end)
+    return [
+      ...generateAllOccurrences(periods, start, end, exceptionsByPeriod),
+      ...feedOccurrences.filter((o) => o.date >= first && o.date <= last),
+    ]
+  }
+
+  // Impression de l'année : la page elle-même (grille des 12 mois).
   const handleExportPDF = () => {
     const previousTitle = document.title
     document.title = `${calendarName} ${yearLabel}`
@@ -343,7 +372,7 @@ export default function YearCalendar({
               )}
               <button
                 type="button"
-                onClick={handleExportPDF}
+                onClick={() => setExportOpen(true)}
                 aria-label={t('calendar.exportPdf')}
                 style={{
                   background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
@@ -406,7 +435,7 @@ export default function YearCalendar({
             ▶
           </button>
           <button
-            onClick={handleExportPDF}
+            onClick={() => setExportOpen(true)}
             style={{
               marginLeft: 'auto', background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
               borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
@@ -554,6 +583,25 @@ export default function YearCalendar({
             </div>
           )}
         </div>
+      )}
+
+      {exportOpen && (
+        <PdfExportDialog
+          calendarName={calendarName}
+          calendarIcon={calendarIcon}
+          calendarColor={calendarColor}
+          months={months}
+          rangeStart={exportRangeStart}
+          rangeEnd={exportRangeEnd}
+          initialMonthIndex={monthView ? monthIdx : initialMonthIndex(year, isSchool)}
+          legend={[
+            ...periods.map((p) => ({ id: p.id, label: p.name, color: p.color })),
+            ...(feed ? [{ id: 'feed', label: feed.label, color: feed.color }] : []),
+          ]}
+          getOccurrences={getOccurrencesBetween}
+          onExportYear={handleExportPDF}
+          onClose={() => setExportOpen(false)}
+        />
       )}
 
       {selectedDate && (
