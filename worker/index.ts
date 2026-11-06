@@ -1,3 +1,4 @@
+import { handleIcs } from './ics'
 import { REFILL_SLICES, refillQueue, sendDueReminders } from './reminders'
 import { sendWebPush, type VapidConfig } from './webpush'
 
@@ -797,6 +798,7 @@ export default {
     if (pathname === '/api/push/config') return handlePushConfig(request, env)
     if (pathname === '/api/push/test') return handlePushTest(request, env)
     if (pathname === '/api/reminders/sync') return handleReminderSync(request, env)
+    if (pathname.startsWith('/api/ics/')) return handleIcs(request, env, ctx)
     if (pathname.startsWith('/api/')) return json({ ok: false, reason: 'not_found' }, 404)
 
     return env.ASSETS.fetch(request)
