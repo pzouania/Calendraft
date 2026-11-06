@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useI18n } from '../hooks/useI18n'
 import {
-  dateRangeLabel, fetchSharedFeed, itemTimeLabel, longDay, partialShareError, sortItems, type PartialItem, type PartialPayload,
+  dateRangeLabel, fetchSharedFeed, itemTimeLabel, longDay, partialShareError, snapshotLabel, sortItems, type PartialItem, type PartialPayload,
 } from '../lib/partialShare'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
@@ -33,6 +33,8 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
   const [feedItems, setFeedItems] = useState<PartialItem[]>([])
   const [feedState, setFeedState] = useState<'idle' | 'loading' | 'ok' | 'unavailable'>('idle')
   const [feedTry, setFeedTry] = useState(0)
+  // Emploi du temps injoignable : date de la copie de secours affichée à la place (sinon null).
+  const [feedStaleAt, setFeedStaleAt] = useState<string | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -76,6 +78,7 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
     if (!withFeed) {
       setFeedItems([])
       setFeedState('idle')
+      setFeedStaleAt(null)
       return
     }
     let cancelled = false
@@ -84,6 +87,7 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
       if (cancelled) return
       setFeedItems(result.items)
       setFeedState(result.status)
+      setFeedStaleAt(result.staleAt)
     })
     return () => {
       cancelled = true
@@ -252,6 +256,19 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
               >
                 Réessayer
               </button>
+            </div>
+          )}
+
+          {feedStaleAt && (
+            <div
+              role="status"
+              style={{
+                marginBottom: '1rem', padding: '0.6rem 0.8rem', borderRadius: 10, background: 'var(--surface-faint)',
+                color: 'var(--text-body)', fontSize: '0.82rem',
+              }}
+            >
+              Emploi du temps en ligne injoignable : les événements importés viennent de la dernière copie enregistrée
+              {snapshotLabel(feedStaleAt, formatDate) ? ` le ${snapshotLabel(feedStaleAt, formatDate)}` : ''}.
             </div>
           )}
 

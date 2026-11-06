@@ -5,6 +5,7 @@ import { useI18n } from '../hooks/useI18n'
 import type { TranslationKey } from '../i18n'
 import MonthGrid from './MonthGrid'
 import DayDetail from './DayDetail'
+import { snapshotLabel } from '../lib/partialShare'
 import Icon from './icons'
 import type { Period, Occurrence, PeriodException, YearMode } from '../types'
 
@@ -97,7 +98,7 @@ export default function YearCalendar({
   yearMode = 'calendar',
   staticData,
 }: YearCalendarProps) {
-  const { t, monthName } = useI18n()
+  const { t, monthName, formatDate } = useI18n()
   const [periods, setPeriods] = useState<Period[]>(staticData?.periods ?? [])
   const [exceptions, setExceptions] = useState<PeriodException[]>(staticData?.exceptions ?? [])
   const [year, setYear] = useState(() => currentStartYear(yearMode))
@@ -106,6 +107,8 @@ export default function YearCalendar({
   const [feed, setFeed] = useState<FeedInfo | null>(null)
   // Clé de traduction (et non le texte) : le message suit la langue même si elle change pendant qu'il est affiché.
   const [feedNotice, setFeedNotice] = useState<TranslationKey | null>(null)
+  // Emploi du temps en ligne injoignable : date de la dernière copie affichée à la place (sinon null).
+  const [feedStaleAt, setFeedStaleAt] = useState<string | null>(null)
   const isNarrow = useIsNarrow()
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month')
 
@@ -143,6 +146,7 @@ export default function YearCalendar({
     if (staticData || !calendarId) return
     let cancelled = false
     setFeedNotice(null)
+    setFeedStaleAt(null)
 
     const from = isSchool ? `${year}-09-01` : `${year}-01-01`
     const to = isSchool ? `${year + 1}-08-31` : `${year}-12-31`
@@ -167,6 +171,7 @@ export default function YearCalendar({
 
         if (body.ok && body.configured) {
           setFeed({ label: body.label, color: body.color, events: body.events })
+          setFeedStaleAt(body.stale && typeof body.snapshotAt === 'string' ? body.snapshotAt : null)
         } else if (body.ok && !body.configured) {
           setFeed(null)
         } else if (body.reason === 'feed_unreachable') {
@@ -421,6 +426,20 @@ export default function YearCalendar({
           }}
         >
           {t(feedNotice)}
+        </p>
+      )}
+
+      {feedStaleAt && (
+        <p
+          role="status"
+          className="no-print"
+          style={{
+            margin: '0 0 1rem', padding: '0.6rem 0.9rem', borderRadius: 10,
+            background: 'var(--warning-bg)', color: 'var(--warning-text)', fontSize: '0.85rem',
+          }}
+        >
+          Emploi du temps en ligne injoignable : les événements importés viennent de la dernière copie enregistrée
+          {snapshotLabel(feedStaleAt, formatDate) ? ` le ${snapshotLabel(feedStaleAt, formatDate)}` : ''}.
         </p>
       )}
 
