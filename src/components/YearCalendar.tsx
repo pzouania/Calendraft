@@ -6,6 +6,7 @@ import type { TranslationKey } from '../i18n'
 import MonthGrid from './MonthGrid'
 import DayDetail from './DayDetail'
 import PdfExportDialog from './PdfExportDialog'
+import IcsExportDialog from './IcsExportDialog'
 import { toDateOnly } from '../lib/dateUtils'
 import { snapshotLabel } from '../lib/partialShare'
 import Icon from './icons'
@@ -121,6 +122,8 @@ export default function YearCalendar({
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month')
   // Fenêtre « Exporter en PDF » (année, mois ou semaine).
   const [exportOpen, setExportOpen] = useState(false)
+  // Fenêtre « Exporter vers un agenda » (fichier .ics et lien de synchronisation).
+  const [icsOpen, setIcsOpen] = useState(false)
 
   const isSchool = yearMode === 'school'
   const [monthIdx, setMonthIdx] = useState(() => initialMonthIndex(year, isSchool))
@@ -372,6 +375,18 @@ export default function YearCalendar({
               )}
               <button
                 type="button"
+                data-testid="ics-open"
+                onClick={() => setIcsOpen(true)}
+                aria-label="Exporter vers un agenda"
+                style={{
+                  background: 'var(--surface)', color: 'var(--accent-link)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--tint-border)',
+                  borderRadius: 10, padding: '0.45rem 0.8rem', fontSize: '0.82rem', fontWeight: 700,
+                }}
+              >
+                Agenda
+              </button>
+              <button
+                type="button"
                 onClick={() => setExportOpen(true)}
                 aria-label={t('calendar.exportPdf')}
                 style={{
@@ -434,15 +449,27 @@ export default function YearCalendar({
           >
             ▶
           </button>
-          <button
-            onClick={() => setExportOpen(true)}
-            style={{
-              marginLeft: 'auto', background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
-              borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
-            }}
-          >
-            {t('calendar.exportPdf')}
-          </button>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <button
+              data-testid="ics-open"
+              onClick={() => setIcsOpen(true)}
+              style={{
+                background: 'var(--surface)', color: 'var(--accent-link)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--tint-border)',
+                borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
+              }}
+            >
+              Exporter vers un agenda
+            </button>
+            <button
+              onClick={() => setExportOpen(true)}
+              style={{
+                background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none',
+                borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
+              }}
+            >
+              {t('calendar.exportPdf')}
+            </button>
+          </div>
         </div>
       )}
 
@@ -601,6 +628,22 @@ export default function YearCalendar({
           getOccurrences={getOccurrencesBetween}
           onExportYear={handleExportPDF}
           onClose={() => setExportOpen(false)}
+        />
+      )}
+
+      {icsOpen && (
+        <IcsExportDialog
+          calendarId={calendarId}
+          calendarName={calendarName}
+          calendarColor={calendarColor}
+          periods={periods}
+          exceptions={exceptions}
+          yearLabel={yearLabel}
+          yearFrom={toDateOnly(exportRangeStart)}
+          yearTo={toDateOnly(exportRangeEnd)}
+          canManageLink={canShare && !staticData && Boolean(calendarId)}
+          hasImported={Boolean(feed)}
+          onClose={() => setIcsOpen(false)}
         />
       )}
 
