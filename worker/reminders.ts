@@ -32,6 +32,7 @@ export interface Candidate {
   start_time: string | null
   end_time: string | null
   exceptions: string[] | null
+  lang?: string | null // 'fr' | 'en' | 'de' ; absent ou inconnu = français
 }
 
 export interface QueueInput {
@@ -148,15 +149,33 @@ function daysBetween(from: string, to: string): number {
 // Calcul des rappels à partir des événements
 // ---------------------------------------------------------------------------
 
-const WEEKDAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+type ReminderLang = 'fr' | 'en' | 'de'
 
-function dayLabel(occurrenceDate: string, reminderDate: string): string {
+function reminderLang(value: string | null | undefined): ReminderLang {
+  return value === 'en' || value === 'de' ? value : 'fr'
+}
+
+const WEEKDAYS: Record<ReminderLang, string[]> = {
+  fr: ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'],
+  en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  de: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'],
+}
+
+function dayLabel(occurrenceDate: string, reminderDate: string, lang: ReminderLang = 'fr'): string {
   const diff = daysBetween(reminderDate, occurrenceDate)
-  if (diff <= 0) return "Aujourd'hui"
-  if (diff === 1) return 'Demain'
-  const weekday = WEEKDAYS[new Date(`${occurrenceDate}T00:00:00Z`).getUTCDay()]
+  if (diff <= 0) return { fr: "Aujourd'hui", en: 'Today', de: 'Heute' }[lang]
+  if (diff === 1) return { fr: 'Demain', en: 'Tomorrow', de: 'Morgen' }[lang]
+  const weekday = WEEKDAYS[lang][new Date(`${occurrenceDate}T00:00:00Z`).getUTCDay()]
   const [, month, day] = occurrenceDate.split('-')
+  if (lang === 'en') return `On ${weekday} ${day}/${month}`
+  if (lang === 'de') return `Am ${weekday} ${day}.${month}.`
   return `Le ${weekday} ${day}/${month}`
+}
+
+function timeLabel(startTime: string | null, endTime: string | null, lang: ReminderLang): string {
+  if (!startTime) return ''
+  if (endTime) return { fr: ` de ${startTime} à ${endTime}`, en: ` from ${startTime} to ${endTime}`, de: ` von ${startTime} bis ${endTime}` }[lang]
+  return { fr: ` à ${startTime}`, en: ` at ${startTime}`, de: ` um ${startTime}` }[lang]
 }
 
 function truncate(text: string, max: number): string {
@@ -238,8 +257,9 @@ export function buildQueueRows(candidates: Candidate[], nowMs: number): QueueInp
       if (fireAt < earliest || fireAt > latest) continue
 
       seen.add(key)
-      const when = dayLabel(occ.date, localDate(fireAt, timeZone))
-      const time = startTime ? (endTime ? ` de ${startTime} à ${endTime}` : ` à ${startTime}`) : ''
+      const lang = reminderLang(c.lang)
+      const when = dayLabel(occ.date, localDate(fireAt, timeZone), lang)
+      const time = timeLabel(startTime, endTime, lang)
       const calendar = c.calendar_name ? ` · ${truncate(c.calendar_name, 40)}` : ''
       rows.push({
         user_id: c.user_id,
