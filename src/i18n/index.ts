@@ -16,9 +16,8 @@ export const LANGS: Lang[] = ['fr', 'en', 'de']
 export const LANG_STORAGE_KEY = 'calendraft.lang'
 export const DEFAULT_LANG: Lang = 'fr'
 
-// Langue du navigateur : provisoirement ignorée (le site n'est pas encore entièrement traduit, un visiteur dont le
-// navigateur est en anglais verrait un mélange). Passera à true quand tous les écrans seront traduits.
-export const AUTO_DETECT_BROWSER_LANG = false
+// Langue du navigateur : utilisée tant que la personne n'a pas choisi de langue (fr, en ou de ; sinon français).
+export const AUTO_DETECT_BROWSER_LANG = true
 
 // Réglage régional utilisé pour les dates, les nombres et les pluriels.
 const LOCALES: Record<Lang, string> = { fr: 'fr-FR', en: 'en-GB', de: 'de-DE' }
