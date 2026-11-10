@@ -787,6 +787,10 @@ export const fr = {
   'icsLink.error.notOwner': 'Seul le propriétaire du calendrier peut gérer le lien de synchronisation.',
   'icsLink.error.outdated': 'La synchronisation n’est pas à jour sur le serveur (le script SQL ics_links.sql doit être exécuté dans Supabase).',
   'icsLink.unexpected': 'Réponse inattendue du serveur.',
+
+  // Onglet vacances scolaires
+  'editor.tab.holidays': 'Vacances scolaires',
+  'editor.tab.holidaysShort': 'Vacances',
 } satisfies Record<string, Message>
 
 export type TranslationKey = keyof typeof fr

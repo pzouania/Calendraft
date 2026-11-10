@@ -780,4 +780,8 @@ export const de: Record<TranslationKey, Message> = {
   'icsLink.error.notOwner': 'Nur der Eigentümer des Kalenders kann den Synchronisierungslink verwalten.',
   'icsLink.error.outdated': 'Die Synchronisierung ist auf dem Server nicht auf dem neuesten Stand (das SQL-Skript ics_links.sql muss in Supabase ausgeführt werden).',
   'icsLink.unexpected': 'Unerwartete Antwort des Servers.',
+
+  // Onglet vacances scolaires
+  'editor.tab.holidays': 'Französische Schulferien',
+  'editor.tab.holidaysShort': 'Ferien',
 }
