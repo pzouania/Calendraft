@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { supabase } from './supabaseClient'
 
 // Limites sur les événements, vérifiées par la base de données (voir supabase/events_limits.sql) :
@@ -63,7 +64,7 @@ function readBlocker(raw: unknown, index: number): SlotBlocker | null {
   if (!ID_RE.test(id)) return null
   return {
     period_id: id,
-    name: asText(r.name, 'Événement'),
+    name: asText(r.name, t('limit.fallbackName')),
     color: /^#[0-9a-f]{3,8}$/i.test(asText(r.color)) ? asText(r.color) : '#2563eb',
     date,
     start: TIME_RE.test(asText(r.start)) ? asText(r.start) : '',
@@ -122,7 +123,7 @@ export function parseLimitError(error: DbErrorLike | null | undefined): LimitErr
 // Retire un seul jour d'un événement (comme « Supprimer ce jour » dans le détail d'une journée).
 // Renvoie un message d'erreur, ou null si tout va bien.
 export async function removeBlockerDay(blocker: SlotBlocker): Promise<string | null> {
-  if (blocker.imported) return "Un événement importé ne peut pas être supprimé depuis Calendraft."
+  if (blocker.imported) return t('limit.importedCannotDelete')
   const { error } = await supabase.from('period_exceptions').insert({
     period_id: blocker.period_id,
     exception_date: blocker.date,
@@ -134,11 +135,11 @@ export async function removeBlockerDay(blocker: SlotBlocker): Promise<string | n
 
 // Supprime l'événement entier, avec toutes ses dates.
 export async function removeBlockerEvent(blocker: SlotBlocker): Promise<string | null> {
-  if (blocker.imported) return "Un événement importé ne peut pas être supprimé depuis Calendraft."
+  if (blocker.imported) return t('limit.importedCannotDelete')
   const { data, error } = await supabase.from('periods').delete().eq('id', blocker.period_id).select('id')
   if (error) return error.message
   if (!data || data.length === 0) {
-    return "La suppression n'a pas été effectuée : l'événement n'existe plus, ou vous n'avez pas le droit de le supprimer."
+    return t('limit.deleteNotDone')
   }
   return null
 }

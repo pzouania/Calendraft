@@ -1,3 +1,4 @@
+import { t as tr, type Params, type TranslationKey } from '../i18n'
 import type { Occurrence, Period } from '../types'
 import { toDateOnly } from './dateUtils'
 import { generateAllOccurrences } from './occurrenceEngine'
@@ -8,17 +9,22 @@ import { generateAllOccurrences } from './occurrenceEngine'
 
 export type TemplateGroup = 'family' | 'work' | 'school'
 
-export const GROUP_TITLES: Record<TemplateGroup, string> = {
-  family: 'Garde d’enfants',
-  work: 'Horaires de travail',
-  school: 'Études',
+// Texte du titre de chaque groupe (dictionnaires, clés rhythm.group.*).
+export const GROUP_TITLE_KEYS: Record<TemplateGroup, TranslationKey> = {
+  family: 'rhythm.group.family',
+  work: 'rhythm.group.work',
+  school: 'rhythm.group.school',
 }
 
 export const GROUP_ORDER: TemplateGroup[] = ['family', 'work', 'school']
 
+// Fonction de traduction fournie par le composant (useI18n) : les textes suivent la langue choisie.
+export type Translate = (key: TranslationKey, params?: Params) => string
+
 // Une série = un événement du modèle (« Poste du matin », « Chez moi »...). Avec start et end : horaire précis.
+// Le nom par défaut est une clé de traduction : il est traduit au moment où le modèle est proposé.
 export interface SeriesDef {
-  name: string
+  nameKey: TranslationKey
   color: string
   start?: string
   end?: string
@@ -34,12 +40,17 @@ export interface SlotDef {
   days: number
 }
 
-export interface TemplateDef {
-  id: string
-  group: TemplateGroup
+export interface TemplateText {
   title: string
   summary: string
   help?: string
+}
+
+export interface TemplateDef {
+  id: string
+  group: TemplateGroup
+  // Titre, résumé et aide du modèle, dans la langue de la fonction de traduction donnée.
+  text: (t: Translate) => TemplateText
   // 'monday' : le cycle commence forcément un lundi (on prend le lundi de la semaine choisie).
   // 'any' : le cycle commence le jour choisi, quel qu'il soit.
   anchor: 'monday' | 'any'
@@ -48,7 +59,7 @@ export interface TemplateDef {
   series: SeriesDef[]
   slots: SlotDef[]
   // Texte décrivant ce qui se passe pendant la semaine `phase` du cycle (menu « La première semaine correspond à »).
-  weekLabel: (phase: number, names: string[]) => string
+  weekLabel: (phase: number, names: string[], t: Translate) => string
 }
 
 const BLUE = '#2563eb'
@@ -58,34 +69,43 @@ const ORANGE = '#ea580c'
 const VIOLET = '#7c3aed'
 
 const PARENTS: SeriesDef[] = [
-  { name: 'Chez moi', color: BLUE },
-  { name: 'Chez l’autre parent', color: ORANGE },
+  { nameKey: 'rhythm.series.home', color: BLUE },
+  { nameKey: 'rhythm.series.otherParent', color: ORANGE },
 ]
+
+// Modèle dont le titre, le résumé et l'aide sont de simples clés de traduction.
+function plain(title: TranslationKey, summary: TranslationKey, help?: TranslationKey): TemplateDef['text'] {
+  return (t) => ({ title: t(title), summary: t(summary), ...(help ? { help: t(help) } : {}) })
+}
 
 function alternance(school: number, company: number): TemplateDef {
   const cycle = school + company
-  const plural = (n: number) => (n > 1 ? 'semaines' : 'semaine')
   return {
     id: `alternance-${school}-${company}`,
     group: 'school',
-    title: `Alternance : ${school} ${plural(school)} école, ${company} ${plural(company)} entreprise`,
-    summary: `${school} ${plural(school)} à l’école, puis ${company} ${plural(company)} en entreprise, en boucle.`,
-    help: 'Chaque période couvre des semaines entières, du lundi au dimanche.',
+    text: (t) => {
+      const params = { school: t('rhythm.weeks', { count: school }), company: t('rhythm.weeks', { count: company }) }
+      return {
+        title: t('rhythm.t.alternance.title', params),
+        summary: t('rhythm.t.alternance.summary', params),
+        help: t('rhythm.t.alternance.help'),
+      }
+    },
     anchor: 'monday',
     canDisable: true,
     series: [
-      { name: 'École', color: BLUE },
-      { name: 'Entreprise', color: GREEN },
+      { nameKey: 'rhythm.series.school', color: BLUE },
+      { nameKey: 'rhythm.series.company', color: GREEN },
     ],
     slots: [
       { series: 0, weekday: 0, week: 0, every: cycle, days: 7 * school },
       { series: 1, weekday: 0, week: school, every: cycle, days: 7 * company },
     ],
-    weekLabel: (phase, names) => {
+    weekLabel: (phase, names, t) => {
       const inSchool = phase < school
       const length = inSchool ? school : company
       const index = inSchool ? phase : phase - school
-      return `${names[inSchool ? 0 : 1]}${length > 1 ? ` (semaine ${index + 1} sur ${length})` : ''}`
+      return `${names[inSchool ? 0 : 1]}${length > 1 ? t('rhythm.week.alternanceCount', { index: index + 1, total: length }) : ''}`
     },
   }
 }
@@ -94,8 +114,7 @@ export const TEMPLATES: TemplateDef[] = [
   {
     id: 'garde-1-1',
     group: 'family',
-    title: 'Garde alternée : une semaine sur deux',
-    summary: 'Les enfants passent une semaine chez chaque parent, en alternance.',
+    text: plain('rhythm.t.garde11.title', 'rhythm.t.garde11.summary'),
     anchor: 'any',
     canDisable: true,
     series: PARENTS,
@@ -108,9 +127,7 @@ export const TEMPLATES: TemplateDef[] = [
   {
     id: 'garde-2-2-3',
     group: 'family',
-    title: 'Garde alternée 2-2-3',
-    summary: 'Deux jours chez l’un, deux jours chez l’autre, puis trois jours : le rythme change chaque semaine.',
-    help: 'Sur deux semaines : lundi-mardi chez le premier parent, mercredi-jeudi chez le second, vendredi-dimanche chez le premier. La semaine suivante, c’est l’inverse.',
+    text: plain('rhythm.t.garde223.title', 'rhythm.t.garde223.summary', 'rhythm.t.garde223.help'),
     anchor: 'monday',
     canDisable: true,
     series: PARENTS,
@@ -122,14 +139,12 @@ export const TEMPLATES: TemplateDef[] = [
       { series: 1, weekday: 2, week: 0, every: 2, days: 2 },
       { series: 1, weekday: 4, week: 1, every: 2, days: 3 },
     ],
-    weekLabel: (phase, names) => `Lundi-mardi et week-end : « ${names[phase]} »`,
+    weekLabel: (phase, names, t) => t('rhythm.week.g223', { name: names[phase] }),
   },
   {
     id: 'garde-2-2-5-5',
     group: 'family',
-    title: 'Garde alternée 2-2-5-5',
-    summary: 'Chaque parent a toujours les mêmes jours de la semaine ; seuls les week-ends alternent.',
-    help: 'Le premier parent a toujours le lundi et le mardi, le second le mercredi et le jeudi. Du vendredi au dimanche, les week-ends alternent.',
+    text: plain('rhythm.t.garde2255.title', 'rhythm.t.garde2255.summary', 'rhythm.t.garde2255.help'),
     anchor: 'monday',
     canDisable: true,
     series: PARENTS,
@@ -139,29 +154,28 @@ export const TEMPLATES: TemplateDef[] = [
       { series: 0, weekday: 4, week: 0, every: 2, days: 3 },
       { series: 1, weekday: 4, week: 1, every: 2, days: 3 },
     ],
-    weekLabel: (phase, names) => `Week-end : « ${names[phase]} »`,
+    weekLabel: (phase, names, t) => t('rhythm.week.g2255', { name: names[phase] }),
   },
   {
     id: 'weekend-1-2',
     group: 'family',
-    title: 'Un week-end sur deux',
-    summary: 'Du vendredi au dimanche, un week-end sur deux.',
+    text: plain('rhythm.t.weekend12.title', 'rhythm.t.weekend12.summary'),
     anchor: 'monday',
     canDisable: false,
-    series: [{ name: 'Week-end de garde', color: GREEN }],
+    series: [{ nameKey: 'rhythm.series.weekend', color: GREEN }],
     slots: [{ series: 0, weekday: 4, week: 0, every: 2, days: 3 }],
-    weekLabel: (phase, names) => (phase === 0 ? `Avec « ${names[0]} »` : `Sans « ${names[0]} » (le week-end d’après)`),
+    weekLabel: (phase, names, t) =>
+      phase === 0 ? t('rhythm.week.weekendWith', { name: names[0] }) : t('rhythm.week.weekendWithout', { name: names[0] }),
   },
   {
     id: '2x8',
     group: 'work',
-    title: '2x8 : matin et après-midi',
-    summary: 'Une semaine du matin, une semaine de l’après-midi, du lundi au vendredi.',
+    text: plain('rhythm.t.2x8.title', 'rhythm.t.2x8.summary'),
     anchor: 'monday',
     canDisable: false,
     series: [
-      { name: 'Poste du matin', color: ORANGE, start: '06:00', end: '14:00' },
-      { name: 'Poste de l’après-midi', color: VIOLET, start: '14:00', end: '22:00' },
+      { nameKey: 'rhythm.series.morning', color: ORANGE, start: '06:00', end: '14:00' },
+      { nameKey: 'rhythm.series.afternoon', color: VIOLET, start: '14:00', end: '22:00' },
     ],
     slots: [
       { series: 0, weekday: 0, week: 0, every: 2, days: 5 },
@@ -172,15 +186,13 @@ export const TEMPLATES: TemplateDef[] = [
   {
     id: '3x8',
     group: 'work',
-    title: '3x8 : matin, après-midi et nuit',
-    summary: 'Rotation d’une semaine : matin, puis après-midi, puis nuit, du lundi au vendredi.',
-    help: 'Les horaires de chaque poste sont modifiables. La semaine de nuit compte cinq nuits, du lundi soir au samedi matin.',
+    text: plain('rhythm.t.3x8.title', 'rhythm.t.3x8.summary', 'rhythm.t.3x8.help'),
     anchor: 'monday',
     canDisable: false,
     series: [
-      { name: 'Poste du matin', color: YELLOW, start: '06:00', end: '14:00' },
-      { name: 'Poste de l’après-midi', color: ORANGE, start: '14:00', end: '22:00' },
-      { name: 'Poste de nuit', color: VIOLET, start: '22:00', end: '06:00' },
+      { nameKey: 'rhythm.series.morning', color: YELLOW, start: '06:00', end: '14:00' },
+      { nameKey: 'rhythm.series.afternoon', color: ORANGE, start: '14:00', end: '22:00' },
+      { nameKey: 'rhythm.series.night', color: VIOLET, start: '22:00', end: '06:00' },
     ],
     slots: [
       { series: 0, weekday: 0, week: 0, every: 3, days: 5 },
@@ -192,25 +204,22 @@ export const TEMPLATES: TemplateDef[] = [
   {
     id: '7-7',
     group: 'work',
-    title: '7 jours de travail, 7 jours de repos',
-    summary: 'Une semaine de travail, puis une semaine de repos, avec des journées de 12 heures.',
-    help: 'Pour des nuits, mettez par exemple 19:00 à 07:00.',
+    text: plain('rhythm.t.7-7.title', 'rhythm.t.7-7.summary', 'rhythm.t.7-7.help'),
     anchor: 'any',
     canDisable: false,
-    series: [{ name: 'Travail', color: BLUE, start: '07:00', end: '19:00' }],
+    series: [{ nameKey: 'rhythm.series.work', color: BLUE, start: '07:00', end: '19:00' }],
     slots: [{ series: 0, weekday: 0, week: 0, every: 2, days: 7 }],
-    weekLabel: (phase, names) => (phase === 0 ? names[0] : 'Repos'),
+    weekLabel: (phase, names, t) => (phase === 0 ? names[0] : t('rhythm.week.rest')),
   },
   {
     id: 'semaines-ab',
     group: 'school',
-    title: 'Semaine A / semaine B',
-    summary: 'Deux emplois du temps qui alternent chaque semaine, du lundi au vendredi.',
+    text: plain('rhythm.t.weeksAB.title', 'rhythm.t.weeksAB.summary'),
     anchor: 'monday',
     canDisable: true,
     series: [
-      { name: 'Semaine A', color: BLUE },
-      { name: 'Semaine B', color: VIOLET },
+      { nameKey: 'rhythm.series.weekA', color: BLUE },
+      { nameKey: 'rhythm.series.weekB', color: VIOLET },
     ],
     slots: [
       { series: 0, weekday: 0, week: 0, every: 2, days: 5 },
@@ -258,11 +267,11 @@ export interface TemplateSettings {
   series: SeriesSettings[]
 }
 
-export function defaultSettings(def: TemplateDef, startDate: string): TemplateSettings {
+export function defaultSettings(def: TemplateDef, startDate: string, t: Translate): TemplateSettings {
   return {
     startDate,
     phase: 0,
-    series: def.series.map((s) => ({ enabled: true, name: s.name, color: s.color, start: s.start ?? '', end: s.end ?? '' })),
+    series: def.series.map((s) => ({ enabled: true, name: t(s.nameKey), color: s.color, start: s.start ?? '', end: s.end ?? '' })),
   }
 }
 
@@ -303,16 +312,16 @@ export interface PeriodDraft {
 export const MAX_DRAFTS = 10
 
 export function validateSettings(def: TemplateDef, s: TemplateSettings): string | null {
-  if (!parseDate(s.startDate)) return 'Choisissez une date de début.'
+  if (!parseDate(s.startDate)) return tr('rhythm.error.date')
   const active = s.series.filter((x) => x.enabled)
-  if (active.length === 0) return 'Gardez au moins une période.'
+  if (active.length === 0) return tr('rhythm.error.none')
   for (let i = 0; i < def.series.length; i++) {
     const x = s.series[i]
     if (!x.enabled) continue
-    if (!x.name.trim()) return 'Donnez un nom à chaque période.'
+    if (!x.name.trim()) return tr('rhythm.error.name')
     if (isTimed(def, i)) {
-      if (!x.start || !x.end) return `Renseignez l’heure de début et l’heure de fin de « ${x.name.trim()} ».`
-      if (x.start === x.end) return `L’heure de fin de « ${x.name.trim()} » doit être différente de l’heure de début.`
+      if (!x.start || !x.end) return tr('rhythm.error.times', { name: x.name.trim() })
+      if (x.start === x.end) return tr('rhythm.error.sameTime', { name: x.name.trim() })
     }
   }
   return null
@@ -320,7 +329,7 @@ export function validateSettings(def: TemplateDef, s: TemplateSettings): string 
 
 // Réglages rendus utilisables pendant la saisie (nom vide, heures manquantes) : sert à garder l'aperçu affiché
 // pendant que la personne tape. Les événements réellement créés viennent de buildDrafts, qui exige des réglages valides.
-export function lenientSettings(def: TemplateDef, s: TemplateSettings): TemplateSettings {
+export function lenientSettings(def: TemplateDef, s: TemplateSettings, t: Translate): TemplateSettings {
   return {
     ...s,
     series: s.series.map((x, i) => {
@@ -331,7 +340,7 @@ export function lenientSettings(def: TemplateDef, s: TemplateSettings): Template
         start = d.start ?? ''
         end = d.end ?? ''
       }
-      return { ...x, name: x.name.trim() || d.name, start, end }
+      return { ...x, name: x.name.trim() || t(d.nameKey), start, end }
     }),
   }
 }

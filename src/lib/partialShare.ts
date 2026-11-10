@@ -1,9 +1,9 @@
-import type { Params, TranslationKey } from '../i18n'
+import { t as tr, type Params, type TranslationKey } from '../i18n'
 import { supabase } from './supabaseClient'
 
 // Partage d'un jour ou d'une occurrence d'événement (lecture seule) : types et petites fonctions communes.
 
-type Translate = (key: TranslationKey, params?: Params) => string
+export type Translate = (key: TranslationKey, params?: Params) => string
 
 export type PartialScope = 'day' | 'occurrence'
 
@@ -68,28 +68,29 @@ type FormatDate = (value: Date | string, options: Intl.DateTimeFormatOptions) =>
 
 export const partialShareUrl = (token: string) => `${window.location.origin}/j/${token}`
 
-const ERROR_TEXT: Record<string, string> = {
-  not_authenticated: 'Votre session a expiré. Reconnectez-vous.',
-  not_owner: 'Seul le propriétaire du calendrier peut partager.',
-  bad_input: 'Jour ou événement invalide.',
-  bad_email: 'Saisissez une adresse email valide.',
-  nothing_to_share: 'Aucun événement du calendrier ce jour-là : il n’y a rien à partager.',
-  no_feed: 'Aucun emploi du temps en ligne n’est relié à ce calendrier : il n’y a pas d’événement importé à partager.',
-  no_occurrence: 'Cet événement n’a pas lieu ce jour-là.',
-  self_share: 'Vous ne pouvez pas partager avec votre propre adresse.',
-  already_shared: 'Ce partage existe déjà pour cette adresse. Pour le modifier, retirez-le d’abord de la liste ci-dessous.',
-  too_many: 'Limite atteinte : 200 partages par calendrier. Retirez-en quelques-uns avant d’en ajouter.',
+// Code d'erreur renvoyé par le serveur -> texte du dictionnaire (partial.error.*).
+const ERROR_KEYS: Record<string, TranslationKey> = {
+  not_authenticated: 'partial.error.notAuthenticated',
+  not_owner: 'partial.error.notOwner',
+  bad_input: 'partial.error.badInput',
+  bad_email: 'share.error.invalidEmail',
+  nothing_to_share: 'partial.error.nothingToShare',
+  no_feed: 'partial.error.noFeed',
+  no_occurrence: 'partial.error.noOccurrence',
+  self_share: 'partial.error.selfShare',
+  already_shared: 'partial.error.alreadyShared',
+  too_many: 'partial.error.tooMany',
 }
 
-// Message lisible pour une erreur renvoyée par les fonctions de partage.
+// Message lisible pour une erreur renvoyée par les fonctions de partage (dans la langue choisie au moment de l'erreur).
 export function partialShareError(error: { message?: string; code?: string } | null | undefined): string {
   const message = error?.message ?? ''
   const token = /calendraft:([a-z_]+)/.exec(message)?.[1]
-  if (token && ERROR_TEXT[token]) return ERROR_TEXT[token]
+  if (token && ERROR_KEYS[token]) return tr(ERROR_KEYS[token])
   if (error?.code === 'PGRST202' || /Could not find the function|does not exist/i.test(message)) {
-    return 'Le partage n’est pas à jour sur le serveur (le script SQL partial_shares.sql doit être exécuté dans Supabase).'
+    return tr('partial.error.outdated')
   }
-  return message || 'Une erreur est survenue. Réessayez dans un instant.'
+  return message || tr('partial.error.generic')
 }
 
 // Même texte d'horaire que dans le détail d'un jour.
@@ -137,11 +138,15 @@ export function dateRangeLabel(first: string, last: string | null, formatDate: F
 // Une ligne de la liste des partages : ce qui est partagé.
 export function describeShare(
   share: { scope: PartialScope; date: string; last_date: string | null; event_name: string | null; include_feed?: boolean; imported?: boolean },
-  formatDate: FormatDate
+  formatDate: FormatDate,
+  t: Translate
 ): string {
   const range = dateRangeLabel(share.date, share.last_date, formatDate)
-  if (share.scope === 'day') return `Journée du ${range}${share.include_feed ? ' · avec les événements importés' : ''}`
-  return `« ${share.event_name ?? 'Événement'} »${share.imported ? ' (importé)' : ''} · ${range}`
+  if (share.scope === 'day') return t(share.include_feed ? 'partial.describe.dayFeed' : 'partial.describe.day', { range })
+  return t(share.imported ? 'partial.describe.eventImported' : 'partial.describe.event', {
+    name: share.event_name ?? t('partial.eventFallback'),
+    range,
+  })
 }
 
 // Événements importés d'un partage, lus en direct par le serveur dans l'emploi du temps en ligne du propriétaire.

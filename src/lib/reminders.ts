@@ -1,5 +1,9 @@
+import { t as tr, type Params, type TranslationKey } from '../i18n'
 import { supabase } from './supabaseClient'
 import type { PushState } from './push'
+
+// Fonction de traduction fournie par le composant (useI18n) : le texte suit la langue choisie.
+type Translate = (key: TranslationKey, params?: Params) => string
 
 // Rappels par événement. Chaque personne règle SON rappel (table period_reminders, protégée par
 // des règles de sécurité : on ne lit et n'écrit que ses propres lignes). Le serveur transforme ensuite
@@ -12,65 +16,55 @@ export interface ReminderChoice {
   label: string
 }
 
-export const TIMED_CHOICES: ReminderChoice[] = [
-  { minutes: null, label: 'Aucun rappel' },
-  { minutes: 0, label: "À l'heure de début" },
-  { minutes: 10, label: '10 minutes avant' },
-  { minutes: 30, label: '30 minutes avant' },
-  { minutes: 60, label: '1 heure avant' },
-  { minutes: 120, label: '2 heures avant' },
-  { minutes: 1440, label: '1 jour avant' },
-]
+// Les délais proposés (en minutes avant le début). Les textes viennent des dictionnaires (reminder.*).
+const TIMED_MINUTES: Array<number | null> = [null, 0, 10, 30, 60, 120, 1440]
+const ALLDAY_MINUTES: Array<number | null> = [null, 0, 840, 1440]
 
-export const ALLDAY_CHOICES: ReminderChoice[] = [
-  { minutes: null, label: 'Aucun rappel' },
-  { minutes: 0, label: 'Le jour même à 8 h' },
-  { minutes: 840, label: 'La veille à 18 h' },
-  { minutes: 1440, label: 'La veille à 8 h' },
-]
+const ALLDAY_KEYS: Record<number, TranslationKey> = {
+  0: 'reminder.allDay.sameDay',
+  840: 'reminder.allDay.eveEvening',
+  1440: 'reminder.allDay.eveMorning',
+}
 
-function plural(n: number, one: string, many: string): string {
-  return `${n} ${n > 1 ? many : one}`
+// Texte d'un délai : « 10 minutes avant », « La veille à 18 h »... (un événement sur la journée entière n'a pas les mêmes choix).
+function labelOf(minutes: number | null, timed: boolean, t: Translate): string {
+  if (minutes === null) return t('reminder.none')
+  if (!timed && ALLDAY_KEYS[minutes]) return t(ALLDAY_KEYS[minutes])
+  return genericLabel(minutes, t)
 }
 
 // Texte d'un délai qui ne fait pas partie des choix proposés (valeur ancienne ou saisie ailleurs).
-function genericLabel(minutes: number): string {
-  if (minutes === 0) return "À l'heure de début"
-  if (minutes % 1440 === 0) return `${plural(minutes / 1440, 'jour', 'jours')} avant`
-  if (minutes % 60 === 0) return `${plural(minutes / 60, 'heure', 'heures')} avant`
-  return `${plural(minutes, 'minute', 'minutes')} avant`
+function genericLabel(minutes: number, t: Translate): string {
+  if (minutes === 0) return t('reminder.atStart')
+  if (minutes % 1440 === 0) return t('reminder.before.days', { count: minutes / 1440 })
+  if (minutes % 60 === 0) return t('reminder.before.hours', { count: minutes / 60 })
+  return t('reminder.before.minutes', { count: minutes })
 }
 
 // Choix à proposer pour un événement, en gardant la valeur actuelle visible même si elle est inhabituelle.
-export function choicesFor(timed: boolean, current: number | null): ReminderChoice[] {
-  const base = timed ? TIMED_CHOICES : ALLDAY_CHOICES
-  if (current === null || base.some((c) => c.minutes === current)) return base
-  return [...base, { minutes: current, label: genericLabel(current) }]
+export function choicesFor(timed: boolean, current: number | null, t: Translate): ReminderChoice[] {
+  const base = timed ? TIMED_MINUTES : ALLDAY_MINUTES
+  const list = current === null || base.includes(current) ? base : [...base, current]
+  return list.map((minutes) => ({ minutes, label: labelOf(minutes, timed, t) }))
 }
 
-export function reminderLabel(minutes: number | null, timed: boolean): string {
-  const found = choicesFor(timed, minutes).find((c) => c.minutes === minutes)
-  return found ? found.label : 'Aucun rappel'
+export function reminderLabel(minutes: number | null, timed: boolean, t: Translate): string {
+  const found = choicesFor(timed, minutes, t).find((c) => c.minutes === minutes)
+  return found ? found.label : t('reminder.none')
 }
 
 // « 30 minutes avant » -> « 30 minutes avant » ; « À l'heure de début » -> « à l'heure de début » (pour une phrase).
-export function reminderInSentence(minutes: number | null, timed: boolean): string {
-  const label = reminderLabel(minutes, timed)
+export function reminderInSentence(minutes: number | null, timed: boolean, t: Translate): string {
+  const label = reminderLabel(minutes, timed, t)
   return label.charAt(0).toLowerCase() + label.slice(1)
 }
 
 // Message utile quand le rappel est réglé mais que cet appareil ne pourra pas l'afficher.
-export function pushHint(state: PushState | null): string | null {
+export function pushHint(state: PushState | null, t: Translate): string | null {
   if (!state) return null
-  if (state.kind === 'off') {
-    return "Les rappels ne sont pas encore activés sur cet appareil. Activez-les dans votre profil (Rappels sur cet appareil) pour les recevoir ici."
-  }
-  if (state.kind === 'denied') {
-    return 'Les notifications sont bloquées pour calendraft.fr dans ce navigateur. Autorisez-les dans les réglages du site, puis activez les rappels dans votre profil.'
-  }
-  if (state.kind === 'unsupported' && state.reason === 'ios_needs_install') {
-    return "Sur iPhone, ajoutez Calendraft à l'écran d'accueil, puis activez les rappels dans votre profil."
-  }
+  if (state.kind === 'off') return t('reminder.hint.off')
+  if (state.kind === 'denied') return t('reminder.hint.denied')
+  if (state.kind === 'unsupported' && state.reason === 'ios_needs_install') return t('reminder.hint.iosInstall')
   return null
 }
 
@@ -97,7 +91,7 @@ export async function saveReminder(periodId: string, minutes: number | null): Pr
     const { error } = await supabase.from('period_reminders').delete().eq('period_id', periodId)
     return error ? error.message : null
   }
-  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 10080) return 'Délai de rappel invalide.'
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 10080) return tr('reminder.invalid')
   const { error } = await supabase
     .from('period_reminders')
     .upsert({ period_id: periodId, minutes_before: minutes }, { onConflict: 'user_id,period_id' })
