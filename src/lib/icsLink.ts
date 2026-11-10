@@ -74,6 +74,30 @@ export async function deleteIcsLink(calendarId: string): Promise<DoneResult> {
   }
 }
 
+export type HolidaysResult = { ok: true; value: boolean | null } | { ok: false; message: string }
+
+// Le lien contient-il les vacances scolaires ? value = null : pas de lien (ou pas propriétaire) ; le réglage par défaut est « oui ».
+export async function fetchIcsLinkHolidays(calendarId: string): Promise<HolidaysResult> {
+  try {
+    const { data, error } = await supabase.rpc('get_ics_link_holidays', { p_calendar: calendarId })
+    if (error) return { ok: false, message: icsLinkError(error) }
+    return { ok: true, value: typeof data === 'boolean' ? data : null }
+  } catch {
+    return { ok: false, message: NETWORK_ERROR }
+  }
+}
+
+// Met ou retire les vacances scolaires du lien ; renvoie le réglage enregistré.
+export async function updateIcsLinkHolidays(calendarId: string, on: boolean): Promise<HolidaysResult> {
+  try {
+    const { data, error } = await supabase.rpc('set_ics_link_holidays', { p_calendar: calendarId, p_on: on })
+    if (error) return { ok: false, message: icsLinkError(error) }
+    return { ok: true, value: typeof data === 'boolean' ? data : null }
+  } catch {
+    return { ok: false, message: NETWORK_ERROR }
+  }
+}
+
 // Le serveur Cloudflare est-il prêt à servir les liens ? null si on ne peut pas le savoir.
 export async function fetchIcsReady(): Promise<boolean | null> {
   try {

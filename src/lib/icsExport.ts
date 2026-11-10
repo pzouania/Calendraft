@@ -1,4 +1,5 @@
 import { generateOccurrences } from './occurrenceEngine'
+import { holidayLabel, holidaysBetween, type SchoolZone } from './schoolHolidays'
 import type { Period, PeriodException } from '../types'
 
 // Export d'un calendrier au format iCalendar (.ics), lisible par Google Agenda, Apple Calendrier, Outlook, Thunderbird...
@@ -15,7 +16,9 @@ import type { Period, PeriodException } from '../types'
 //  - un événement qui passe minuit (garde de nuit : 22:00 -> 06:00) donne UN événement par nuit, de la veille au lendemain ;
 //    si une exception retire seulement un des deux côtés de la nuit, on garde seulement ce qui est affiché à l'écran ;
 //  - les événements importés d'un emploi du temps en ligne (FeedSourceEvent) sont ajoutés tels qu'ils sont écrits dans le
-//    flux de l'école : même début, même fin, même lieu, un seul événement même s'il dure plusieurs jours.
+//    flux de l'école : même début, même fin, même lieu, un seul événement même s'il dure plusieurs jours ;
+//  - les vacances scolaires de la zone du calendrier (si elle est choisie) sont ajoutées en événements « toute la journée » :
+//    une vacance = UN événement, de son premier jour jusqu'à la reprise exclue (comme le format le veut), non bloquant.
 
 export interface IcsEvent {
   uid: string
@@ -52,6 +55,8 @@ export interface IcsFile {
   eventCount: number
   // Dont événements importés d'un emploi du temps en ligne.
   importedCount: number
+  // Vacances scolaires ajoutées au fichier (en plus de eventCount : ce ne sont pas des événements du calendrier).
+  holidayCount: number
   // Vrai si le calendrier contient plus d'événements que la limite : les plus lointains ne sont pas dans le fichier.
   truncated: boolean
 }
@@ -65,6 +70,8 @@ export interface IcsFileOptions {
   // fait le serveur Cloudflare pour le lien de synchronisation : la base fabrique le bloc, car le serveur gratuit n'a pas assez
   // de temps de calcul pour lire et mettre en forme un emploi du temps de plusieurs centaines de cours à chaque requête.
   importedBlock?: { text: string; count: number }
+  // Zone des vacances scolaires à ajouter au fichier (null ou absent : pas de vacances).
+  holidayZone?: SchoolZone | null
 }
 
 export const ICS_MAX_EVENTS = 5000
@@ -383,6 +390,21 @@ export function buildAllIcsEvents(
   return merged
 }
 
+// ---------- Vacances scolaires ----------
+
+// Une vacance touchant la période de « from » à « to » (jours inclus) = UN événement « toute la journée » entier (il n'est pas
+// coupé aux bornes de la fenêtre). Le jour de reprise est exclu : c'est la fin exclusive du format.
+export function holidayIcsEvents(zone: SchoolZone, from: string, to: string): IcsEvent[] {
+  return holidaysBetween(zone, from, to).map((h) => ({
+    uid: `holiday-${zone}-${h.kind}-${compactDay(h.from)}@calendraft.fr`,
+    summary: holidayLabel(h.kind, zone),
+    startDate: h.from,
+    startTime: null,
+    endDate: h.to,
+    endTime: null,
+  }))
+}
+
 // ---------- Écriture du fichier ----------
 
 // Texte iCalendar : \ ; , et retours à la ligne sont échappés, les caractères de contrôle supprimés.
@@ -530,10 +552,15 @@ export function buildIcsFile(
   const truncated = all.length > ICS_MAX_EVENTS
   const events = truncated ? all.slice(0, ICS_MAX_EVENTS) : all
   const block = options.importedBlock
+  // Les vacances (une vingtaine au plus) s'ajoutent après la limite : elles ne la consomment pas et ne sont jamais coupées.
+  const holidays = options.holidayZone ? holidayIcsEvents(options.holidayZone, range.from, range.to) : []
   return {
-    text: buildIcsText(calendar, events, { stamp: options.stamp, subscription: options.subscription, extraEvents: block?.text }),
+    text: buildIcsText(calendar, holidays.length > 0 ? events.concat(holidays) : events, {
+      stamp: options.stamp, subscription: options.subscription, extraEvents: block?.text,
+    }),
     eventCount: events.length + (block ? block.count : 0),
     importedCount: events.filter((e) => e.imported).length + (block ? block.count : 0),
+    holidayCount: holidays.length,
     truncated,
   }
 }
