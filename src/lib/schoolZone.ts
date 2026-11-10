@@ -1,13 +1,13 @@
+import { t as tr } from '../i18n'
 import { supabase } from './supabaseClient'
 import { parseZone, type SchoolZone } from './schoolHolidays'
 
 // Zone de vacances scolaires d'un calendrier (colonne calendars.school_zone, voir school_holidays.sql).
 
-export const ZONE_UNAVAILABLE =
-  'Les vacances scolaires ne sont pas encore activées sur le serveur (le script SQL school_holidays.sql doit être exécuté dans Supabase).'
-
-const NETWORK_ERROR = 'Erreur réseau. Réessayez dans un instant.'
-const NOT_OWNER = 'Seul le propriétaire du calendrier peut changer la zone de vacances.'
+// Textes lus au moment de l'erreur (et non à l'import) : ils suivent la langue choisie.
+export function zoneUnavailableText(): string {
+  return tr('holidays.unavailable')
+}
 
 // La colonne n'existe pas encore dans la base (le script SQL n'a pas été exécuté).
 export function isMissingZoneColumn(error: { message?: string; code?: string } | null | undefined): boolean {
@@ -39,12 +39,12 @@ export async function saveSchoolZone(calendarId: string, zone: SchoolZone | null
       .update({ school_zone: zone, updated_at: new Date().toISOString() })
       .eq('id', calendarId)
       .select('school_zone')
-    if (error) return { ok: false, message: isMissingZoneColumn(error) ? ZONE_UNAVAILABLE : error.message || NETWORK_ERROR }
+    if (error) return { ok: false, message: isMissingZoneColumn(error) ? zoneUnavailableText() : error.message || tr('common.networkRetry') }
     const row = ((data ?? []) as { school_zone?: unknown }[])[0]
-    if (!row) return { ok: false, message: NOT_OWNER }
+    if (!row) return { ok: false, message: tr('holidays.notOwner') }
     return { ok: true, zone: parseZone(row.school_zone) }
   } catch {
-    return { ok: false, message: NETWORK_ERROR }
+    return { ok: false, message: tr('common.networkRetry') }
   }
 }
 

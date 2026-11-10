@@ -157,31 +157,52 @@ export function outsideCoverage(from: string, to: string): boolean {
   return from < HOLIDAY_COVERAGE.from || to > HOLIDAY_COVERAGE.to
 }
 
-export function holidayName(kind: HolidayKind): string {
-  switch (kind) {
-    case 'toussaint':
-      return 'Vacances de la Toussaint'
-    case 'noel':
-      return 'Vacances de Noël'
-    case 'hiver':
-      return 'Vacances d’hiver'
-    case 'printemps':
-      return 'Vacances de printemps'
-    case 'ascension':
-      return 'Pont de l’Ascension'
-    case 'ete':
-      return 'Vacances d’été'
-  }
+// Langue des libellés. Le type est écrit ici (et non importé de ../i18n) : ce fichier est aussi utilisé par le Worker
+// (fichier .ics), qui n'a ni « window » ni « document » ; les textes sont donc des tableaux locaux, pas le dictionnaire.
+export type HolidayLang = 'fr' | 'en' | 'de'
+
+const HOLIDAY_NAMES: Record<HolidayLang, Record<HolidayKind, string>> = {
+  fr: {
+    toussaint: 'Vacances de la Toussaint',
+    noel: 'Vacances de Noël',
+    hiver: 'Vacances d’hiver',
+    printemps: 'Vacances de printemps',
+    ascension: 'Pont de l’Ascension',
+    ete: 'Vacances d’été',
+  },
+  en: {
+    toussaint: 'All Saints’ holidays',
+    noel: 'Christmas holidays',
+    hiver: 'Winter holidays',
+    printemps: 'Spring holidays',
+    ascension: 'Ascension long weekend',
+    ete: 'Summer holidays',
+  },
+  de: {
+    toussaint: 'Herbstferien (Allerheiligen)',
+    noel: 'Weihnachtsferien',
+    hiver: 'Winterferien',
+    printemps: 'Frühjahrsferien',
+    ascension: 'Brückentage an Christi Himmelfahrt',
+    ete: 'Sommerferien',
+  },
+}
+
+const HOLIDAY_ZONE_WORD: Record<HolidayLang, string> = { fr: 'zone', en: 'zone', de: 'Zone' }
+const HOLIDAY_LEGEND: Record<HolidayLang, string> = { fr: 'Vacances scolaires', en: 'School holidays', de: 'Schulferien' }
+
+export function holidayName(kind: HolidayKind, lang: HolidayLang = 'fr'): string {
+  return HOLIDAY_NAMES[lang][kind]
 }
 
 // « Vacances de Noël (zone B) ».
-export function holidayLabel(kind: HolidayKind, zone: SchoolZone): string {
-  return `${holidayName(kind)} (zone ${zone})`
+export function holidayLabel(kind: HolidayKind, zone: SchoolZone, lang: HolidayLang = 'fr'): string {
+  return `${holidayName(kind, lang)} (${HOLIDAY_ZONE_WORD[lang]} ${zone})`
 }
 
 // Libellé de la ligne de légende : « Vacances scolaires (zone B) ».
-export function holidayLegendLabel(zone: SchoolZone): string {
-  return `Vacances scolaires (zone ${zone})`
+export function holidayLegendLabel(zone: SchoolZone, lang: HolidayLang = 'fr'): string {
+  return `${HOLIDAY_LEGEND[lang]} (${HOLIDAY_ZONE_WORD[lang]} ${zone})`
 }
 
 // Couleur de la vacance dans la légende et sur les feuilles imprimées (fond blanc).

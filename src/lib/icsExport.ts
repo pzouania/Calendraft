@@ -1,5 +1,5 @@
 import { generateOccurrences } from './occurrenceEngine'
-import { holidayLabel, holidaysBetween, type SchoolZone } from './schoolHolidays'
+import { holidayLabel, holidaysBetween, type HolidayLang, type SchoolZone } from './schoolHolidays'
 import type { Period, PeriodException } from '../types'
 
 // Export d'un calendrier au format iCalendar (.ics), lisible par Google Agenda, Apple Calendrier, Outlook, Thunderbird...
@@ -72,6 +72,8 @@ export interface IcsFileOptions {
   importedBlock?: { text: string; count: number }
   // Zone des vacances scolaires à ajouter au fichier (null ou absent : pas de vacances).
   holidayZone?: SchoolZone | null
+  // Langue des textes écrits par l'application dans le fichier (noms des vacances, « sans titre »). Français par défaut.
+  lang?: HolidayLang
 }
 
 export const ICS_MAX_EVENTS = 5000
@@ -149,9 +151,12 @@ function uidFor(periodId: string, day: string): string {
   return `${periodId}-${compactDay(day)}@calendraft.fr`
 }
 
-function summaryOf(name: string): string {
+// Texte d'un événement ou calendrier sans nom. Tableau local (et non le dictionnaire de l'écran) : ce fichier tourne aussi dans le Worker.
+const UNTITLED: Record<HolidayLang, string> = { fr: '(sans titre)', en: '(untitled)', de: '(ohne Titel)' }
+
+function summaryOf(name: string, lang: HolidayLang = 'fr'): string {
   const clean = name.replace(/[\r\n\t]+/g, ' ').trim()
-  return clean === '' ? '(sans titre)' : clean
+  return clean === '' ? UNTITLED[lang] : clean
 }
 
 // Événements d'un calendrier entre deux jours inclus (from et to, au format AAAA-MM-JJ).
@@ -159,7 +164,8 @@ export function buildIcsEvents(
   periods: Period[],
   exceptions: Map<string, Set<string>>,
   from: string,
-  to: string
+  to: string,
+  lang: HolidayLang = 'fr'
 ): IcsEvent[] {
   if (!isDay(from) || !isDay(to) || to < from) return []
 
@@ -178,7 +184,7 @@ export function buildIcsEvents(
       engineTo,
       exceptions.get(period.id) ?? new Set()
     )
-    const summary = summaryOf(period.name)
+    const summary = summaryOf(period.name, lang)
     const timed = hhmm(period.start_time) !== null && hhmm(period.end_time) !== null
 
     if (!timed) {
@@ -306,7 +312,7 @@ function cleanLine(value: string): string {
 
 // Événements importés qui touchent la fenêtre [from, to] (jours inclus), au format du fichier. Les événements illisibles
 // sont ignorés. Un événement n'est jamais raccourci : il garde son vrai début et sa vraie fin, même s'il dépasse la fenêtre.
-export function feedEventsToIcs(events: FeedSourceEvent[], from: string, to: string): IcsEvent[] {
+export function feedEventsToIcs(events: FeedSourceEvent[], from: string, to: string, lang: HolidayLang = 'fr'): IcsEvent[] {
   if (!isDay(from) || !isDay(to) || to < from) return []
 
   // Ordre complet, pour que les identifiants soient les mêmes à chaque lecture quel que soit l'ordre reçu.
@@ -367,7 +373,7 @@ export function feedEventsToIcs(events: FeedSourceEvent[], from: string, to: str
     if (duplicate) continue
     used.set(uid, signature)
 
-    const event: IcsEvent = { uid, summary: summaryOf(title), startDate, startTime, endDate, endTime, imported: true }
+    const event: IcsEvent = { uid, summary: summaryOf(title, lang), startDate, startTime, endDate, endTime, imported: true }
     if (location !== '') event.location = location
     out.push(event)
   }
@@ -381,11 +387,12 @@ export function buildAllIcsEvents(
   exceptions: Map<string, Set<string>>,
   feed: FeedSourceEvent[] | undefined,
   from: string,
-  to: string
+  to: string,
+  lang: HolidayLang = 'fr'
 ): IcsEvent[] {
-  const own = buildIcsEvents(periods, exceptions, from, to)
+  const own = buildIcsEvents(periods, exceptions, from, to, lang)
   if (!feed || feed.length === 0) return own
-  const merged = own.concat(feedEventsToIcs(feed, from, to))
+  const merged = own.concat(feedEventsToIcs(feed, from, to, lang))
   merged.sort(compareEvents)
   return merged
 }
@@ -394,10 +401,10 @@ export function buildAllIcsEvents(
 
 // Une vacance touchant la période de « from » à « to » (jours inclus) = UN événement « toute la journée » entier (il n'est pas
 // coupé aux bornes de la fenêtre). Le jour de reprise est exclu : c'est la fin exclusive du format.
-export function holidayIcsEvents(zone: SchoolZone, from: string, to: string): IcsEvent[] {
+export function holidayIcsEvents(zone: SchoolZone, from: string, to: string, lang: HolidayLang = 'fr'): IcsEvent[] {
   return holidaysBetween(zone, from, to).map((h) => ({
     uid: `holiday-${zone}-${h.kind}-${compactDay(h.from)}@calendraft.fr`,
-    summary: holidayLabel(h.kind, zone),
+    summary: holidayLabel(h.kind, zone, lang),
     startDate: h.from,
     startTime: null,
     endDate: h.to,
@@ -468,7 +475,7 @@ function validColor(color: string | null | undefined): string | null {
 export function buildIcsText(
   calendar: IcsCalendarInfo,
   events: IcsEvent[],
-  options: { stamp: Date; subscription?: boolean; extraEvents?: string }
+  options: { stamp: Date; subscription?: boolean; extraEvents?: string; lang?: HolidayLang }
 ): string {
   // Beaucoup d'événements répètent le même titre ou le même lieu : le texte échappé et plié de chaque ligne est gardé.
   // (Le temps de calcul compte : ce code tourne dans le serveur gratuit de Cloudflare, limité à ~10 ms par requête.)
@@ -502,7 +509,7 @@ export function buildIcsText(
   add('PRODID:-//Calendraft//calendraft.fr//FR')
   add('CALSCALE:GREGORIAN')
   add('METHOD:PUBLISH')
-  add(`X-WR-CALNAME:${escapeText(summaryOf(calendar.name))}`)
+  add(`X-WR-CALNAME:${escapeText(summaryOf(calendar.name, options.lang))}`)
   const color = validColor(calendar.color)
   if (color) {
     add(`X-APPLE-CALENDAR-COLOR:${color}`)
@@ -548,15 +555,16 @@ export function buildIcsFile(
   range: { from: string; to: string },
   options: IcsFileOptions
 ): IcsFile {
-  const all = buildAllIcsEvents(periods, exceptionsByPeriod(exceptions), options.feed, range.from, range.to)
+  const lang = options.lang ?? 'fr'
+  const all = buildAllIcsEvents(periods, exceptionsByPeriod(exceptions), options.feed, range.from, range.to, lang)
   const truncated = all.length > ICS_MAX_EVENTS
   const events = truncated ? all.slice(0, ICS_MAX_EVENTS) : all
   const block = options.importedBlock
   // Les vacances (une vingtaine au plus) s'ajoutent après la limite : elles ne la consomment pas et ne sont jamais coupées.
-  const holidays = options.holidayZone ? holidayIcsEvents(options.holidayZone, range.from, range.to) : []
+  const holidays = options.holidayZone ? holidayIcsEvents(options.holidayZone, range.from, range.to, lang) : []
   return {
     text: buildIcsText(calendar, holidays.length > 0 ? events.concat(holidays) : events, {
-      stamp: options.stamp, subscription: options.subscription, extraEvents: block?.text,
+      stamp: options.stamp, subscription: options.subscription, extraEvents: block?.text, lang,
     }),
     eventCount: events.length + (block ? block.count : 0),
     importedCount: events.filter((e) => e.imported).length + (block ? block.count : 0),

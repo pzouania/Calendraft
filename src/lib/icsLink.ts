@@ -1,3 +1,4 @@
+import { t as tr, type Lang } from '../i18n'
 import { supabase } from './supabaseClient'
 
 // Lien de synchronisation d'un calendrier avec un agenda externe (voir ics_links.sql et worker/ics.ts).
@@ -7,31 +8,35 @@ export type DoneResult = { ok: true } | { ok: false; message: string }
 
 const TOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-const ERROR_TEXT: Record<string, string> = {
-  not_authenticated: 'Votre session a expiré. Reconnectez-vous.',
-  not_owner: 'Seul le propriétaire du calendrier peut gérer le lien de synchronisation.',
-}
+const ERROR_KEY = {
+  not_authenticated: 'icsLink.error.notAuthenticated',
+  not_owner: 'icsLink.error.notOwner',
+} as const
 
 // Message lisible pour une erreur renvoyée par les fonctions du lien.
 export function icsLinkError(error: { message?: string; code?: string } | null | undefined): string {
   const message = error?.message ?? ''
   const token = /calendraft:([a-z_]+)/.exec(message)?.[1]
-  if (token && ERROR_TEXT[token]) return ERROR_TEXT[token]
+  if (token && token in ERROR_KEY) return tr(ERROR_KEY[token as keyof typeof ERROR_KEY])
   if (error?.code === 'PGRST202' || /Could not find the function|does not exist/i.test(message)) {
-    return 'La synchronisation n’est pas à jour sur le serveur (le script SQL ics_links.sql doit être exécuté dans Supabase).'
+    return tr('icsLink.error.outdated')
   }
-  return message || 'Une erreur est survenue. Réessayez dans un instant.'
+  return message || tr('common.genericError')
 }
 
-const NETWORK_ERROR = 'Erreur réseau. Réessayez dans un instant.'
+// Langue des textes du fichier (noms des vacances, « sans titre »). Le français est la langue par défaut du serveur :
+// l'adresse reste donc la même qu'avant tant que le français est choisi.
+function langQuery(lang: Lang | undefined): string {
+  return lang && lang !== 'fr' ? `?lang=${lang}` : ''
+}
 
 // Adresse du lien : https pour Google Agenda, webcal pour ouvrir directement Apple Calendrier ou Outlook.
-export function icsUrl(token: string): string {
-  return `${window.location.origin}/api/ics/${token}.ics`
+export function icsUrl(token: string, lang?: Lang): string {
+  return `${window.location.origin}/api/ics/${token}.ics${langQuery(lang)}`
 }
 
-export function webcalUrl(token: string): string {
-  return `webcal://${window.location.host}/api/ics/${token}.ics`
+export function webcalUrl(token: string, lang?: Lang): string {
+  return `webcal://${window.location.host}/api/ics/${token}.ics${langQuery(lang)}`
 }
 
 function toToken(data: unknown): string | null | undefined {
@@ -44,10 +49,10 @@ export async function fetchIcsLink(calendarId: string): Promise<LinkResult> {
     const { data, error } = await supabase.rpc('get_ics_link', { p_calendar: calendarId })
     if (error) return { ok: false, message: icsLinkError(error) }
     const token = toToken(data)
-    if (token === undefined) return { ok: false, message: 'Réponse inattendue du serveur.' }
+    if (token === undefined) return { ok: false, message: tr('icsLink.unexpected') }
     return { ok: true, token }
   } catch {
-    return { ok: false, message: NETWORK_ERROR }
+    return { ok: false, message: tr('common.networkRetry') }
   }
 }
 
@@ -57,10 +62,10 @@ export async function createIcsLink(calendarId: string, regenerate: boolean): Pr
     const { data, error } = await supabase.rpc(regenerate ? 'regenerate_ics_link' : 'create_ics_link', { p_calendar: calendarId })
     if (error) return { ok: false, message: icsLinkError(error) }
     const token = toToken(data)
-    if (typeof token !== 'string') return { ok: false, message: 'Réponse inattendue du serveur.' }
+    if (typeof token !== 'string') return { ok: false, message: tr('icsLink.unexpected') }
     return { ok: true, token }
   } catch {
-    return { ok: false, message: NETWORK_ERROR }
+    return { ok: false, message: tr('common.networkRetry') }
   }
 }
 
@@ -70,7 +75,7 @@ export async function deleteIcsLink(calendarId: string): Promise<DoneResult> {
     if (error) return { ok: false, message: icsLinkError(error) }
     return { ok: true }
   } catch {
-    return { ok: false, message: NETWORK_ERROR }
+    return { ok: false, message: tr('common.networkRetry') }
   }
 }
 
@@ -83,7 +88,7 @@ export async function fetchIcsLinkHolidays(calendarId: string): Promise<Holidays
     if (error) return { ok: false, message: icsLinkError(error) }
     return { ok: true, value: typeof data === 'boolean' ? data : null }
   } catch {
-    return { ok: false, message: NETWORK_ERROR }
+    return { ok: false, message: tr('common.networkRetry') }
   }
 }
 
@@ -94,7 +99,7 @@ export async function updateIcsLinkHolidays(calendarId: string, on: boolean): Pr
     if (error) return { ok: false, message: icsLinkError(error) }
     return { ok: true, value: typeof data === 'boolean' ? data : null }
   } catch {
-    return { ok: false, message: NETWORK_ERROR }
+    return { ok: false, message: tr('common.networkRetry') }
   }
 }
 
