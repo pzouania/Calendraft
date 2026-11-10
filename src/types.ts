@@ -1,3 +1,5 @@
+import type { SchoolZone } from './lib/schoolHolidays'
+
 export type YearMode = 'calendar' | 'school'
 
 export interface Calendar {
@@ -7,6 +9,8 @@ export interface Calendar {
   icon: string
   color: string
   year_mode: YearMode
+  // Zone des vacances scolaires (A, B ou C), null si aucune. Absent tant que school_holidays.sql n'est pas exécuté.
+  school_zone?: SchoolZone | null
   created_at: string
   updated_at: string
 }
