@@ -1,4 +1,5 @@
 import { buildIcsFile, icsFileName, rollingWindow } from '../src/lib/icsExport'
+import { parseZone } from '../src/lib/schoolHolidays'
 import type { Frequency, Period, PeriodException } from '../src/types'
 
 // Lien de synchronisation d'un calendrier : GET /api/ics/<identifiant>.ics
@@ -19,6 +20,9 @@ import type { Frequency, Period, PeriodException } from '../src/types'
 // importés sont ceux de la dernière ouverture de l'application (la copie est gardée 30 jours) ; sans copie, le fichier ne
 // contient que les événements du calendrier et n'est gardé qu'une minute, pour que les événements importés arrivent dès
 // qu'une copie existe.
+//
+// Si le calendrier a une zone de vacances scolaires (et que le propriétaire n'a pas retiré les vacances du lien), les vacances de
+// cette zone sont aussi dans le fichier : leurs dates sont dans le code (src/lib/schoolHolidays.ts), il n'y a rien à lire ailleurs.
 
 export interface IcsEnv {
   SUPABASE_URL: string
@@ -224,7 +228,7 @@ export async function handleIcs(request: Request, env: IcsEnv, ctx?: ContextLike
       toPeriods(payload.periods),
       toExceptions(payload.exceptions),
       span,
-      { stamp: new Date(), subscription: true, importedBlock: imported.block }
+      { stamp: new Date(), subscription: true, importedBlock: imported.block, holidayZone: parseZone(payload.school_zone) }
     )
     const headers: Record<string, string> = {
       ...SAFE_HEADERS,
