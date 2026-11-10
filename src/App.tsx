@@ -13,6 +13,7 @@ import TermsPage from './components/TermsPage'
 import AppDownloadPage from './components/AppDownloadPage'
 import TermsGate from './components/TermsGate'
 import { useI18n } from './hooks/useI18n'
+import { startLangSync } from './lib/langSync'
 
 type View = { screen: 'dashboard' } | { screen: 'calendar'; id: string } | { screen: 'profile' } | { screen: 'partial'; id: string }
 
@@ -95,6 +96,10 @@ function App() {
     })
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  // Langue liée au compte (voir lib/langSync.ts).
+  const syncUser = session?.user ?? null
+  useEffect(() => (syncUser ? startLangSync(syncUser) : undefined), [syncUser?.id])
 
   const path = window.location.pathname.replace(/\/$/, '')
   if (path === '/confidentialite') return <PrivacyPage />
