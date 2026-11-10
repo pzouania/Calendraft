@@ -189,7 +189,7 @@ const HOLIDAY_NAMES: Record<HolidayLang, Record<HolidayKind, string>> = {
 }
 
 const HOLIDAY_ZONE_WORD: Record<HolidayLang, string> = { fr: 'zone', en: 'zone', de: 'Zone' }
-const HOLIDAY_LEGEND: Record<HolidayLang, string> = { fr: 'Vacances scolaires', en: 'School holidays', de: 'Schulferien' }
+const HOLIDAY_LEGEND: Record<HolidayLang, string> = { fr: 'Vacances scolaires', en: 'French school holidays', de: 'Französische Schulferien' }
 
 export function holidayName(kind: HolidayKind, lang: HolidayLang = 'fr'): string {
   return HOLIDAY_NAMES[lang][kind]
