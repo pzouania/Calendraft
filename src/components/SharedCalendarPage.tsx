@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabaseClient'
 import YearCalendar from './YearCalendar'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
+import { fetchLinkSchoolZone } from '../lib/schoolZone'
+import type { SchoolZone } from '../lib/schoolHolidays'
 import type { Period, PeriodException, YearMode } from '../types'
 
 interface SharedData {
@@ -27,6 +29,8 @@ const goHome = () => {
 export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
   const [data, setData] = useState<SharedData | null>(null)
   const [status, setStatus] = useState<Status>('loading')
+  // Zone de vacances scolaires du calendrier partagé (lue à part ; absente si le serveur ne la fournit pas).
+  const [schoolZone, setSchoolZone] = useState<SchoolZone | null>(null)
 
   useEffect(() => {
     const robots = document.createElement('meta')
@@ -56,6 +60,16 @@ export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
       }
       setData(data as SharedData)
       setStatus('ready')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchLinkSchoolZone(token).then((zone) => {
+      if (!cancelled) setSchoolZone(zone)
     })
     return () => {
       cancelled = true
@@ -150,6 +164,7 @@ export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
           calendarColor={data.color ?? '#2563eb'}
           canEdit={false}
           yearMode={data.year_mode === 'school' ? 'school' : 'calendar'}
+          schoolZone={schoolZone}
           staticData={{ periods: data.periods, exceptions: data.exceptions }}
         />
       </main>

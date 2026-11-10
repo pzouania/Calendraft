@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../hooks/useI18n'
 import { addDays, groupByDate, mondayOf, weekStartsBetween } from '../lib/printLayout'
+import { holidaysByDay, type SchoolZone } from '../lib/schoolHolidays'
+import { toDateOnly } from '../lib/dateUtils'
 import type { Occurrence } from '../types'
 import { MonthSheet, PRINT_ROOT_ID, PRINT_STYLE, WeekSheet, type LegendItem } from './PrintSheets'
 
@@ -20,6 +22,8 @@ export interface PdfExportDialogProps {
   // Mois proposé au départ.
   initialMonthIndex: number
   legend: LegendItem[]
+  // Zone de vacances scolaires du calendrier : les jours de vacances sont colorés sur les feuilles (mois et semaine).
+  schoolZone?: SchoolZone | null
   // Événements (du calendrier et importés) entre deux dates incluses, y compris au-delà de l'année affichée.
   getOccurrences: (start: Date, end: Date) => Occurrence[]
   // Export de l'année : l'impression habituelle de la page.
@@ -93,7 +97,7 @@ function PrintJob({ title, children, onDone }: { title: string; children: React.
 
 // Fenêtre ouverte par « Exporter en PDF » : l'année, un mois ou une semaine (emploi du temps).
 export default function PdfExportDialog({
-  calendarName, calendarIcon, calendarColor, months, rangeStart, rangeEnd, initialMonthIndex, legend, getOccurrences,
+  calendarName, calendarIcon, calendarColor, months, rangeStart, rangeEnd, initialMonthIndex, legend, schoolZone = null, getOccurrences,
   onExportYear, onClose,
 }: PdfExportDialogProps) {
   const { monthName, formatDate } = useI18n()
@@ -133,11 +137,12 @@ export default function PdfExportDialog({
     if (job.kind === 'month') {
       const { year, month } = months[job.index]
       const byDate = groupByDate(getOccurrences(new Date(year, month, 1), new Date(year, month + 1, 0)))
+      const holidays = schoolZone ? holidaysByDay(schoolZone, toDateOnly(new Date(year, month, 1)), toDateOnly(new Date(year, month + 1, 0))) : undefined
       return {
         title: `${calendarName} ${capitalize(monthName(month))} ${year}`,
         node: (
           <MonthSheet
-            year={year} month={month} byDate={byDate} legend={legend}
+            year={year} month={month} byDate={byDate} legend={legend} holidays={holidays} holidayZone={schoolZone}
             calendarName={calendarName} calendarIcon={calendarIcon} calendarColor={calendarColor}
           />
         ),
@@ -145,11 +150,12 @@ export default function PdfExportDialog({
     }
     const monday = weeks[job.index]
     const byDate = groupByDate(getOccurrences(monday, addDays(monday, 6)))
+    const holidays = schoolZone ? holidaysByDay(schoolZone, toDateOnly(monday), toDateOnly(addDays(monday, 6))) : undefined
     return {
       title: `${calendarName} ${weekRange(monday)}`,
       node: (
         <WeekSheet
-          monday={monday} byDate={byDate} legend={legend}
+          monday={monday} byDate={byDate} legend={legend} holidays={holidays} holidayZone={schoolZone}
           calendarName={calendarName} calendarIcon={calendarIcon} calendarColor={calendarColor}
         />
       ),

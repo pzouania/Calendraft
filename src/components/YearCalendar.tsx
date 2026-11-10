@@ -9,6 +9,7 @@ import PdfExportDialog from './PdfExportDialog'
 import IcsExportDialog from './IcsExportDialog'
 import { toDateOnly } from '../lib/dateUtils'
 import { snapshotLabel } from '../lib/partialShare'
+import { HOLIDAY_COLOR, holidayLegendLabel, holidaysByDay, outsideCoverage, HOLIDAY_COVERAGE, type SchoolZone } from '../lib/schoolHolidays'
 import Icon from './icons'
 import type { Period, Occurrence, PeriodException, YearMode } from '../types'
 
@@ -21,6 +22,8 @@ interface YearCalendarProps {
   // Propriétaire du calendrier : peut partager un jour ou un événement.
   canShare?: boolean
   yearMode?: YearMode
+  // Zone de vacances scolaires du calendrier (A, B ou C) : les jours de vacances sont colorés. Absente : rien n'est affiché.
+  schoolZone?: SchoolZone | null
   staticData?: { periods: Period[]; exceptions: PeriodException[] }
 }
 
@@ -105,6 +108,7 @@ export default function YearCalendar({
   canEdit,
   canShare = false,
   yearMode = 'calendar',
+  schoolZone = null,
   staticData,
 }: YearCalendarProps) {
   const { t, monthName, formatDate } = useI18n()
@@ -252,6 +256,21 @@ export default function YearCalendar({
     return map
   }, [periods, year, isSchool, exceptionsByPeriod, feedOccurrences])
 
+  // Jours de vacances scolaires de l'année affichée (avec 7 jours de marge : une semaine imprimée peut déborder sur l'année voisine).
+  const holidaysByDate = useMemo(() => {
+    if (!schoolZone) return undefined
+    const from = isSchool ? `${year}-09-01` : `${year}-01-01`
+    const to = isSchool ? `${year + 1}-08-31` : `${year}-12-31`
+    return holidaysByDay(schoolZone, shiftDate(from, -7), shiftDate(to, 7))
+  }, [schoolZone, year, isSchool])
+  // Une partie de l'année affichée est hors des dates connues : on le dit plutôt que de laisser croire qu'il n'y a pas de vacances.
+  const holidayGap = useMemo(() => {
+    if (!schoolZone) return false
+    const from = isSchool ? `${year}-09-01` : `${year}-01-01`
+    const to = isSchool ? `${year + 1}-08-31` : `${year}-12-31`
+    return outsideCoverage(from, to)
+  }, [schoolZone, year, isSchool])
+
   // Bornes de l'année affichée et événements entre deux dates (la semaine à exporter peut déborder sur l'année voisine).
   const exportRangeStart = useMemo(() => (isSchool ? new Date(year, 8, 1) : new Date(year, 0, 1)), [year, isSchool])
   const exportRangeEnd = useMemo(() => (isSchool ? new Date(year + 1, 7, 31) : new Date(year, 11, 31)), [year, isSchool])
@@ -312,7 +331,7 @@ export default function YearCalendar({
 
   if (loading) return <p style={{ color: 'var(--text-secondary)' }}>{t('calendar.loading')}</p>
 
-  const hasLegend = periods.length > 0 || !!feed
+  const hasLegend = periods.length > 0 || !!feed || !!schoolZone
   const navButtonSize = isNarrow ? 40 : 32
   const toolbarTitle = monthView ? `${capitalize(monthName(currentMonth.month))} ${currentMonth.year}` : yearLabel
 
@@ -336,6 +355,8 @@ export default function YearCalendar({
       onDayClick={(dateStr) => setSelectedDate(dateStr)}
       accentColor={calendarColor}
       showYear={isSchool}
+      holidaysByDate={holidaysByDate}
+      holidayZone={schoolZone}
     />
   ))
 
@@ -537,6 +558,8 @@ export default function YearCalendar({
             onDayClick={(dateStr) => setSelectedDate(dateStr)}
             accentColor={calendarColor}
             showYear={isSchool}
+            holidaysByDate={holidaysByDate}
+            holidayZone={schoolZone}
           />
         </div>
       )}
@@ -557,6 +580,8 @@ export default function YearCalendar({
                   onDayClick={() => undefined}
                   accentColor={calendarColor}
                   showYear={isSchool}
+                  holidaysByDate={holidaysByDate}
+                  holidayZone={schoolZone}
                 />
               </div>
             ))}
@@ -609,7 +634,31 @@ export default function YearCalendar({
               {feed.label}
             </div>
           )}
+          {schoolZone && (
+            <div
+              className="legend-pill"
+              data-testid="holiday-legend"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'var(--text-primary)',
+                background: `${HOLIDAY_COLOR}18`, borderRadius: 999, padding: '0.3rem 0.7rem 0.3rem 0.4rem',
+              }}
+            >
+              <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, backgroundColor: HOLIDAY_COLOR }} />
+              {holidayLegendLabel(schoolZone)}
+            </div>
+          )}
         </div>
+      )}
+
+      {schoolZone && holidayGap && (
+        <p
+          className="no-print"
+          data-testid="holiday-gap"
+          style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}
+        >
+          Les dates des vacances scolaires sont connues de septembre {HOLIDAY_COVERAGE.from.slice(0, 4)} à août {HOLIDAY_COVERAGE.to.slice(0, 4)} :
+          cette année n’est pas entièrement couverte.
+        </p>
       )}
 
       {exportOpen && (
@@ -621,6 +670,7 @@ export default function YearCalendar({
           rangeStart={exportRangeStart}
           rangeEnd={exportRangeEnd}
           initialMonthIndex={monthView ? monthIdx : initialMonthIndex(year, isSchool)}
+          schoolZone={schoolZone}
           legend={[
             ...periods.map((p) => ({ id: p.id, label: p.name, color: p.color })),
             ...(feed ? [{ id: 'feed', label: feed.label, color: feed.color }] : []),
@@ -642,6 +692,7 @@ export default function YearCalendar({
           yearFrom={toDateOnly(exportRangeStart)}
           yearTo={toDateOnly(exportRangeEnd)}
           canManageLink={canShare && !staticData && Boolean(calendarId)}
+          schoolZone={schoolZone}
           loadImported={!staticData && Boolean(calendarId)}
           onClose={() => setIcsOpen(false)}
         />
@@ -652,6 +703,8 @@ export default function YearCalendar({
           <DayDetail
             date={selectedDate}
             occurrences={occurrencesByDate.get(selectedDate) ?? []}
+            holiday={schoolZone ? holidaysByDate?.get(selectedDate) ?? null : null}
+            holidayZone={schoolZone}
             canEdit={canEdit}
             shareCalendarId={canShare && !staticData && calendarId ? calendarId : undefined}
             onClose={() => setSelectedDate(null)}

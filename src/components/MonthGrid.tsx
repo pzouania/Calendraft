@@ -1,8 +1,13 @@
 import { getMonthMatrix, toDateOnly } from '../lib/dateUtils'
+import { holidayLabel, type SchoolHoliday, type SchoolZone } from '../lib/schoolHolidays'
 import { useI18n } from '../hooks/useI18n'
 import type { Occurrence } from '../types'
 
 const MAX_BARS = 3
+
+// Jours de vacances scolaires : fond ambre léger posé SUR le fond du jour (week-end, aujourd'hui), lisible en clair comme en sombre
+// et à l'impression.
+const HOLIDAY_TINT = 'linear-gradient(rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.2))'
 
 // Première lettre en majuscule (les mois et les jours s'écrivent en minuscules en français).
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
@@ -11,6 +16,9 @@ interface MonthGridProps {
   year: number
   month: number
   occurrencesByDate: Map<string, Occurrence[]>
+  /** Jours de vacances scolaires (clé AAAA-MM-JJ) et zone choisie : fond coloré et infobulle sur ces jours. */
+  holidaysByDate?: Map<string, SchoolHoliday>
+  holidayZone?: SchoolZone | null
   onDayClick: (dateStr: string) => void
   accentColor?: string
   showYear?: boolean
@@ -24,6 +32,8 @@ export default function MonthGrid({
   year,
   month,
   occurrencesByDate,
+  holidaysByDate,
+  holidayZone,
   onDayClick,
   accentColor = 'var(--blue-main)',
   showYear = false,
@@ -90,10 +100,14 @@ export default function MonthGrid({
             const isToday = dateStr === todayStr
             const isWeekend = di >= 5
             const extra = uniqueOccs.length - MAX_BARS
+            const holiday = holidayZone ? holidaysByDate?.get(dateStr) : undefined
             return (
               <div
                 key={di}
                 className={`month-day-cell${isToday ? ' today-cell' : ''}`}
+                data-date={dateStr}
+                data-holiday={holiday ? holiday.kind : undefined}
+                title={holiday && holidayZone ? holidayLabel(holiday.kind, holidayZone) : undefined}
                 onClick={() => onDayClick(dateStr)}
                 style={{
                   minHeight: large ? 58 : compact ? 22 : 26,
@@ -102,6 +116,7 @@ export default function MonthGrid({
                   cursor: 'pointer',
                   borderRadius: large ? 8 : compact ? 4 : 6,
                   background: isToday ? 'var(--surface-tint)' : isWeekend ? 'var(--surface-faint)' : 'transparent',
+                  backgroundImage: holiday ? HOLIDAY_TINT : undefined,
                   border: isToday ? `1px solid ${accentColor}` : '1px solid transparent',
                 }}
               >

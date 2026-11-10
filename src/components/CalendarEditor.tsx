@@ -5,10 +5,13 @@ import YearCalendar from './YearCalendar'
 import ShareModal from './ShareModal'
 import FeedSettings from './FeedSettings'
 import RhythmTemplateDialog from './RhythmTemplateDialog'
+import SchoolHolidaysCard from './SchoolHolidaysCard'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import { getPushState, type PushState } from '../lib/push'
 import { choicesFor, loadMyReminders, pushHint, requestReminderSync, saveReminder } from '../lib/reminders'
+import type { SchoolZone } from '../lib/schoolHolidays'
+import { fetchSchoolZone } from '../lib/schoolZone'
 import type { Period, YearMode } from '../types'
 
 interface CalendarEditorProps {
@@ -134,6 +137,9 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
   const [calendarIcon, setCalendarIcon] = useState('calendar')
   const [calendarColor, setCalendarColor] = useState('#2563eb')
   const [yearMode, setYearMode] = useState<YearMode>('calendar')
+  // Zone de vacances scolaires (lue à part : si la base n'a pas encore la colonne, le calendrier s'ouvre sans vacances).
+  const [schoolZone, setSchoolZone] = useState<SchoolZone | null>(null)
+  const [zoneUnavailable, setZoneUnavailable] = useState(false)
   const [infoLoaded, setInfoLoaded] = useState(false)
   const [role, setRole] = useState<Role | null>(null)
   const [showShare, setShowShare] = useState(false)
@@ -184,6 +190,10 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
         setRole(share?.role === 'editor' ? 'editor' : 'viewer')
       }
     }
+
+    const zone = await fetchSchoolZone(calendarId)
+    setSchoolZone(zone.ok ? zone.zone : null)
+    setZoneUnavailable(!zone.ok && zone.unavailable)
 
     setInfoLoaded(true)
   }
@@ -517,6 +527,17 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               </p>
             )}
 
+            {infoLoaded && (
+              <SchoolHolidaysCard
+                calendarId={calendarId}
+                zone={schoolZone}
+                canChange={isOwner}
+                unavailable={zoneUnavailable}
+                accent={calendarColor}
+                onChanged={setSchoolZone}
+              />
+            )}
+
             {loading ? (
               <p style={{ color: 'var(--text-secondary)' }}>Chargement...</p>
             ) : periods.length === 0 ? (
@@ -622,6 +643,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               canEdit={canEdit}
               canShare={isOwner}
               yearMode={yearMode}
+              schoolZone={schoolZone}
             />
           ) : (
             <p style={{ color: 'var(--text-secondary)' }}>Chargement du calendrier...</p>

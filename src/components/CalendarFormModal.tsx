@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import SchoolZonePicker from './SchoolZonePicker'
+import { ZONE_UNAVAILABLE, fetchSchoolZone, isMissingZoneColumn } from '../lib/schoolZone'
+import type { SchoolZone } from '../lib/schoolHolidays'
 import Icon, { ICON_KEYS } from './icons'
 import { useI18n } from '../hooks/useI18n'
 import { noticeText, type Notice } from '../lib/authErrors'
@@ -26,12 +29,38 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
   const [icon, setIcon] = useState(calendar?.icon ?? 'calendar')
   const [color, setColor] = useState(calendar?.color ?? COLOR_OPTIONS[0])
   const [yearMode, setYearMode] = useState<YearMode>(calendar?.year_mode ?? 'calendar')
+  // Zone de vacances scolaires. En modification, elle est lue à part (le calendrier reçu ne la contient pas forcément) :
+  // elle n'est envoyée à la base que si elle a changé, pour ne rien écraser par erreur.
+  const [zone, setZone] = useState<SchoolZone | null>(null)
+  const [initialZone, setInitialZone] = useState<SchoolZone | null>(null)
+  const [zoneState, setZoneState] = useState<'ready' | 'loading' | 'unavailable'>(mode === 'edit' && calendar ? 'loading' : 'ready')
   const [error, setError] = useState<Notice | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (mode !== 'edit' || !calendar) return
+    let alive = true
+    fetchSchoolZone(calendar.id).then((result) => {
+      if (!alive) return
+      if (result.ok) {
+        setZone(result.zone)
+        setInitialZone(result.zone)
+        setZoneState('ready')
+      } else {
+        setZoneState('unavailable')
+      }
+    })
+    return () => {
+      alive = false
+    }
+  }, [mode, calendar?.id])
+
+  const zoneChanged = zoneState === 'ready' && zone !== initialZone
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
+    if (zoneState === 'loading') return
     setError(null)
     setSaving(true)
 
@@ -43,13 +72,13 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
       }
       const { data, error } = await supabase
         .from('calendars')
-        .insert({ name: name.trim(), icon, color, year_mode: yearMode, user_id: userData.user.id })
+        .insert({ name: name.trim(), icon, color, year_mode: yearMode, user_id: userData.user.id, ...(zone ? { school_zone: zone } : {}) })
         .select()
         .single()
 
       setSaving(false)
       if (error) {
-        setError({ raw: error.message })
+        setError({ raw: isMissingZoneColumn(error) ? ZONE_UNAVAILABLE : error.message })
         return
       }
       if (data) onSaved(data.id)
@@ -61,13 +90,14 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
           icon,
           color,
           year_mode: yearMode,
+          ...(zoneChanged ? { school_zone: zone } : {}),
           updated_at: new Date().toISOString(),
         })
         .eq('id', calendar.id)
 
       setSaving(false)
       if (error) {
-        setError({ raw: error.message })
+        setError({ raw: isMissingZoneColumn(error) ? ZONE_UNAVAILABLE : error.message })
         return
       }
       onSaved(calendar.id)
@@ -150,6 +180,17 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
               )
             })}
           </div>
+        </div>
+
+        <div>
+          <span style={labelStyle}>Vacances scolaires</span>
+          {zoneState === 'unavailable' ? (
+            <p data-testid="form-zone-unavailable" style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+              {ZONE_UNAVAILABLE}
+            </p>
+          ) : (
+            <SchoolZonePicker name="form-zone" value={zone} onChange={setZone} disabled={zoneState === 'loading'} accent={color} />
+          )}
         </div>
 
         <div>

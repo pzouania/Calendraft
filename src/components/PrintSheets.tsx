@@ -4,6 +4,7 @@ import {
   axisFor, blockOf, chipLayout, chipText, hasTimes, hhmm, layoutBlocks, sortDay, weekDays,
   type Block, type PlacedBlock,
 } from '../lib/printLayout'
+import { holidayLabel, holidayLegendLabel, type SchoolHoliday, type SchoolZone } from '../lib/schoolHolidays'
 import type { Occurrence } from '../types'
 import Icon from './icons'
 
@@ -37,6 +38,9 @@ interface SheetBase {
   calendarColor: string
   legend: LegendItem[]
   byDate: Map<string, Occurrence[]>
+  // Vacances scolaires (zone du calendrier) : jours de vacances de la feuille, indexés par jour AAAA-MM-JJ.
+  holidays?: Map<string, SchoolHoliday>
+  holidayZone?: SchoolZone | null
 }
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
@@ -45,6 +49,9 @@ const INK = '#0f172a'
 const MUTED = '#64748b'
 const LINE = '#cbd5e1'
 const SOFT = '#f1f5f9'
+// Jour de vacances scolaires (opaque, comme le reste de la feuille : le PDF ne dépend pas du thème de l'écran).
+const HOLIDAY_BG = '#fef3c7'
+const HOLIDAY_EDGE = '#f59e0b'
 
 // Couleur de l'événement éclaircie vers le blanc (ratio = part de la couleur) : un fond opaque, pour que les lignes des
 // heures passent derrière les événements et non à travers leur texte.
@@ -79,10 +86,26 @@ function Header({ calendarName, calendarIcon, calendarColor, title }: Pick<Sheet
   )
 }
 
-// Légende : seulement les événements qui apparaissent sur la feuille.
-function Legend({ items, used }: { items: LegendItem[]; used: Set<string> }) {
+// Ligne de légende des vacances : le nom de la vacance s'il n'y en a qu'une sur la feuille, sinon « Vacances scolaires (zone X) ».
+function holidayLegend(keys: string[], holidays: Map<string, SchoolHoliday> | undefined, zone: SchoolZone | null | undefined): string | null {
+  if (!holidays || !zone) return null
+  const kinds = new Set<string>()
+  let one: SchoolHoliday | undefined
+  for (const key of keys) {
+    const h = holidays.get(key)
+    if (h) {
+      kinds.add(h.kind)
+      one = h
+    }
+  }
+  if (!one) return null
+  return kinds.size === 1 ? holidayLabel(one.kind, zone) : holidayLegendLabel(zone)
+}
+
+// Légende : seulement les événements qui apparaissent sur la feuille (et les vacances scolaires, si la feuille en contient).
+function Legend({ items, used, holiday }: { items: LegendItem[]; used: Set<string>; holiday?: string | null }) {
   const shown = items.filter((i) => used.has(i.id))
-  if (shown.length === 0) return null
+  if (shown.length === 0 && !holiday) return null
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2mm 4mm', marginTop: '3mm', flexShrink: 0, fontSize: '8pt', color: INK }}>
       {shown.map((i) => (
@@ -91,6 +114,12 @@ function Legend({ items, used }: { items: LegendItem[]; used: Set<string> }) {
           {i.label}
         </span>
       ))}
+      {holiday && (
+        <span data-legend="holiday" style={{ display: 'inline-flex', alignItems: 'center', gap: '1.5mm' }}>
+          <span style={{ width: '2.6mm', height: '2.6mm', borderRadius: '0.5mm', background: HOLIDAY_BG, border: `0.3mm solid ${HOLIDAY_EDGE}`, boxSizing: 'border-box', display: 'inline-block' }} />
+          {holiday}
+        </span>
+      )}
     </div>
   )
 }
@@ -163,14 +192,17 @@ export function MonthSheet({ year, month, ...base }: SheetBase & { year: number;
             if (!day) {
               return <div key={`${wi}-${di}`} data-empty="1" style={{ ...cellBorder, background: SOFT }} />
             }
-            const occs = sortDay(base.byDate.get(toDateOnly(day)) ?? [])
+            const dayKey = toDateOnly(day)
+            const holiday = base.holidayZone ? base.holidays?.get(dayKey) : undefined
+            const occs = sortDay(base.byDate.get(dayKey) ?? [])
             const overflow = occs.length > max
             const shown = overflow ? occs.slice(0, max - 1) : occs
             return (
               <div
                 key={`${wi}-${di}`}
-                data-date={toDateOnly(day)}
-                style={{ ...cellBorder, padding: '0.8mm 1mm', overflow: 'hidden', minWidth: 0, background: di >= 5 ? '#f8fafc' : '#fff' }}
+                data-date={dayKey}
+                data-holiday={holiday ? holiday.kind : undefined}
+                style={{ ...cellBorder, padding: '0.8mm 1mm', overflow: 'hidden', minWidth: 0, background: holiday ? HOLIDAY_BG : di >= 5 ? '#f8fafc' : '#fff' }}
               >
                 <div style={{ fontSize: '8pt', fontWeight: 700, color: di >= 5 ? MUTED : INK }}>{day.getDate()}</div>
                 {shown.map((o, oi) => (
@@ -186,7 +218,7 @@ export function MonthSheet({ year, month, ...base }: SheetBase & { year: number;
           }),
         )}
       </div>
-      <Legend items={base.legend} used={usedIds(base.byDate, keys)} />
+      <Legend items={base.legend} used={usedIds(base.byDate, keys)} holiday={holidayLegend(keys, base.holidays, base.holidayZone)} />
     </section>
   )
 }
@@ -321,9 +353,11 @@ export function WeekSheet({ monday, ...base }: SheetBase & { monday: Date }) {
           <div
             key={d.key}
             data-day={d.key}
+            data-holiday={base.holidayZone && base.holidays?.get(d.key) ? base.holidays.get(d.key)!.kind : undefined}
             style={{
               padding: '1.5mm 0', textAlign: 'center', fontSize: '8.5pt', fontWeight: 700, color: INK,
               borderLeft: `0.3mm solid ${LINE}`,
+              background: base.holidayZone && base.holidays?.has(d.key) ? HOLIDAY_BG : undefined,
             }}
           >
             {capitalize(formatDate(d.date, { weekday: 'long' }))}
@@ -384,7 +418,10 @@ export function WeekSheet({ monday, ...base }: SheetBase & { monday: Date }) {
             style={{
               position: 'absolute', top: 0, bottom: 0, borderLeft: `0.3mm solid ${LINE}`,
               left: `calc(${AXIS_MM}mm + (100% - ${AXIS_MM}mm) * ${i} / ${n})`, width: `calc((100% - ${AXIS_MM}mm) / ${n})`,
-              background: d.date.getDay() === 0 || d.date.getDay() === 6 ? 'rgba(241, 245, 249, 0.6)' : 'transparent',
+              background:
+                base.holidayZone && base.holidays?.has(d.key)
+                  ? 'rgba(254, 243, 199, 0.7)'
+                  : d.date.getDay() === 0 || d.date.getDay() === 6 ? 'rgba(241, 245, 249, 0.6)' : 'transparent',
             }}
           >
             {placed[i].map((b, bi) => (
@@ -394,7 +431,10 @@ export function WeekSheet({ monday, ...base }: SheetBase & { monday: Date }) {
         ))}
       </div>
 
-      <Legend items={base.legend} used={usedIds(base.byDate, days.map((d) => d.key))} />
+      <Legend
+        items={base.legend} used={usedIds(base.byDate, days.map((d) => d.key))}
+        holiday={holidayLegend(days.map((d) => d.key), base.holidays, base.holidayZone)}
+      />
     </section>
   )
 }

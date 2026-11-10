@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useI18n } from '../hooks/useI18n'
 import type { Params, TranslationKey } from '../i18n'
 import PartialShareModal from './PartialShareModal'
+import { holidayLabel, resumeDay, type SchoolHoliday, type SchoolZone } from '../lib/schoolHolidays'
 import type { Occurrence } from '../types'
 
 type Translate = (key: TranslationKey, params?: Params) => string
@@ -10,6 +11,9 @@ type Translate = (key: TranslationKey, params?: Params) => string
 interface DayDetailProps {
   date: string
   occurrences: Occurrence[]
+  // Vacances scolaires de ce jour (zone du calendrier), s'il y en a.
+  holiday?: SchoolHoliday | null
+  holidayZone?: SchoolZone | null
   canEdit?: boolean
   // Renseigné pour le propriétaire du calendrier : affiche le bouton « Partager ».
   shareCalendarId?: string
@@ -108,7 +112,7 @@ function TrashButton({ onClick, label }: { onClick: () => void; label: string })
   )
 }
 
-export default function DayDetail({ date, occurrences, canEdit = true, shareCalendarId, onClose, onChanged }: DayDetailProps) {
+export default function DayDetail({ date, occurrences, holiday = null, holidayZone = null, canEdit = true, shareCalendarId, onClose, onChanged }: DayDetailProps) {
   const { t, formatDate } = useI18n()
   const [sharing, setSharing] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -150,6 +154,7 @@ export default function DayDetail({ date, occurrences, canEdit = true, shareCale
   const label = formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const title = label.charAt(0).toUpperCase() + label.slice(1)
   const canShare = !!shareCalendarId && occurrences.length > 0
+  const resume = holiday ? resumeDay(holiday) : null
 
   return (
     <>
@@ -213,6 +218,24 @@ export default function DayDetail({ date, occurrences, canEdit = true, shareCale
           </div>
 
           <div style={{ padding: '1rem 1.25rem 1.25rem' }}>
+            {holiday && holidayZone && (
+              <div
+                data-testid="day-holiday"
+                style={{
+                  display: 'flex', flexDirection: 'column', gap: 2, marginBottom: '0.8rem',
+                  backgroundColor: 'var(--surface)', backgroundImage: 'linear-gradient(rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.2))',
+                  borderLeft: '4px solid #f59e0b', borderRadius: 10, padding: '0.55rem 0.8rem',
+                }}
+              >
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>{holidayLabel(holiday.kind, holidayZone)}</span>
+                {resume && (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-body)' }}>
+                    Reprise des cours le {formatDate(resume, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </span>
+                )}
+              </div>
+            )}
+
             {occurrences.length === 0 && (
               <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{t('dayDetail.empty')}</p>
             )}
