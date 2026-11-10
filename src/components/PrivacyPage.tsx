@@ -4,22 +4,22 @@ import { useI18n } from '../hooks/useI18n'
 import type { TranslationKey } from '../i18n'
 
 const CONTACT_EMAIL = 'calendraft.help@gmail.com'
-const LAST_UPDATE = '2026-10-08'
+const LAST_UPDATE = '2026-11-10'
 
 // Chaque section : clé du titre et clés des paragraphes (textes dans les dictionnaires, section privacyPage.*).
 const SECTIONS: { title: TranslationKey; paragraphs: TranslationKey[] }[] = [
   { title: 'privacyPage.s1.title', paragraphs: ['privacyPage.s1.p1'] },
-  { title: 'privacyPage.s2.title', paragraphs: ['privacyPage.s2.p1', 'privacyPage.s2.p2', 'privacyPage.s2.p3', 'privacyPage.s2.p4'] },
+  { title: 'privacyPage.s2.title', paragraphs: ['privacyPage.s2.p1', 'privacyPage.s2.p2', 'privacyPage.s2.p3', 'privacyPage.s2.p4', 'privacyPage.s2.p5', 'privacyPage.s2.p6', 'privacyPage.s2.p7'] },
   { title: 'privacyPage.s3.title', paragraphs: ['privacyPage.s3.p1'] },
   { title: 'privacyPage.s4.title', paragraphs: ['privacyPage.s4.p1'] },
-  { title: 'privacyPage.s5.title', paragraphs: ['privacyPage.s5.p1', 'privacyPage.s5.p2'] },
+  { title: 'privacyPage.s5.title', paragraphs: ['privacyPage.s5.p1', 'privacyPage.s5.p2', 'privacyPage.s5.p3'] },
   { title: 'privacyPage.s6.title', paragraphs: ['privacyPage.s6.p1'] },
   { title: 'privacyPage.s7.title', paragraphs: ['privacyPage.s7.p1'] },
   { title: 'privacyPage.s8.title', paragraphs: ['privacyPage.s8.p1'] },
 ]
 
 export default function PrivacyPage() {
-  const { t, formatDate } = useI18n()
+  const { t, lang, formatDate } = useI18n()
   return (
     <div style={{ minHeight: '100vh' }}>
       <header
@@ -64,6 +64,11 @@ export default function PrivacyPage() {
           <p style={{ margin: '0 0 1.8rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             {t('legal.lastUpdate', { date: formatDate(LAST_UPDATE, { day: 'numeric', month: 'long', year: 'numeric' }) })}
           </p>
+          {lang !== 'fr' && (
+            <p style={{ margin: '-1rem 0 1.8rem', fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+              {t('legal.frenchPrevails')}
+            </p>
+          )}
 
           {SECTIONS.map((s) => (
             <section key={s.title} style={{ marginBottom: '1.5rem' }}>

@@ -20,7 +20,7 @@ const SECTIONS: { title: TranslationKey; paragraphs: TranslationKey[] }[] = [
 ]
 
 export default function TermsPage() {
-  const { t, formatDate } = useI18n()
+  const { t, lang, formatDate } = useI18n()
   // Phrase avec un lien au milieu : le texte traduit contient {link}, remplacé ici par le lien.
   const [seeBefore, seeAfter = ''] = t('termsPage.seeAlso', { link: '\u0001' }).split('\u0001')
   return (
@@ -67,6 +67,11 @@ export default function TermsPage() {
           <p style={{ margin: '0 0 1.8rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             {t('legal.lastUpdate', { date: formatDate(LAST_UPDATE, { day: 'numeric', month: 'long', year: 'numeric' }) })}
           </p>
+          {lang !== 'fr' && (
+            <p style={{ margin: '-1rem 0 1.8rem', fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+              {t('legal.frenchPrevails')}
+            </p>
+          )}
 
           {SECTIONS.map((s) => (
             <section key={s.title} style={{ marginBottom: '1.5rem' }}>
