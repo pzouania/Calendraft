@@ -56,6 +56,17 @@ function readSavedView(): SavedView | null {
   }
 }
 
+// Page conservée dans l'historique du navigateur (bouton « Retour » du navigateur ou du téléphone).
+function parseView(data: unknown): View | null {
+  if (typeof data !== 'object' || data === null) return null
+  const { screen, id } = data as Record<string, unknown>
+  if (screen === 'dashboard') return DASHBOARD
+  if (screen === 'profile') return { screen }
+  if (screen === 'calendar' && typeof id === 'string' && UUID_RE.test(id)) return { screen, id }
+  if (screen === 'partial' && typeof id === 'string' && ID_RE.test(id)) return { screen, id }
+  return null
+}
+
 function writeSavedView(userId: string, view: View) {
   try {
     if (view.screen === 'dashboard') window.sessionStorage.removeItem(VIEW_KEY)
@@ -101,6 +112,18 @@ function App() {
   const syncUser = session?.user ?? null
   useEffect(() => (syncUser ? startLangSync(syncUser) : undefined), [syncUser?.id])
 
+  // Bouton « Retour » du navigateur : revient à la page précédente de l'application au lieu de quitter le site.
+  const userId = session?.user.id ?? null
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      const next = parseView((event.state as { calendraftView?: unknown } | null)?.calendraftView) ?? DASHBOARD
+      setView(next)
+      if (userId) writeSavedView(userId, next)
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [userId])
+
   const path = window.location.pathname.replace(/\/$/, '')
   if (path === '/confidentialite') return <PrivacyPage />
   if (path === '/conditions') return <TermsPage />
@@ -125,6 +148,11 @@ function App() {
   const go = (next: View) => {
     setView(next)
     writeSavedView(session.user.id, next)
+    try {
+      window.history.pushState({ calendraftView: next }, '')
+    } catch {
+      // Historique indisponible : la navigation fonctionne, sans le bouton « Retour » du navigateur.
+    }
   }
 
   let current: ReactNode
