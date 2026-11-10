@@ -791,6 +791,13 @@ export const fr = {
   // Onglet vacances scolaires
   'editor.tab.holidays': 'Vacances scolaires',
   'editor.tab.holidaysShort': 'Vacances',
+
+  // Pages légales : version française + politique de confidentialité complétée
+  'legal.frenchPrevails': 'Version française faisant foi.',
+  'privacyPage.s2.p5': 'Si vous importez un emploi du temps depuis une adresse (lien .ics), cette adresse est enregistrée avec le calendrier concerné pour pouvoir le mettre à jour, ainsi que les événements importés. Si vous créez un lien de synchronisation (.ics) de vos calendriers, un identifiant secret propre à ce lien est enregistré ; vous pouvez le supprimer à tout moment.',
+  'privacyPage.s2.p6': 'Si vous activez les rappels par notification sur un appareil, nous enregistrons l’identifiant d’abonnement fourni par votre navigateur (adresse du service de notification du navigateur et clés de chiffrement), le fuseau horaire de l’appareil et les rappels que vous avez choisis. Chaque appareil peut être désactivé à tout moment depuis « Mon profil ».',
+  'privacyPage.s2.p7': 'Vos préférences : la langue choisie (enregistrée dans votre compte pour la retrouver sur vos appareils et rédiger les notifications dans cette langue) et la zone des vacances scolaires choisie pour un calendrier.',
+  'privacyPage.s5.p3': 'Les notifications sont acheminées par le service de notification de votre navigateur (par exemple Google, Apple ou Mozilla), qui reçoit le contenu chiffré du rappel.',
 } satisfies Record<string, Message>
 
 export type TranslationKey = keyof typeof fr

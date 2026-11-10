@@ -784,4 +784,11 @@ export const de: Record<TranslationKey, Message> = {
   // Onglet vacances scolaires
   'editor.tab.holidays': 'Französische Schulferien',
   'editor.tab.holidaysShort': 'Ferien',
+
+  // Pages légales : version française + politique de confidentialité complétée
+  'legal.frenchPrevails': 'Dies ist eine Übersetzung zur Information. Bei Abweichungen gilt die französische Fassung.',
+  'privacyPage.s2.p5': 'Wenn Sie einen Stundenplan über eine Adresse (.ics-Link) importieren, wird diese Adresse zusammen mit dem betreffenden Kalender gespeichert, damit er aktualisiert werden kann, ebenso die importierten Termine. Wenn Sie einen Synchronisierungslink (.ics) für Ihre Kalender erstellen, wird eine geheime Kennung für diesen Link gespeichert; Sie können ihn jederzeit löschen.',
+  'privacyPage.s2.p6': 'Wenn Sie Erinnerungen per Benachrichtigung auf einem Gerät aktivieren, speichern wir die von Ihrem Browser bereitgestellte Abonnement-Kennung (Adresse des Benachrichtigungsdienstes des Browsers und Verschlüsselungsschlüssel), die Zeitzone des Geräts und die von Ihnen gewählten Erinnerungen. Jedes Gerät kann jederzeit unter „Mein Profil“ deaktiviert werden.',
+  'privacyPage.s2.p7': 'Ihre Einstellungen: die gewählte Sprache (in Ihrem Konto gespeichert, damit sie auf Ihren Geräten gilt und Benachrichtigungen in dieser Sprache verfasst werden) und die für einen Kalender gewählte Schulferienzone.',
+  'privacyPage.s5.p3': 'Benachrichtigungen werden über den Benachrichtigungsdienst Ihres Browsers (zum Beispiel Google, Apple oder Mozilla) zugestellt, der den verschlüsselten Inhalt der Erinnerung erhält.',
 }

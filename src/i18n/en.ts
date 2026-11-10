@@ -784,4 +784,11 @@ export const en: Record<TranslationKey, Message> = {
   // Onglet vacances scolaires
   'editor.tab.holidays': 'French school holidays',
   'editor.tab.holidaysShort': 'Holidays',
+
+  // Pages légales : version française + politique de confidentialité complétée
+  'legal.frenchPrevails': 'This is a courtesy translation. In case of discrepancy, the French version prevails.',
+  'privacyPage.s2.p5': 'If you import a timetable from an address (.ics link), that address is stored with the calendar concerned so that it can be updated, along with the imported events. If you create a sync link (.ics) for your calendars, a secret identifier specific to that link is stored; you can delete it at any time.',
+  'privacyPage.s2.p6': 'If you enable notification reminders on a device, we store the subscription identifier provided by your browser (address of the browser’s notification service and encryption keys), the device’s time zone and the reminders you have chosen. Each device can be turned off at any time from “My profile”.',
+  'privacyPage.s2.p7': 'Your preferences: the language you chose (stored in your account so that it follows you across devices and so that notifications are written in that language) and the school holiday zone chosen for a calendar.',
+  'privacyPage.s5.p3': 'Notifications are delivered through your browser’s notification service (for example Google, Apple or Mozilla), which receives the encrypted content of the reminder.',
 }
