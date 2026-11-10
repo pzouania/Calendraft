@@ -80,6 +80,8 @@ export function translate(lang: Lang, key: TranslationKey, params?: Params): str
 // Accepte un objet Date ou une date « AAAA-MM-JJ » (lue en heure locale, comme le reste du site).
 export function formatDate(value: Date | string, options: Intl.DateTimeFormatOptions, lang: Lang): string {
   const date = typeof value === 'string' ? new Date(value + 'T00:00:00') : value
+  // Une date invalide fait échouer Intl : on rend le texte reçu tel quel plutôt que de planter l'écran.
+  if (Number.isNaN(date.getTime())) return typeof value === 'string' ? value : ''
   return new Intl.DateTimeFormat(LOCALES[lang], options).format(date)
 }
 
