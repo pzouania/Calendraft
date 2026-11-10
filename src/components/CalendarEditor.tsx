@@ -22,7 +22,7 @@ interface CalendarEditorProps {
 }
 
 type Role = 'owner' | 'editor' | 'viewer'
-type Tab = 'calendar' | 'events' | 'import'
+type Tab = 'calendar' | 'events' | 'holidays' | 'import'
 
 type Translate = (key: TranslationKey, params?: Params) => string
 
@@ -434,6 +434,11 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             {isNarrow ? t('editor.tab.yearShort') : t('editor.tab.year')}
           </button>
           <button style={tabButtonStyle(tab === 'events')} onClick={() => setTab('events')}>{t('editor.tab.events')}</button>
+          {infoLoaded && (isOwner || schoolZone !== null) && (
+            <button style={tabButtonStyle(tab === 'holidays')} onClick={() => setTab('holidays')} data-testid="tab-holidays">
+              {isNarrow ? t('editor.tab.holidaysShort') : t('editor.tab.holidays')}
+            </button>
+          )}
           {isOwner && (
             <button style={tabButtonStyle(tab === 'import')} onClick={() => setTab('import')}>
               {isNarrow ? t('editor.tab.importShort') : t('editor.tab.import')}
@@ -536,17 +541,6 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               </p>
             )}
 
-            {infoLoaded && (
-              <SchoolHolidaysCard
-                calendarId={calendarId}
-                zone={schoolZone}
-                canChange={isOwner}
-                unavailable={zoneUnavailable}
-                accent={calendarColor}
-                onChanged={setSchoolZone}
-              />
-            )}
-
             {loading ? (
               <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
             ) : periods.length === 0 ? (
@@ -638,6 +632,17 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               </div>
             )}
           </>
+        )}
+
+        {tab === 'holidays' && infoLoaded && (
+          <SchoolHolidaysCard
+            calendarId={calendarId}
+            zone={schoolZone}
+            canChange={isOwner}
+            unavailable={zoneUnavailable}
+            accent={calendarColor}
+            onChanged={setSchoolZone}
+          />
         )}
 
         {tab === 'import' && isOwner && <FeedSettings calendarId={calendarId} />}
