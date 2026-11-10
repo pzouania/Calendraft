@@ -192,8 +192,13 @@ export async function handleIcs(request: Request, env: IcsEnv, ctx?: ContextLike
   if (!key) return plain("La synchronisation n'est pas activée sur ce serveur.", 503)
 
   const token = match[1].toLowerCase()
+  // Langue des textes écrits par l'application dans le fichier (noms des vacances, « sans titre ») : ?lang=en ou ?lang=de.
+  // Toute autre valeur, ou son absence, donne le français (l'adresse des liens déjà créés ne change donc pas). Chaque langue a sa
+  // propre entrée dans le cache.
+  const wanted = url.searchParams.get('lang')
+  const lang = wanted === 'en' || wanted === 'de' ? wanted : 'fr'
   const cache = edgeCache()
-  const cacheKey = new Request(`${url.origin}/api/ics/${token}.ics`)
+  const cacheKey = new Request(`${url.origin}/api/ics/${token}.ics${lang === 'fr' ? '' : `?lang=${lang}`}`)
   if (cache) {
     const hit = await cache.match(cacheKey).catch(() => undefined)
     if (hit) return finish(hit)
@@ -228,7 +233,7 @@ export async function handleIcs(request: Request, env: IcsEnv, ctx?: ContextLike
       toPeriods(payload.periods),
       toExceptions(payload.exceptions),
       span,
-      { stamp: new Date(), subscription: true, importedBlock: imported.block, holidayZone: parseZone(payload.school_zone) }
+      { stamp: new Date(), subscription: true, importedBlock: imported.block, holidayZone: parseZone(payload.school_zone), lang }
     )
     const headers: Record<string, string> = {
       ...SAFE_HEADERS,
