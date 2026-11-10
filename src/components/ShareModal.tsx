@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { useI18n } from '../hooks/useI18n'
 import PartialSharesList, { useOwnerPartialShares } from './PartialSharesList'
 
 interface ShareModalProps {
@@ -21,7 +22,6 @@ interface ShareLink {
   token: string
 }
 
-const ROLE_LABELS: Record<Role, string> = { viewer: 'Lecteur', editor: 'Éditeur' }
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const inputStyle: React.CSSProperties = {
@@ -61,6 +61,7 @@ const sectionTitle: React.CSSProperties = {
 }
 
 export default function ShareModal({ calendarId, calendarName, onClose }: ShareModalProps) {
+  const { t } = useI18n()
   const [shares, setShares] = useState<Share[]>([])
   const [link, setLink] = useState<ShareLink | null>(null)
   const [loading, setLoading] = useState(true)
@@ -114,7 +115,7 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
 
     const clean = email.trim().toLowerCase()
     if (!EMAIL_RE.test(clean)) {
-      setError('Saisissez une adresse email valide.')
+      setError(t('share.error.invalidEmail'))
       return
     }
 
@@ -127,7 +128,7 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
     if (error) {
       setError(
         error.code === '23505'
-          ? 'Ce calendrier est déjà partagé avec cette adresse.'
+          ? t('share.error.duplicate')
           : error.message
       )
       return
@@ -163,9 +164,7 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
 
   const handleRemoveLink = async () => {
     if (!link) return
-    const confirmed = window.confirm(
-      'Désactiver le lien ? Toute personne qui l’a reçu n’y aura plus accès immédiatement.'
-    )
+    const confirmed = window.confirm(t('share.link.confirmDisable'))
     if (!confirmed) return
     setError(null)
     const { error } = await supabase.from('calendar_links').delete().eq('id', link.id)
@@ -181,19 +180,21 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      setError('Copie impossible : sélectionnez le lien et copiez-le manuellement.')
+      setError(t('share.error.copy'))
     }
   }
 
   const mailtoHref = invited
     ? `mailto:${invited}?subject=${encodeURIComponent(
-        `Calendrier « ${calendarName} » partagé avec vous`
+        t('share.mail.subject', { name: calendarName })
       )}&body=${encodeURIComponent(
-        `Bonjour,\n\nJe viens de partager le calendrier « ${calendarName} » avec vous sur Calendraft.\n` +
-          `Connectez-vous avec cette adresse email (ou créez un compte) sur ${window.location.origin} ` +
-          `pour le retrouver dans votre tableau de bord.\n`
+        `${t('share.mail.hello')}\n\n${t('share.mail.line', { name: calendarName })}\n` +
+          `${t('share.mail.connect', { origin: window.location.origin })}\n`
       )}`
     : ''
+
+  // Phrase avec un lien au milieu : le texte traduit contient {link}, remplacé ici par le lien.
+  const [savedBefore, savedAfter = ''] = t('share.invite.saved', { email: invited ?? '', link: '\u0001' }).split('\u0001')
 
   return (
     <div
@@ -220,14 +221,14 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
           }}
         >
           <div style={{ minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>Partager le calendrier</h3>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{t('share.title')}</h3>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {calendarName}
             </div>
           </div>
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t('common.close')}
             style={{
               width: 32, height: 32, borderRadius: 10, border: 'none',
               background: 'var(--surface-alt)', color: 'var(--text-body)', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
@@ -239,11 +240,11 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
 
         <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <section>
-            <h4 style={sectionTitle}>Inviter par email</h4>
+            <h4 style={sectionTitle}>{t('share.invite.title')}</h4>
             <form onSubmit={handleInvite} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <input
                 type="email"
-                placeholder="prenom@exemple.fr"
+                placeholder={t('share.invite.placeholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -254,16 +255,15 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
                 onChange={(e) => setRole(e.target.value as Role)}
                 style={{ ...inputStyle, flex: '0 0 auto' }}
               >
-                <option value="viewer">Lecteur</option>
-                <option value="editor">Éditeur</option>
+                <option value="viewer">{t('role.viewer')}</option>
+                <option value="editor">{t('role.editor')}</option>
               </select>
               <button type="submit" disabled={busy} style={{ ...primaryBtn, flex: '0 0 auto' }}>
-                Inviter
+                {t('share.invite.button')}
               </button>
             </form>
             <p style={{ margin: '0.5rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-              Un lecteur consulte et exporte le calendrier. Un éditeur peut aussi ajouter des périodes
-              et retirer des jours.
+              {t('share.invite.roleHelp')}
             </p>
 
             {invited && (
@@ -273,22 +273,22 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
                   background: 'var(--surface-tint)', color: 'var(--tint-text)', fontSize: '0.82rem',
                 }}
               >
-                Invitation enregistrée pour {invited}. Calendraft n’envoie pas d’email :{' '}
+                {savedBefore}
                 <a href={mailtoHref} style={{ color: 'var(--accent-link)', fontWeight: 600 }}>
-                  prévenir par email
+                  {t('share.invite.notify')}
                 </a>
-                .
+                {savedAfter}
               </div>
             )}
           </section>
 
           <section>
-            <h4 style={sectionTitle}>Personnes ayant accès</h4>
+            <h4 style={sectionTitle}>{t('share.people.title')}</h4>
             {loading ? (
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Chargement...</p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
             ) : shares.length === 0 ? (
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Aucun partage pour l’instant.
+                {t('share.people.empty')}
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -308,18 +308,18 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
                       onChange={(e) => handleRoleChange(s.id, e.target.value as Role)}
                       style={{ ...inputStyle, padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                     >
-                      <option value="viewer">{ROLE_LABELS.viewer}</option>
-                      <option value="editor">{ROLE_LABELS.editor}</option>
+                      <option value="viewer">{t('role.viewer')}</option>
+                      <option value="editor">{t('role.editor')}</option>
                     </select>
                     <button
                       onClick={() => handleRemove(s.id)}
-                      title="Retirer l’accès"
+                      title={t('share.people.removeTitle')}
                       style={{
                         background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
                         borderRadius: 8, padding: '0.3rem 0.6rem', fontSize: '0.78rem', fontWeight: 600,
                       }}
                     >
-                      Retirer
+                      {t('share.people.remove')}
                     </button>
                   </div>
                 ))}
@@ -328,15 +328,14 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
           </section>
 
           <section>
-            <h4 style={sectionTitle}>Lien de partage (lecture seule)</h4>
+            <h4 style={sectionTitle}>{t('share.link.title')}</h4>
             {!link ? (
               <>
                 <p style={{ margin: '0 0 0.7rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  Créez un lien secret pour partager le calendrier avec des personnes sans compte.
-                  Elles pourront le consulter, sans rien modifier.
+                  {t('share.link.intro')}
                 </p>
                 <button onClick={handleCreateLink} disabled={busy} style={primaryBtn}>
-                  Créer un lien
+                  {t('share.link.create')}
                 </button>
               </>
             ) : (
@@ -349,15 +348,14 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
                     style={{ ...inputStyle, flex: '1 1 220px', minWidth: 0, fontSize: '0.8rem' }}
                   />
                   <button onClick={handleCopy} style={{ ...primaryBtn, flex: '0 0 auto' }}>
-                    {copied ? 'Copié' : 'Copier'}
+                    {copied ? t('common.copied') : t('share.link.copy')}
                   </button>
                 </div>
                 <p style={{ margin: '0.6rem 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Toute personne qui possède ce lien peut consulter le calendrier. Désactivez-le pour
-                  le rendre inutilisable immédiatement.
+                  {t('share.link.warning')}
                 </p>
                 <button onClick={handleRemoveLink} style={ghostBtn}>
-                  Désactiver le lien
+                  {t('share.link.disable')}
                 </button>
               </>
             )}
@@ -365,10 +363,9 @@ export default function ShareModal({ calendarId, calendarName, onClose }: ShareM
 
           {partial.shares.length > 0 && (
             <section>
-              <h4 style={sectionTitle}>Jours et événements partagés</h4>
+              <h4 style={sectionTitle}>{t('share.partial.title')}</h4>
               <p style={{ margin: '0 0 0.7rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                Ces partages ne donnent accès qu’à un jour ou à un événement précis, en lecture seule. Pour en créer un, ouvrez un jour du
-                calendrier puis « Partager ».
+                {t('share.partial.help')}
               </p>
               <PartialSharesList shares={partial.shares} onRemoved={partial.reload} onError={setError} />
             </section>

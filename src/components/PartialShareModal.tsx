@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useI18n } from '../hooks/useI18n'
-import { longDay, partialShareError, type PartialScope } from '../lib/partialShare'
+import { longDay, partialShareError, type PartialScope, type Translate } from '../lib/partialShare'
 import PartialSharesList, { useOwnerPartialShares } from './PartialSharesList'
 import type { Occurrence } from '../types'
 
@@ -61,19 +61,19 @@ const sectionTitle: React.CSSProperties = {
   color: 'var(--text-primary)',
 }
 
-function detailOf(occ: Occurrence): string {
-  if (!occ.startTime || !occ.endTime) return 'Journée entière'
+function detailOf(occ: Occurrence, t: Translate): string {
+  if (!occ.startTime || !occ.endTime) return t('event.allDay')
   const start = occ.startTime.slice(0, 5)
   const end = occ.endTime.slice(0, 5)
-  if (occ.segment === 'end') return `suite de la veille, jusqu’à ${end}`
-  if (occ.segment === 'start') return `à partir de ${start}, jusqu’au lendemain ${end}`
+  if (occ.segment === 'end') return t('partial.detail.fromPrevious', { end })
+  if (occ.segment === 'start') return t('partial.detail.toNext', { start, end })
   return `${start} – ${end}`
 }
 
 // Fenêtre ouverte depuis le détail d'un jour (propriétaire seulement) : partager le jour entier ou un seul événement,
 // par email (la personne le retrouve dans son tableau de bord) ou par lien secret. Toujours en lecture seule.
 export default function PartialShareModal({ calendarId, date, occurrences, onClose }: PartialShareModalProps) {
-  const { formatDate } = useI18n()
+  const { t, formatDate } = useI18n()
   const { shares, loading, error: listError, reload } = useOwnerPartialShares(calendarId)
   const dialogRef = useRef<HTMLDivElement>(null)
   const [target, setTarget] = useState<string>('day')
@@ -81,7 +81,8 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
-  const [invited, setInvited] = useState<{ email: string; label: string } | null>(null)
+  // name : nom de l'événement partagé, ou null quand c'est tout le jour (le texte du courriel est composé à l'affichage).
+  const [invited, setInvited] = useState<{ email: string; name: string | null } | null>(null)
   // Journée entière : inclure aussi les événements importés d'un emploi du temps en ligne (coché par défaut).
   const [includeImported, setIncludeImported] = useState(true)
 
@@ -94,11 +95,11 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
       if (seen.has(key)) continue
       seen.set(key, {
         key, periodId: imported ? null : occ.periodId, feedUid: imported ? occ.feedUid ?? null : null, imported,
-        name: occ.name, color: occ.color, detail: detailOf(occ),
+        name: occ.name, color: occ.color, detail: detailOf(occ, t),
       })
     }
     return [...seen.values()]
-  }, [occurrences])
+  }, [occurrences, t])
   const ownOptions = options.filter((o) => !o.imported)
   // Nombre d'événements importés de ce jour (un événement qui passe minuit compte pour un).
   const importedCount = useMemo(() => {
@@ -111,7 +112,6 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
   const includeFeed = hasImported && (ownOptions.length === 0 || includeImported)
   const dayTitle = longDay(date, formatDate)
   const targetOption = options.find((o) => o.key === target)
-  const targetLabel = targetOption ? `« ${targetOption.name} »` : 'Tout le jour'
   const dayCount = ownOptions.length + (includeFeed ? importedCount : 0)
 
   // Le clavier (et les lecteurs d'écran) arrivent directement dans la fenêtre à son ouverture.
@@ -155,7 +155,7 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
     setInvited(null)
     const clean = email.trim().toLowerCase()
     if (!EMAIL_RE.test(clean)) {
-      setError('Saisissez une adresse email valide.')
+      setError(t('share.error.invalidEmail'))
       return
     }
     setBusy(true)
@@ -166,7 +166,7 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
       return
     }
     setEmail('')
-    setInvited({ email: clean, label: targetLabel })
+    setInvited({ email: clean, name: targetOption ? targetOption.name : null })
     reload()
   }
 
@@ -181,17 +181,26 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
       setError(partialShareError(err))
       return
     }
-    setInfo(data?.existing ? 'Ce partage a déjà un lien : il est dans la liste ci-dessous.' : 'Lien créé : copiez-le depuis la liste ci-dessous.')
+    setInfo(data?.existing ? t('partial.info.existing') : t('partial.info.created'))
     reload()
   }
 
   const mailtoHref = invited
-    ? `mailto:${invited.email}?subject=${encodeURIComponent(`Calendraft : ${invited.label} du ${dayTitle}`)}&body=${encodeURIComponent(
-        `Bonjour,\n\nJe viens de partager avec vous ${invited.label === 'Tout le jour' ? 'ma journée' : invited.label} du ${dayTitle} sur Calendraft (lecture seule).\n` +
-          `Connectez-vous avec cette adresse email (ou créez un compte) sur ${window.location.origin} ` +
-          `pour le retrouver dans votre tableau de bord.\n`
+    ? `mailto:${invited.email}?subject=${encodeURIComponent(
+        invited.name === null
+          ? t('partial.mail.subjectDay', { day: dayTitle })
+          : t('partial.mail.subjectEvent', { name: invited.name, day: dayTitle })
+      )}&body=${encodeURIComponent(
+        `${t('share.mail.hello')}\n\n${
+          invited.name === null
+            ? t('partial.mail.lineDay', { day: dayTitle })
+            : t('partial.mail.lineEvent', { name: invited.name, day: dayTitle })
+        }\n` + `${t('share.mail.connect', { origin: window.location.origin })}\n`
       )}`
     : ''
+
+  // Phrase avec un lien au milieu : le texte traduit contient {link}, remplacé ici par le lien.
+  const [savedBefore, savedAfter = ''] = t('partial.email.saved', { email: invited?.email ?? '', link: '\u0001' }).split('\u0001')
 
   // Partages qui concernent ce jour (le jour lui-même, ou un événement dont l'occurrence couvre ce jour).
   const dayShares = shares.filter((s) => s.date <= date && date <= (s.last_date ?? s.date))
@@ -213,7 +222,7 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="Partager"
+        aria-label={t('common.share')}
         style={{
           backgroundColor: 'var(--surface)', borderRadius: 16, width: 'min(520px, 94vw)',
           maxHeight: '88vh', overflowY: 'auto', boxShadow: 'var(--shadow-modal)', outline: 'none',
@@ -228,12 +237,12 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
           }}
         >
           <div style={{ minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>Partager en lecture seule</h3>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{t('partial.title')}</h3>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{dayTitle}</div>
           </div>
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t('common.close')}
             style={{
               width: 32, height: 32, borderRadius: 10, border: 'none',
               background: 'var(--surface-alt)', color: 'var(--text-body)', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
@@ -246,12 +255,12 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
         <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {nothing ? (
             <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              Ce jour ne contient aucun événement à partager.
+              {t('partial.nothing')}
             </p>
           ) : (
             <>
               <fieldset style={{ border: 'none', margin: 0, padding: 0, minWidth: 0 }}>
-                <legend style={{ ...sectionTitle, padding: 0, fontWeight: 700 }}>Que partager ?</legend>
+                <legend style={{ ...sectionTitle, padding: 0, fontWeight: 700 }}>{t('partial.what')}</legend>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <label
                     style={{
@@ -262,9 +271,9 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
                   >
                     <input type="radio" name="partial-target" checked={target === 'day'} onChange={() => setTarget('day')} style={{ marginTop: 3 }} />
                     <span>
-                      <span style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tout le jour</span>
+                      <span style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('partial.whole')}</span>
                       <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                        {dayCount === 1 ? '1 événement' : `${dayCount} événements`} de ce jour
+                        {t('partial.dayCount', { count: dayCount })}
                       </span>
                     </span>
                   </label>
@@ -277,7 +286,7 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
                     >
                       <input type="checkbox" checked={includeImported} onChange={(e) => setIncludeImported(e.target.checked)} style={{ marginTop: 3 }} />
                       <span>
-                        Inclure {importedCount === 1 ? 'l’événement importé' : `les ${importedCount} événements importés`} de l’emploi du temps en ligne
+                        {t('partial.includeImported', { count: importedCount })}
                       </span>
                     </label>
                   )}
@@ -298,7 +307,7 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
                       <span style={{ minWidth: 0 }}>
                         <span style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-word' }}>{o.name}</span>
                         <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                          {o.detail} · {o.imported ? 'événement importé' : 'seulement cette occurrence'}
+                          {o.detail} · {o.imported ? t('partial.kind.imported') : t('partial.kind.occurrence')}
                         </span>
                       </span>
                     </label>
@@ -306,31 +315,29 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
                 </div>
                 {(targetOption?.imported || (target === 'day' && includeFeed)) && (
                   <p style={{ margin: '0.6rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    Les événements importés sont lus en direct dans votre emploi du temps en ligne : la personne les voit à jour, sans
-                    jamais recevoir l’adresse de l’emploi du temps.
+                    {t('partial.feedNote')}
                   </p>
                 )}
               </fieldset>
 
               <section>
-                <h4 style={sectionTitle}>Envoyer à une adresse email</h4>
+                <h4 style={sectionTitle}>{t('partial.email.title')}</h4>
                 <form onSubmit={handleEmail} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <input
                     type="email"
-                    placeholder="prenom@exemple.fr"
-                    aria-label="Adresse email"
+                    placeholder={t('share.invite.placeholder')}
+                    aria-label={t('share.emailAria')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     style={{ ...inputStyle, flex: '1 1 200px', minWidth: 0 }}
                   />
                   <button type="submit" disabled={busy} style={{ ...primaryBtn, flex: '0 0 auto' }}>
-                    Partager
+                    {t('common.share')}
                   </button>
                 </form>
                 <p style={{ margin: '0.5rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  La personne retrouvera ce partage dans son tableau de bord, en se connectant avec cette adresse. Elle ne voit que
-                  ce que vous partagez ici, sans pouvoir rien modifier.
+                  {t('partial.email.help')}
                 </p>
                 {invited && (
                   <div
@@ -339,22 +346,22 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
                       background: 'var(--surface-tint)', color: 'var(--tint-text)', fontSize: '0.82rem',
                     }}
                   >
-                    Partage enregistré pour {invited.email}. Calendraft n’envoie pas d’email :{' '}
+                    {savedBefore}
                     <a href={mailtoHref} style={{ color: 'var(--accent-link)', fontWeight: 600 }}>
-                      prévenir par email
+                      {t('share.invite.notify')}
                     </a>
-                    .
+                    {savedAfter}
                   </div>
                 )}
               </section>
 
               <section>
-                <h4 style={sectionTitle}>Ou créer un lien secret</h4>
+                <h4 style={sectionTitle}>{t('partial.link.title')}</h4>
                 <p style={{ margin: '0 0 0.7rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  Pour des personnes sans compte : toute personne qui possède le lien peut consulter ce partage, sans rien modifier.
+                  {t('partial.link.help')}
                 </p>
                 <button onClick={handleLink} disabled={busy} style={ghostBtn}>
-                  Créer un lien
+                  {t('share.link.create')}
                 </button>
                 {info && (
                   <div
@@ -375,13 +382,13 @@ export default function PartialShareModal({ calendarId, date, occurrences, onClo
           )}
 
           <section>
-            <h4 style={sectionTitle}>Déjà partagé pour ce jour</h4>
+            <h4 style={sectionTitle}>{t('partial.already.title')}</h4>
             {loading ? (
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Chargement...</p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
             ) : listError ? (
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--danger)', wordBreak: 'break-word' }}>{listError}</p>
             ) : dayShares.length === 0 ? (
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Aucun partage pour ce jour.</p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('partial.already.empty')}</p>
             ) : (
               <PartialSharesList shares={dayShares} onRemoved={reload} onError={setError} />
             )}

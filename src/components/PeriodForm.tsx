@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import type { TranslationKey } from '../i18n'
+import { useI18n } from '../hooks/useI18n'
 import { supabase } from '../lib/supabaseClient'
 import { toDateOnly } from '../lib/dateUtils'
 import { getPushState, type PushState } from '../lib/push'
@@ -40,13 +42,26 @@ type TimeMode = 'allday' | 'timed'
 
 const COLORS = ['#2563eb', '#0891b2', '#16a34a', '#ca8a04', '#ea580c', '#dc2626', '#db2777', '#7c3aed', '#475569']
 
-const MONTH_WEEKS: { value: number; label: string }[] = [
-  { value: 1, label: '1er' },
-  { value: 2, label: '2e' },
-  { value: 3, label: '3e' },
-  { value: 4, label: '4e' },
-  { value: -1, label: 'dernier' },
-]
+// Semaine du mois (1 à 4, -1 = dernière) -> textes de l'option du menu et du récapitulatif.
+const MONTH_WEEKS: number[] = [1, 2, 3, 4, -1]
+
+const MONTHLY_OPTION_KEYS: Record<number, TranslationKey> = {
+  1: 'period.monthly.1',
+  2: 'period.monthly.2',
+  3: 'period.monthly.3',
+  4: 'period.monthly.4',
+  [-1]: 'period.monthly.last',
+}
+
+const MONTHLY_SUMMARY_KEYS: Record<number, TranslationKey> = {
+  1: 'period.summary.monthly.1',
+  2: 'period.summary.monthly.2',
+  3: 'period.summary.monthly.3',
+  4: 'period.summary.monthly.4',
+  [-1]: 'period.summary.monthly.last',
+}
+
+const LONG_DATE: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
 
 const labelStyle: React.CSSProperties = {
   fontSize: '0.85rem',
@@ -112,18 +127,6 @@ function structureKey(s: Schedule): string {
   return [s.start_date, kind, interval, week, s.duration_days, overnight].join('|')
 }
 
-function weekdayOf(date: string): string {
-  if (!date) return ''
-  return new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long' })
-}
-
-function formatLong(date: string): string {
-  if (!date) return ''
-  return new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  })
-}
-
 function Segmented<T extends string>({
   value,
   options,
@@ -162,6 +165,7 @@ function Segmented<T extends string>({
 }
 
 export default function PeriodForm({ calendarId, period, onSaved, onCancel, onChanged }: PeriodFormProps) {
+  const { t, formatDate } = useI18n()
   const editing = period !== undefined
   const originalTimeMode: TimeMode = period?.start_time ? 'timed' : 'allday'
 
@@ -243,7 +247,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
 
   const timed = timeMode === 'timed'
   const crossesMidnight = timed && !!startTime && !!endTime && endTime < startTime
-  const weekday = weekdayOf(startDate)
+  const weekday = startDate ? formatDate(startDate, { weekday: 'long' }) : ''
 
   const chooseTimeMode = (mode: TimeMode) => {
     setTimeMode(mode)
@@ -258,31 +262,31 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
 
   const summary = useMemo(() => {
     if (!startDate) return ''
-    const long = formatLong(startDate)
-    const days = durationDays > 1 ? `, pendant ${durationDays} jours` : ''
+    const long = formatDate(startDate, LONG_DATE)
+    const days = durationDays > 1 ? t('period.summary.days', { count: durationDays }) : ''
 
     let when: string
     if (repeat === 'none') {
-      when = `${durationDays > 1 ? 'À partir du' : 'Le'} ${long}`
+      when = t(durationDays > 1 ? 'period.summary.once.multi' : 'period.summary.once.single', { date: long })
     } else if (repeat === 'weekly') {
-      const every = intervalWeeks === 1 ? 'Chaque semaine' : `Toutes les ${intervalWeeks} semaines`
-      when = `${every}, à partir du ${long}`
+      when = intervalWeeks === 1
+        ? t('period.summary.weekly.one', { date: long })
+        : t('period.summary.weekly.many', { count: intervalWeeks, date: long })
     } else {
-      const ord = MONTH_WEEKS.find((w) => w.value === weekOfMonth)?.label ?? ''
-      when = `Le ${ord} ${weekday} de chaque mois, à partir du ${long}`
+      when = t(MONTHLY_SUMMARY_KEYS[weekOfMonth] ?? MONTHLY_SUMMARY_KEYS[1], { weekday, date: long })
     }
 
-    let time = ', toute la journée'
+    let time = t('period.summary.allDay')
     if (timed) {
       time = startTime && endTime
-        ? `, de ${startTime} à ${endTime}${crossesMidnight ? ' (jusqu\'au lendemain)' : ''}`
+        ? `${t('period.summary.timed', { start: startTime, end: endTime })}${crossesMidnight ? t('period.summary.overnight') : ''}`
         : ''
     }
 
-    const remind = reminder === null ? '' : ` Rappel : ${reminderInSentence(reminder, timed)}.`
+    const remind = reminder === null ? '' : t('period.summary.reminder', { text: reminderInSentence(reminder, timed, t) })
 
     return `${when}${days}${time}.${remind}`
-  }, [startDate, repeat, intervalWeeks, weekOfMonth, durationDays, timed, startTime, endTime, crossesMidnight, weekday, reminder])
+  }, [t, formatDate, startDate, repeat, intervalWeeks, weekOfMonth, durationDays, timed, startTime, endTime, crossesMidnight, weekday, reminder])
 
   // Colonnes enregistrées. Un événement ancien « alternance » ou « jours personnalisés » garde sa valeur
   // tant que son rythme ne change pas, pour ne rien modifier sans raison.
@@ -306,15 +310,15 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
     period !== undefined && exceptionCount > 0 && structureKey(buildSchedule()) !== structureKey(period)
 
   const validate = (): string | null => {
-    if (!name.trim()) return 'Donnez un nom à l\'événement.'
-    if (!startDate) return 'Choisissez une date.'
-    if (!Number.isInteger(durationDays) || durationDays < 1) return 'La durée doit être d\'au moins 1 jour.'
+    if (!name.trim()) return t('period.error.name')
+    if (!startDate) return t('period.error.date')
+    if (!Number.isInteger(durationDays) || durationDays < 1) return t('period.error.duration')
     if (repeat === 'weekly' && (!Number.isInteger(intervalWeeks) || intervalWeeks < 1)) {
-      return 'L\'intervalle doit être d\'au moins 1 semaine.'
+      return t('period.error.interval')
     }
     if (timed) {
-      if (!startTime || !endTime) return 'Renseignez l\'heure de début et l\'heure de fin.'
-      if (startTime === endTime) return 'L\'heure de fin doit être différente de l\'heure de début.'
+      if (!startTime || !endTime) return t('period.error.times')
+      if (startTime === endTime) return t('period.error.sameTime')
     }
     return null
   }
@@ -330,9 +334,9 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
     }
     setConflict(null)
     if (limit?.kind === 'rate_limit') {
-      setError(`Vous créez des événements trop vite (10 par minute au maximum). Réessayez dans ${limit.retryAfter} seconde${limit.retryAfter > 1 ? 's' : ''}.`)
+      setError(t('limit.rateLimit', { count: limit.retryAfter }))
     } else if (limit?.kind === 'invalid') {
-      setError("Les valeurs de l'événement ne sont pas acceptées (durée de 1 à 366 jours, répétition de 1 à 52 semaines).")
+      setError(t('limit.invalid'))
     } else {
       setError(dbError.message || fallback)
     }
@@ -392,12 +396,12 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
         .select('id')
 
       if (dbError) {
-        failWith(dbError, "L'événement n'a pas pu être modifié.")
+        failWith(dbError, t('period.error.updateFailed'))
         return
       }
       // Sans droit d'écriture (ou événement supprimé entre-temps), la base ne signale pas d'erreur : aucune ligne n'est modifiée.
       if (!updated || updated.length === 0) {
-        failWith({ message: "L'événement n'a pas pu être modifié : il a peut-être été supprimé, ou vous n'avez plus le droit de le modifier." }, '')
+        failWith({ message: t('period.error.updateGone') }, '')
         return
       }
       savedId = period.id
@@ -409,7 +413,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
         .single()
 
       if (dbError || !created) {
-        failWith(dbError ?? {}, "L'événement n'a pas pu être créé.")
+        failWith(dbError ?? {}, t('period.error.createFailed'))
         return
       }
       savedId = created.id as string
@@ -423,10 +427,10 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
       try {
         reminderError = await saveReminder(savedId, reminder)
       } catch {
-        reminderError = 'Erreur réseau.'
+        reminderError = t('common.networkError')
       }
       if (reminderError) {
-        notice = `L'événement est ${editing ? 'modifié' : 'créé'}, mais son rappel n'a pas pu être enregistré. Réglez-le depuis la liste des événements.`
+        notice = editing ? t('period.notice.updatedReminderFailed') : t('period.notice.createdReminderFailed')
       }
     }
     // Préparation immédiate des notifications : utile seulement si un rappel est en jeu.
@@ -434,11 +438,8 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
 
     // L'emploi du temps importé n'a pas pu être lu (en entier) : l'événement est enregistré, on le dit.
     if (importedNotice) {
-      const detail =
-        importedNotice === 'unreachable'
-          ? "L'emploi du temps importé ne répond pas : ses événements n'ont pas été comptés dans la limite de 3 événements en même temps."
-          : "L'emploi du temps importé est trop long pour être lu en entier : certains de ses événements n'ont pas été comptés dans la limite de 3 événements en même temps."
-      notice = notice ? `${notice} ${detail}` : `L'événement est ${editing ? 'modifié' : 'créé'}. ${detail}`
+      const detail = importedNotice === 'unreachable' ? t('limit.imported.unreachable') : t('limit.imported.tooLong')
+      notice = notice ? `${notice} ${detail}` : `${editing ? t('period.notice.updated') : t('period.notice.created')} ${detail}`
     }
 
     setSaving(false)
@@ -463,11 +464,11 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
 
   // Libère une place en supprimant un jour (ou tout) d'un événement qui occupe le créneau, puis relance l'enregistrement.
   const freeSlot = async (blocker: SlotBlocker, scope: 'day' | 'event') => {
-    const when = new Date(blocker.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    const when = formatDate(blocker.date, { day: 'numeric', month: 'long', year: 'numeric' })
     const confirmed = window.confirm(
       scope === 'day'
-        ? `Supprimer « ${blocker.name} » uniquement le ${when} ? Les autres dates de cet événement ne seront pas affectées.`
-        : `Supprimer définitivement « ${blocker.name} » ? Toutes ses dates seront supprimées.`
+        ? t('period.confirm.deleteDay', { name: blocker.name, date: when })
+        : t('period.confirm.deleteEvent', { name: blocker.name })
     )
     if (!confirmed) return
 
@@ -496,30 +497,30 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
       }}
     >
       <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
-        {editing ? "Modifier l'événement" : 'Nouvel événement'}
+        {editing ? t('period.title.edit') : t('period.title.new')}
       </h3>
 
       <div>
-        <label style={labelStyle}>Nom</label>
+        <label style={labelStyle}>{t('common.name')}</label>
         <input
           style={{ ...inputStyle, fontSize: '1rem' }}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Ex. : Garde des enfants, Poste du matin..."
+          placeholder={t('period.namePlaceholder')}
           autoFocus
           required
         />
       </div>
 
       <div>
-        <label style={labelStyle}>Couleur</label>
+        <label style={labelStyle}>{t('common.color')}</label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {COLORS.map((c) => (
             <button
               key={c}
               type="button"
               onClick={() => setColor(c)}
-              aria-label={`Couleur ${c}`}
+              aria-label={t('period.colorAria', { color: c })}
               style={{
                 width: 30, height: 30, borderRadius: '50%', background: c, border: 'none',
                 outline: color === c ? '2px solid var(--text-primary)' : 'none', outlineOffset: 2,
@@ -530,7 +531,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
             type="color"
             value={color}
             onChange={(e) => setColor(e.target.value)}
-            title="Couleur personnalisée"
+            title={t('period.customColor')}
             style={{ width: 34, height: 30, padding: 0, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--input-bg)', cursor: 'pointer' }}
           />
         </div>
@@ -539,7 +540,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
       <div style={sectionStyle}>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 200px' }}>
-            <label style={labelStyle}>{repeat === 'none' ? 'Date' : 'À partir du'}</label>
+            <label style={labelStyle}>{repeat === 'none' ? t('period.date') : t('period.from')}</label>
             <input
               type="date"
               style={inputStyle}
@@ -550,7 +551,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
             {weekday && <p style={{ ...hintStyle, textTransform: 'capitalize' }}>{weekday}</p>}
           </div>
           <div style={{ flex: '1 1 160px' }}>
-            <label style={labelStyle}>Durée</label>
+            <label style={labelStyle}>{t('period.duration')}</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
                 type="number"
@@ -561,33 +562,31 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
                 onChange={(e) => setDurationDays(e.target.value === '' ? 0 : Number(e.target.value))}
               />
               <span style={{ fontSize: '0.88rem', color: 'var(--text-body)' }}>
-                {crossesMidnight ? (durationDays > 1 ? 'nuits' : 'nuit') : durationDays > 1 ? 'jours' : 'jour'}
+                {crossesMidnight ? t('period.unit.nights', { count: durationDays }) : t('period.unit.days', { count: durationDays })}
               </span>
             </div>
           </div>
         </div>
         <p style={hintStyle}>
-          {crossesMidnight
-            ? 'Pour un horaire de nuit, la durée compte le nombre de nuits consécutives.'
-            : 'Nombre de jours consécutifs (par exemple 7 pour une semaine de garde).'}
+          {crossesMidnight ? t('period.hint.nights') : t('period.hint.days')}
         </p>
       </div>
 
       <div style={sectionStyle}>
-        <label style={labelStyle}>Répétition</label>
+        <label style={labelStyle}>{t('period.repeat')}</label>
         <Segmented<Repeat>
           value={repeat}
           onChange={setRepeat}
           options={[
-            { value: 'none', label: 'Aucune' },
-            { value: 'weekly', label: 'Toutes les X semaines' },
-            { value: 'monthly', label: 'Chaque mois' },
+            { value: 'none', label: t('period.repeat.none') },
+            { value: 'weekly', label: t('period.repeat.weekly') },
+            { value: 'monthly', label: t('period.repeat.monthly') },
           ]}
         />
 
         {repeat === 'weekly' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: '0.8rem' }}>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>Répéter toutes les</span>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{t('period.repeatEvery')}</span>
             <input
               type="number"
               min={1}
@@ -597,12 +596,12 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
               onChange={(e) => setIntervalWeeks(e.target.value === '' ? 0 : Number(e.target.value))}
             />
             <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-              {intervalWeeks > 1 ? 'semaines' : 'semaine'}
+              {t('period.unit.weeks', { count: intervalWeeks })}
             </span>
           </div>
         )}
         {repeat === 'weekly' && (
-          <p style={hintStyle}>1 pour chaque semaine, 2 pour une semaine sur deux, 3 pour une semaine sur trois...</p>
+          <p style={hintStyle}>{t('period.hint.weekly')}</p>
         )}
 
         {repeat === 'monthly' && (
@@ -614,25 +613,25 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
                 onChange={(e) => setWeekOfMonth(Number(e.target.value))}
               >
                 {MONTH_WEEKS.map((w) => (
-                  <option key={w.value} value={w.value}>
-                    Le {w.label} {weekday} du mois
+                  <option key={w} value={w}>
+                    {t(MONTHLY_OPTION_KEYS[w], { weekday })}
                   </option>
                 ))}
               </select>
             </div>
-            <p style={hintStyle}>Le jour de la semaine est celui de la date choisie ci-dessus.</p>
+            <p style={hintStyle}>{t('period.hint.monthly')}</p>
           </>
         )}
       </div>
 
       <div style={sectionStyle}>
-        <label style={labelStyle}>Horaire</label>
+        <label style={labelStyle}>{t('period.schedule')}</label>
         <Segmented<TimeMode>
           value={timeMode}
           onChange={chooseTimeMode}
           options={[
-            { value: 'allday', label: 'Journée entière' },
-            { value: 'timed', label: 'Horaire précis' },
+            { value: 'allday', label: t('event.allDay') },
+            { value: 'timed', label: t('period.timed') },
           ]}
         />
 
@@ -640,26 +639,26 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
           <>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.8rem' }}>
               <div style={{ flex: '1 1 140px' }}>
-                <label style={{ ...labelStyle, fontWeight: 500 }}>Début</label>
+                <label style={{ ...labelStyle, fontWeight: 500 }}>{t('period.start')}</label>
                 <input type="time" style={inputStyle} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
               </div>
               <div style={{ flex: '1 1 140px' }}>
-                <label style={{ ...labelStyle, fontWeight: 500 }}>Fin</label>
+                <label style={{ ...labelStyle, fontWeight: 500 }}>{t('period.end')}</label>
                 <input type="time" style={inputStyle} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
               </div>
             </div>
             {crossesMidnight && (
               <p style={{ ...hintStyle, color: 'var(--accent-link)' }}>
-                L'heure de fin est avant celle de début : l'événement se termine le lendemain.
+                {t('period.hint.overnight')}
               </p>
             )}
-            <p style={hintStyle}>Au plus 3 événements à horaire précis en même temps par calendrier, importés compris.</p>
+            <p style={hintStyle}>{t('period.hint.limit')}</p>
           </>
         )}
       </div>
 
       <div style={sectionStyle}>
-        <label htmlFor="period-reminder" style={labelStyle}>Rappel (facultatif)</label>
+        <label htmlFor="period-reminder" style={labelStyle}>{t('period.reminder')}</label>
         <select
           id="period-reminder"
           style={inputStyle}
@@ -667,24 +666,22 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
           disabled={editing && !reminderReady}
           onChange={(e) => setReminder(e.target.value === '' ? null : Number(e.target.value))}
         >
-          {choicesFor(timed, reminder).map((c) => (
+          {choicesFor(timed, reminder, t).map((c) => (
             <option key={String(c.minutes)} value={c.minutes === null ? '' : String(c.minutes)}>
               {c.label}
             </option>
           ))}
         </select>
         <p style={hintStyle}>
-          {timed
-            ? "Vous recevez une notification avant chaque occurrence de l'événement."
-            : "Pour un événement sur la journée entière, la notification part à 8 h, le jour même ou la veille. Si l'événement dure plusieurs jours de suite, elle concerne le premier jour."}{' '}
-          Ce rappel est personnel : les personnes avec qui le calendrier est partagé règlent le leur.
+          {timed ? t('period.reminderHint.timed') : t('period.reminderHint.allDay')}{' '}
+          {t('period.reminderHint.personal')}
         </p>
-        {reminder !== null && pushHint(pushState) && (
-          <p style={{ ...hintStyle, color: 'var(--accent-link)' }}>{pushHint(pushState)}</p>
+        {reminder !== null && pushHint(pushState, t) && (
+          <p style={{ ...hintStyle, color: 'var(--accent-link)' }}>{pushHint(pushState, t)}</p>
         )}
         {reminderFailed && (
           <p style={{ ...hintStyle, color: 'var(--danger)' }}>
-            Votre rappel actuel n'a pas pu être chargé : il ne sera pas modifié.
+            {t('period.reminderFailed')}
           </p>
         )}
       </div>
@@ -697,9 +694,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
             background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', color: 'var(--warning-text)',
           }}
         >
-          {exceptionCount > 1
-            ? `Vous aviez retiré ${exceptionCount} jours de cet événement. Comme les dates ou la répétition changent, ces retraits sont annulés : tous les jours de la nouvelle série seront affichés.`
-            : 'Vous aviez retiré un jour de cet événement. Comme les dates ou la répétition changent, ce retrait est annulé : tous les jours de la nouvelle série seront affichés.'}
+          {t('period.exceptionsReset', { count: exceptionCount })}
         </p>
       )}
 
@@ -710,7 +705,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
             padding: '0.7rem 0.9rem',
           }}
         >
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--tint-text)', marginBottom: 2 }}>Récapitulatif</div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--tint-text)', marginBottom: 2 }}>{t('period.summaryTitle')}</div>
           <div style={{ fontSize: '0.88rem', color: 'var(--tint-text-body)', lineHeight: 1.5 }}>{summary}</div>
         </div>
       )}
@@ -728,7 +723,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
             opacity: saving ? 0.7 : 1,
           }}
         >
-          {saving ? 'Enregistrement...' : editing ? 'Enregistrer les modifications' : "Créer l'événement"}
+          {saving ? t('common.saving') : editing ? t('period.save') : t('period.create')}
         </button>
         <button
           type="button"
@@ -738,7 +733,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
             borderRadius: 10, padding: '0.7rem 1.3rem', fontSize: '0.9rem', fontWeight: 600,
           }}
         >
-          Annuler
+          {t('common.cancel')}
         </button>
       </div>
 

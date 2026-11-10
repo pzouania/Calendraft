@@ -45,15 +45,13 @@ const inputStyle: React.CSSProperties = {
 }
 
 export default function PartialSharesList({ shares, onRemoved, onError }: PartialSharesListProps) {
-  const { formatDate } = useI18n()
+  const { t, formatDate } = useI18n()
   const [busyId, setBusyId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const handleRemove = async (share: PartialShareOut) => {
     const confirmed = window.confirm(
-      share.token
-        ? 'Désactiver ce lien ? Toute personne qui l’a reçu n’y aura plus accès immédiatement.'
-        : `Retirer l’accès de ${share.email} ?`
+      share.token ? t('partialList.confirmDisable') : t('partialList.confirmRemove', { email: share.email ?? '' })
     )
     if (!confirmed) return
     setBusyId(share.id)
@@ -70,7 +68,7 @@ export default function PartialSharesList({ shares, onRemoved, onError }: Partia
       setCopiedId(share.id)
       setTimeout(() => setCopiedId((id) => (id === share.id ? null : id)), 2000)
     } catch {
-      onError('Copie impossible : sélectionnez le lien et copiez-le manuellement.')
+      onError(t('share.error.copy'))
     }
   }
 
@@ -87,10 +85,10 @@ export default function PartialSharesList({ shares, onRemoved, onError }: Partia
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 160px', minWidth: 0 }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-                {s.token ? 'Lien secret' : s.email}
+                {s.token ? t('partialList.secretLink') : s.email}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', wordBreak: 'break-word' }}>
-                {describeShare(s, formatDate)}
+                {describeShare(s, formatDate, t)}
               </div>
             </div>
             {s.token && (
@@ -101,25 +99,25 @@ export default function PartialSharesList({ shares, onRemoved, onError }: Partia
                   borderRadius: 8, padding: '0.3rem 0.6rem', fontSize: '0.78rem', fontWeight: 600,
                 }}
               >
-                {copiedId === s.id ? 'Copié' : 'Copier le lien'}
+                {copiedId === s.id ? t('common.copied') : t('partialList.copyLink')}
               </button>
             )}
             <button
               onClick={() => handleRemove(s)}
               disabled={busyId === s.id}
-              title={s.token ? 'Désactiver le lien' : 'Retirer l’accès'}
+              title={s.token ? t('share.link.disable') : t('share.people.removeTitle')}
               style={{
                 background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
                 borderRadius: 8, padding: '0.3rem 0.6rem', fontSize: '0.78rem', fontWeight: 600,
               }}
             >
-              {s.token ? 'Désactiver' : 'Retirer'}
+              {s.token ? t('common.disable') : t('share.people.remove')}
             </button>
           </div>
           {s.token && (
             <input
               readOnly
-              aria-label="Lien de partage"
+              aria-label={t('partialList.linkAria')}
               value={partialShareUrl(s.token)}
               onFocus={(e) => e.currentTarget.select()}
               style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}

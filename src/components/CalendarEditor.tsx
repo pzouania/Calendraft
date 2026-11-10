@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import type { Params, TranslationKey } from '../i18n'
+import { useI18n } from '../hooks/useI18n'
 import { supabase } from '../lib/supabaseClient'
 import PeriodForm from './PeriodForm'
 import YearCalendar from './YearCalendar'
@@ -22,30 +24,35 @@ interface CalendarEditorProps {
 type Role = 'owner' | 'editor' | 'viewer'
 type Tab = 'calendar' | 'events' | 'import'
 
-function formatFrequency(p: Period): string {
+type Translate = (key: TranslationKey, params?: Params) => string
+
+const MONTHLY_KEYS: Record<number, TranslationKey> = {
+  1: 'freq.monthly.1',
+  2: 'freq.monthly.2',
+  3: 'freq.monthly.3',
+  4: 'freq.monthly.4',
+  [-1]: 'freq.monthly.last',
+}
+
+function formatFrequency(p: Period, t: Translate): string {
   switch (p.frequency) {
     case 'once':
-      return 'une seule fois'
+      return t('freq.once')
     case 'weekly':
-      return p.interval_weeks > 1 ? `toutes les ${p.interval_weeks} semaines` : 'chaque semaine'
+      return p.interval_weeks > 1 ? t('freq.weeklyInterval', { count: p.interval_weeks }) : t('freq.weekly')
     case 'alternating':
-      return `alternance (1 semaine sur ${p.interval_weeks})`
+      return t('freq.alternating', { count: p.interval_weeks })
     case 'custom_days':
-      return 'chaque semaine, même jour'
-    case 'monthly': {
-      const labels: Record<number, string> = { 1: '1ère', 2: '2e', 3: '3e', 4: '4e', [-1]: 'dernière' }
-      return `${labels[p.week_of_month ?? 1]} semaine de chaque mois`
-    }
+      return t('freq.customDays')
+    case 'monthly':
+      return t(MONTHLY_KEYS[p.week_of_month ?? 1] ?? MONTHLY_KEYS[1])
     default:
       return p.frequency
   }
 }
 
-// 2026-10-14 -> 14/10/2026 (plus lisible, et ne se coupe pas en fin de ligne)
-function formatDateFr(iso: string): string {
-  const [y, m, d] = iso.split('-')
-  return y && m && d ? `${d}/${m}/${y}` : iso
-}
+// 2026-10-14 -> 14/10/2026 en français (plus lisible, et ne se coupe pas en fin de ligne) ; 14.10.2026 en allemand.
+const NUMERIC_DATE: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' }
 
 function useIsNarrow(maxWidth = 640): boolean {
   const query = `(max-width: ${maxWidth}px)`
@@ -89,6 +96,7 @@ function ReminderSelect({
   saved: boolean
   onChange: (minutes: number | null) => void
 }) {
+  const { t } = useI18n()
   const active = value !== null
   return (
     <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -102,7 +110,7 @@ function ReminderSelect({
           <BellIcon />
         </span>
         <select
-          aria-label={`Rappel pour ${name}`}
+          aria-label={t('editor.reminder.aria', { name })}
           value={value === null ? '' : String(value)}
           disabled={busy}
           onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
@@ -112,14 +120,14 @@ function ReminderSelect({
             background: active ? 'var(--surface-tint)' : 'var(--surface)', color: active ? 'var(--accent-link)' : 'var(--text-body)', opacity: busy ? 0.6 : 1,
           }}
         >
-          {choicesFor(timed, value).map((c) => (
+          {choicesFor(timed, value, t).map((c) => (
             <option key={String(c.minutes)} value={c.minutes === null ? '' : String(c.minutes)}>
               {c.label}
             </option>
           ))}
         </select>
       </div>
-      {saved && <span role="status" style={{ fontSize: '0.75rem', color: 'var(--success-strong)', fontWeight: 600 }}>Enregistré</span>}
+      {saved && <span role="status" style={{ fontSize: '0.75rem', color: 'var(--success-strong)', fontWeight: 600 }}>{t('editor.reminder.saved')}</span>}
     </div>
   )
 }
@@ -132,6 +140,7 @@ function withReminder(map: Record<string, number>, id: string, minutes: number |
 }
 
 export default function CalendarEditor({ calendarId, onBack }: CalendarEditorProps) {
+  const { t, formatDate } = useI18n()
   const [tab, setTab] = useState<Tab>('calendar')
   const [calendarName, setCalendarName] = useState('')
   const [calendarIcon, setCalendarIcon] = useState('calendar')
@@ -217,7 +226,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
         setRemindersOk(true)
       } catch {
         setRemindersOk(false)
-        setError("Vos rappels n'ont pas pu être chargés. Actualisez la page.")
+        setError(t('editor.error.reminders'))
       }
     }
     setLoading(false)
@@ -257,12 +266,12 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
     try {
       failure = await saveReminder(periodId, minutes)
     } catch {
-      failure = 'Erreur réseau.'
+      failure = t('common.networkError')
     }
 
     if (failure) {
       setMyReminders((current) => withReminder(current, periodId, previous))
-      setError(`Le rappel n'a pas pu être enregistré : ${failure}`)
+      setError(t('editor.error.reminderSave', { message: failure }))
     } else {
       requestReminderSync()
       setSavedReminderId(periodId)
@@ -272,7 +281,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
   }
 
   const handleDelete = async (id: string) => {
-    const confirmed = window.confirm('Supprimer cet événement ?')
+    const confirmed = window.confirm(t('editor.confirmDelete'))
     if (!confirmed) return
     const { error } = await supabase.from('periods').delete().eq('id', id)
     if (error) setError(error.message)
@@ -291,7 +300,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
     ...(isNarrow ? { flex: 1, minWidth: 0, whiteSpace: 'nowrap' as const } : {}),
   })
 
-  const roleLabel = role === 'editor' ? 'Partagé · éditeur' : 'Partagé · lecture seule'
+  const roleLabel = role === 'editor' ? t('editor.role.editor') : t('editor.role.viewer')
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -310,14 +319,14 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
         >
           <button
             onClick={onBack}
-            aria-label="Retour"
+            aria-label={t('common.back')}
             style={{
               background: 'var(--header-btn-bg)', color: 'var(--header-btn-text)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--header-btn-ring)',
               borderRadius: 999, padding: '0.5rem 0.9rem', fontSize: '0.85rem', fontWeight: 700,
               flexShrink: 0, minHeight: 36,
             }}
           >
-            ← Retour
+            ← {t('common.back')}
           </button>
           <div style={{ flex: '1 1 150px', minWidth: 0 }}>
             <div
@@ -339,8 +348,8 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             {isOwner && (
               <button
                 onClick={() => setShowShare(true)}
-                aria-label="Partager"
-                title="Partager"
+                aria-label={t('common.share')}
+                title={t('common.share')}
                 style={{
                   background: 'rgba(255,255,255,0.18)', color: 'white',
                   border: '1px solid rgba(255,255,255,0.55)', borderRadius: '50%',
@@ -400,7 +409,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                 }}
               >
                 <ShareIcon size={15} />
-                Partager
+                {t('common.share')}
               </button>
             )}
             <button
@@ -410,7 +419,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                 borderRadius: 999, padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
               }}
             >
-              ← Retour
+              ← {t('common.back')}
             </button>
           </div>
         </header>
@@ -422,12 +431,12 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           style={{ display: 'flex', gap: isNarrow ? '0.4rem' : '0.6rem', marginBottom: isNarrow ? '1rem' : '1.5rem', flexWrap: 'wrap' }}
         >
           <button style={tabButtonStyle(tab === 'calendar')} onClick={() => setTab('calendar')}>
-            {isNarrow ? 'Calendrier' : 'Calendrier annuel'}
+            {isNarrow ? t('editor.tab.yearShort') : t('editor.tab.year')}
           </button>
-          <button style={tabButtonStyle(tab === 'events')} onClick={() => setTab('events')}>Événements</button>
+          <button style={tabButtonStyle(tab === 'events')} onClick={() => setTab('events')}>{t('editor.tab.events')}</button>
           {isOwner && (
             <button style={tabButtonStyle(tab === 'import')} onClick={() => setTab('import')}>
-              {isNarrow ? 'Importation' : 'Importation calendrier'}
+              {isNarrow ? t('editor.tab.importShort') : t('editor.tab.import')}
             </button>
           )}
         </div>
@@ -457,7 +466,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                     width: isNarrow ? '100%' : undefined,
                   }}
                 >
-                  + Ajouter un événement
+                  {t('editor.addEvent')}
                 </button>
                 <button
                   onClick={() => {
@@ -472,7 +481,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                     width: isNarrow ? '100%' : undefined,
                   }}
                 >
-                  Modèles de rythmes
+                  {t('rhythm.title')}
                 </button>
               </div>
             )}
@@ -516,14 +525,14 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               </p>
             )}
 
-            {Object.keys(myReminders).length > 0 && pushHint(pushState) && (
+            {Object.keys(myReminders).length > 0 && pushHint(pushState, t) && (
               <p
                 style={{
                   margin: '0 0 1rem', padding: '0.65rem 0.9rem', borderRadius: 10, fontSize: '0.85rem', lineHeight: 1.45,
                   background: 'var(--surface-tint)', border: '1px solid var(--tint-border)', color: 'var(--tint-text)',
                 }}
               >
-                {pushHint(pushState)}
+                {pushHint(pushState, t)}
               </p>
             )}
 
@@ -539,7 +548,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             )}
 
             {loading ? (
-              <p style={{ color: 'var(--text-secondary)' }}>Chargement...</p>
+              <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
             ) : periods.length === 0 ? (
               <div
                 style={{
@@ -547,7 +556,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                   color: 'var(--text-secondary)', boxShadow: 'var(--shadow-md)',
                 }}
               >
-                Aucun événement pour l'instant.
+                {t('editor.empty')}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -560,7 +569,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                         onSaved={(message) => {
                           setEditingId(null)
                           setNotice(message ?? null)
-                          setFlash("L'événement a été modifié.")
+                          setFlash(t('editor.flash.updated'))
                           loadPeriods()
                         }}
                         onChanged={() => loadPeriods(true)}
@@ -580,8 +589,8 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                     <div style={{ flex: 1, minWidth: isNarrow ? 0 : 160 }}>
                       <strong style={{ color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>{p.name}</strong>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        {formatFrequency(p)} — à partir du&nbsp;{formatDateFr(p.start_date)}
-                        {p.start_time && ` — ${p.start_time.slice(0, 5)} à ${p.end_time?.slice(0, 5)}`}
+                        {t('editor.eventLine', { frequency: formatFrequency(p, t), date: formatDate(p.start_date, NUMERIC_DATE) })}
+                        {p.start_time && t('event.timeRange', { start: p.start_time.slice(0, 5), end: p.end_time?.slice(0, 5) ?? '' })}
                       </div>
                       {remindersOk && (
                         <ReminderSelect
@@ -603,23 +612,23 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                             setShowForm(false)
                             setEditingId(p.id)
                           }}
-                          aria-label={`Modifier ${p.name}`}
+                          aria-label={t('editor.editAria', { name: p.name })}
                           style={{
                             background: 'transparent', border: '1px solid var(--tint-border)', color: 'var(--accent-link)',
                             borderRadius: 8, padding: isNarrow ? '0.4rem 0.6rem' : '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600,
                           }}
                         >
-                          Modifier
+                          {t('common.edit')}
                         </button>
                         <button
                           onClick={() => handleDelete(p.id)}
-                          aria-label={`Supprimer ${p.name}`}
+                          aria-label={t('editor.deleteAria', { name: p.name })}
                           style={{
                             background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger)',
                             borderRadius: 8, padding: isNarrow ? '0.4rem 0.6rem' : '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600,
                           }}
                         >
-                          Supprimer
+                          {t('common.delete')}
                         </button>
                       </div>
                     )}
@@ -646,7 +655,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               schoolZone={schoolZone}
             />
           ) : (
-            <p style={{ color: 'var(--text-secondary)' }}>Chargement du calendrier...</p>
+            <p style={{ color: 'var(--text-secondary)' }}>{t('calendar.loading')}</p>
           ))}
       </main>
 
@@ -657,7 +666,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           onCreated={(count, message) => {
             setShowTemplates(false)
             setNotice(message)
-            setFlash(count > 1 ? `${count} événements ont été ajoutés.` : "L'événement a été ajouté.")
+            setFlash(t('editor.flash.added', { count }))
             loadPeriods()
           }}
         />

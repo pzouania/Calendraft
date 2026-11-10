@@ -11,7 +11,7 @@ interface PartialSharesInboxProps {
 // Tableau de bord : jours et événements que d'autres personnes ont partagés avec l'adresse du compte.
 // N'affiche rien tant qu'il n'y en a pas (ou si le partage n'est pas encore activé sur le serveur).
 export default function PartialSharesInbox({ onOpen }: PartialSharesInboxProps) {
-  const { formatDate } = useI18n()
+  const { t, formatDate } = useI18n()
   const [shares, setShares] = useState<PartialShareIn[]>([])
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function PartialSharesInbox({ onOpen }: PartialSharesInboxProps) 
   return (
     <section style={{ marginTop: '2rem' }}>
       <h2 style={{ margin: '0 0 0.8rem', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-        Jours et événements partagés avec moi
+        {t('inbox.partial.title')}
       </h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.8rem' }}>
         {shares.map((s) => (

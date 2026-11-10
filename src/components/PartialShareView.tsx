@@ -108,7 +108,7 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
 
   const handleRemove = async () => {
     if (!id) return
-    if (!window.confirm('Retirer ce partage de votre liste ? Vous n’y aurez plus accès.')) return
+    if (!window.confirm(t('partialView.confirmRemove'))) return
     setRemoving(true)
     setRemoveError(null)
     const { error } = await supabase.rpc('delete_partial_share', { p_id: id })
@@ -149,7 +149,7 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
               whiteSpace: 'nowrap', flexShrink: 0,
             }}
           >
-            Lecture seule
+            {t('common.readOnly')}
           </span>
         )}
       </div>
@@ -162,7 +162,7 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
             borderRadius: 999, padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700, flexShrink: 0,
           }}
         >
-          {onBack ? t('common.back') : 'Ouvrir Calendraft'}
+          {onBack ? t('common.back') : t('common.openApp')}
         </button>
       </div>
     </header>
@@ -184,12 +184,10 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
             }}
           >
             <h2 style={{ margin: '0 0 0.6rem', color: 'var(--text-primary)', fontSize: '1.2rem' }}>
-              {status === 'invalid' ? (token ? 'Ce lien n’est plus valide' : 'Ce partage n’existe plus') : 'Impossible de charger ce partage'}
+              {status === 'invalid' ? (token ? t('shared.linkInvalid') : t('partialView.gone')) : t('partialView.loadError')}
             </h2>
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              {status === 'invalid'
-                ? 'Le propriétaire a peut-être arrêté le partage. Demandez-lui un nouveau lien.'
-                : 'Vérifiez votre connexion et réessayez dans un instant.'}
+              {status === 'invalid' ? t('partialView.invalidHelp') : t('common.checkConnection')}
             </p>
           </div>
         </main>
@@ -198,11 +196,11 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
   }
 
   const isDay = data.scope === 'day'
-  const title = isDay ? longDay(data.date, formatDate) : data.event_name ?? 'Événement'
+  const title = isDay ? longDay(data.date, formatDate) : data.event_name ?? t('partial.eventFallback')
   // Un événement importé peut couvrir plusieurs jours (début le soir, fin le lendemain) : la période suit ce qui est affiché.
   const shownDates = withFeed && !isDay ? allItems.map((i) => i.date).sort() : []
   const subtitle = isDay
-    ? 'Programme de la journée'
+    ? t('partialView.daySchedule')
     : shownDates.length > 0
       ? dateRangeLabel(shownDates[0], shownDates[shownDates.length - 1], formatDate)
       : dateRangeLabel(data.date, data.last_date, formatDate)
@@ -245,7 +243,7 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
               }}
             >
               <span style={{ flex: '1 1 200px' }}>
-                Les événements importés de l’emploi du temps en ligne n’ont pas pu être chargés pour le moment.
+                {t('partialView.feedUnavailable')}
               </span>
               <button
                 onClick={() => setFeedTry((n) => n + 1)}
@@ -254,7 +252,7 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
                   borderRadius: 8, padding: '0.3rem 0.7rem', fontSize: '0.78rem', fontWeight: 600,
                 }}
               >
-                Réessayer
+                {t('common.retry')}
               </button>
             </div>
           )}
@@ -267,16 +265,17 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
                 color: 'var(--text-body)', fontSize: '0.82rem',
               }}
             >
-              Emploi du temps en ligne injoignable : les événements importés viennent de la dernière copie enregistrée
-              {snapshotLabel(feedStaleAt, formatDate) ? ` le ${snapshotLabel(feedStaleAt, formatDate)}` : ''}.
+              {snapshotLabel(feedStaleAt, formatDate)
+                ? t('partialView.staleAt', { date: snapshotLabel(feedStaleAt, formatDate) })
+                : t('partialView.stale')}
             </div>
           )}
 
           {days.length === 0 && feedState === 'loading' ? (
-            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Chargement des événements importés...</p>
+            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{t('partialView.loadingFeed')}</p>
           ) : days.length === 0 && feedState === 'unavailable' ? null : days.length === 0 ? (
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              Ce partage ne contient plus d’événement : il a probablement été modifié ou supprimé depuis.
+              {t('partialView.empty')}
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
@@ -309,15 +308,15 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
                 </section>
               ))}
               {feedState === 'loading' && (
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Chargement des événements importés...</p>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{t('partialView.loadingFeed')}</p>
               )}
             </div>
           )}
         </div>
 
         <p style={{ margin: '1rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-          Vue en lecture seule : le propriétaire partage ici uniquement {isDay ? 'ce jour' : 'cet événement'}.
-          {withFeed && ' Les événements importés sont lus en direct dans son emploi du temps en ligne.'}
+          {isDay ? t('partialView.footerDay') : t('partialView.footerEvent')}
+          {withFeed && ` ${t('partialView.footerFeed')}`}
         </p>
 
         {id && (
@@ -330,7 +329,7 @@ export default function PartialShareView({ token, id, onBack }: PartialShareView
                 borderRadius: 10, padding: '0.55rem 1.1rem', fontSize: '0.85rem', fontWeight: 600,
               }}
             >
-              Retirer de ma liste
+              {t('partialView.removeFromList')}
             </button>
             {removeError && <p role="alert" style={{ margin: '0.6rem 0 0', color: 'var(--danger)', fontSize: '0.85rem' }}>{removeError}</p>}
           </div>

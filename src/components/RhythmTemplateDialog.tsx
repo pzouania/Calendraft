@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useI18n } from '../hooks/useI18n'
 import { toDateOnly } from '../lib/dateUtils'
 import { createFromDrafts } from '../lib/rhythmCreate'
 import {
   GROUP_ORDER,
-  GROUP_TITLES,
+  GROUP_TITLE_KEYS,
   TEMPLATES,
   anchorDate,
   buildDrafts,
@@ -24,8 +25,6 @@ interface RhythmTemplateDialogProps {
   onClose: () => void
 }
 
-const WEEKDAY_LETTERS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
-
 function shift(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days)
 }
@@ -33,14 +32,6 @@ function shift(date: Date, days: number): Date {
 function parse(value: string): Date {
   const [y, m, d] = value.split('-').map(Number)
   return new Date(y, m - 1, d)
-}
-
-function longDate(value: string): string {
-  return parse(value).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-}
-
-function shortDate(date: Date): string {
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 }
 
 const fieldStyle: React.CSSProperties = {
@@ -58,8 +49,10 @@ const hintStyle: React.CSSProperties = {
 
 // Les semaines du cycle telles que le calendrier les affichera, une ligne par semaine.
 function CyclePreview({ def, settings }: { def: TemplateDef; settings: TemplateSettings }) {
+  const { t, formatDate, weekdayName } = useI18n()
+  const shortDate = (date: Date) => formatDate(date, { day: 'numeric', month: 'short' })
   const preview = useMemo(() => {
-    const lenient = lenientSettings(def, settings)
+    const lenient = lenientSettings(def, settings, t)
     const anchor = anchorDate(def, lenient.startDate)
     if (!anchor) return null
     const drafts = buildDrafts(def, lenient)
@@ -74,7 +67,7 @@ function CyclePreview({ def, settings }: { def: TemplateDef; settings: TemplateS
       byDate.set(occ.date, list)
     }
     return { anchor, monday, rows, byDate, drafts }
-  }, [def, settings])
+  }, [def, settings, t])
 
   if (!preview) return null
   const { anchor, monday, rows, byDate, drafts } = preview
@@ -85,12 +78,15 @@ function CyclePreview({ def, settings }: { def: TemplateDef; settings: TemplateS
   const weekText = Array.from({ length: rows }, (_, w) => {
     const names = new Set<string>()
     for (let i = 0; i < 7; i++) (byDate.get(toDateOnly(shift(monday, w * 7 + i))) ?? []).forEach((x) => names.add(x.name))
-    return `Semaine du ${shortDate(shift(monday, w * 7))} : ${names.size > 0 ? Array.from(names).join(', ') : 'rien'}`
+    return t('rhythm.preview.week', {
+      date: shortDate(shift(monday, w * 7)),
+      names: names.size > 0 ? Array.from(names).join(', ') : t('rhythm.preview.nothing'),
+    })
   }).join('. ')
 
   return (
     <div>
-      <div style={labelStyle}>Aperçu du cycle</div>
+      <div style={labelStyle}>{t('rhythm.preview')}</div>
       <div
         role="img"
         aria-label={weekText}
@@ -98,9 +94,9 @@ function CyclePreview({ def, settings }: { def: TemplateDef; settings: TemplateS
         style={{ display: 'grid', gridTemplateColumns: '2.6rem repeat(7, minmax(0, 1fr))', gap: 3, alignItems: 'stretch' }}
       >
         <span aria-hidden="true" />
-        {WEEKDAY_LETTERS.map((l, i) => (
+        {Array.from({ length: 7 }, (_, i) => (
           <span key={i} aria-hidden="true" style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-            {l}
+            {weekdayName(i, 'narrow')}
           </span>
         ))}
         {Array.from({ length: rows }, (_, w) => (
@@ -121,6 +117,8 @@ function CyclePreview({ def, settings }: { def: TemplateDef; settings: TemplateS
 }
 
 function PreviewRow({ monday, byDate, anchor }: { monday: Date; byDate: Map<string, { color: string; name: string }[]>; anchor: string }) {
+  const { formatDate } = useI18n()
+  const shortDate = (date: Date) => formatDate(date, { day: 'numeric', month: 'short' })
   return (
     <>
       <span aria-hidden="true" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', alignSelf: 'center', lineHeight: 1.1 }}>
@@ -155,6 +153,8 @@ function PreviewRow({ monday, byDate, anchor }: { monday: Date; byDate: Map<stri
 // Fenêtre « Modèles de rythmes » : on choisit un modèle (garde alternée, 3x8...), on règle la date de début, les noms
 // et les horaires, on voit le cycle, puis on ajoute tous les événements du modèle d'un seul coup.
 export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }: RhythmTemplateDialogProps) {
+  const { t, formatDate } = useI18n()
+  const longDate = (value: string) => formatDate(value, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const dialogRef = useRef<HTMLDivElement>(null)
   const [def, setDef] = useState<TemplateDef | null>(null)
   const [settings, setSettings] = useState<TemplateSettings | null>(null)
@@ -197,7 +197,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
 
   const choose = (template: TemplateDef) => {
     setDef(template)
-    setSettings(defaultSettings(template, toDateOnly(new Date())))
+    setSettings(defaultSettings(template, toDateOnly(new Date()), t))
     setError(null)
     dialogRef.current?.scrollTo?.(0, 0)
     dialogRef.current?.focus()
@@ -274,13 +274,13 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
           }}
         >
           <h3 id="rhythm-title" style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-            {def ? def.title : 'Modèles de rythmes'}
+            {def ? def.text(t).title : t('rhythm.title')}
           </h3>
           <button
             type="button"
             onClick={onClose}
             disabled={busy}
-            aria-label="Fermer"
+            aria-label={t('common.close')}
             style={{
               width: 32, height: 32, borderRadius: 10, border: 'none', background: 'var(--surface-alt)',
               color: 'var(--text-body)', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
@@ -293,28 +293,27 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
         {!def || !settings ? (
           <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-body)', lineHeight: 1.5 }}>
-              Choisissez un rythme : tous ses événements sont ajoutés d’un coup, avec la date de début, les noms et les horaires que
-              vous réglez à l’étape suivante.
+              {t('rhythm.intro')}
             </p>
             {GROUP_ORDER.map((group) => (
               <div key={group}>
                 <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {GROUP_TITLES[group]}
+                  {t(GROUP_TITLE_KEYS[group])}
                 </h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {TEMPLATES.filter((t) => t.group === group).map((t) => (
+                  {TEMPLATES.filter((tpl) => tpl.group === group).map((tpl) => (
                     <button
-                      key={t.id}
+                      key={tpl.id}
                       type="button"
-                      data-template={t.id}
-                      onClick={() => choose(t)}
+                      data-template={tpl.id}
+                      onClick={() => choose(tpl)}
                       style={{
                         textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 2, padding: '0.65rem 0.8rem',
                         borderRadius: 10, border: '1px solid var(--border-soft)', background: 'var(--surface-faint)', cursor: 'pointer',
                       }}
                     >
-                      <strong style={{ fontSize: '0.92rem', color: 'var(--text-primary)' }}>{t.title}</strong>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{t.summary}</span>
+                      <strong style={{ fontSize: '0.92rem', color: 'var(--text-primary)' }}>{tpl.text(t).title}</strong>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{tpl.text(t).summary}</span>
                     </button>
                   ))}
                 </div>
@@ -324,13 +323,13 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
         ) : (
           <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-body)', lineHeight: 1.5 }}>
-              {def.summary}
-              {def.help ? ` ${def.help}` : ''}
+              {def.text(t).summary}
+              {def.text(t).help ? ` ${def.text(t).help}` : ''}
             </p>
 
             <div>
               <label htmlFor="rhythm-start" style={labelStyle}>
-                {def.anchor === 'monday' ? 'Début du cycle' : 'Premier jour du cycle'}
+                {def.anchor === 'monday' ? t('rhythm.start.monday') : t('rhythm.start.any')}
               </label>
               <input
                 id="rhythm-start"
@@ -341,16 +340,16 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
               />
               {anchor && (
                 <p style={hintStyle}>
-                  {def.anchor === 'monday'
-                    ? `Le cycle commence le ${longDate(anchor)}${anchor !== settings.startDate ? ' (lundi de cette semaine)' : ''}.`
-                    : `Le cycle commence le ${longDate(anchor)}.`}
+                  {def.anchor === 'monday' && anchor !== settings.startDate
+                    ? t('rhythm.anchorShifted', { date: longDate(anchor) })
+                    : t('rhythm.anchor', { date: longDate(anchor) })}
                 </p>
               )}
             </div>
 
             <div>
               <label htmlFor="rhythm-phase" style={labelStyle}>
-                Que se passe-t-il la première semaine ?
+                {t('rhythm.phase')}
               </label>
               <select
                 id="rhythm-phase"
@@ -360,18 +359,18 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
               >
                 {Array.from({ length: cycle }, (_, p) => (
                   <option key={p} value={p}>
-                    {def.weekLabel(p, names)}
+                    {def.weekLabel(p, names, t)}
                   </option>
                 ))}
               </select>
-              <p style={hintStyle}>Le rythme se répète ensuite sans fin, avant comme après cette date.</p>
+              <p style={hintStyle}>{t('rhythm.phaseHint')}</p>
             </div>
 
             <CyclePreview def={def} settings={settings} />
 
             <fieldset style={{ border: 'none', margin: 0, padding: 0, minWidth: 0 }}>
               <legend style={{ padding: 0, marginBottom: 6, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Événements ajoutés
+                {t('rhythm.added')}
               </legend>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {def.series.map((_, i) => {
@@ -391,7 +390,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
                           <input
                             type="checkbox"
                             checked={x.enabled}
-                            aria-label={`Ajouter « ${x.name.trim() || def.series[i].name} »`}
+                            aria-label={t('rhythm.addAria', { name: x.name.trim() || t(def.series[i].nameKey) })}
                             onChange={(e) => updateSeries(i, { enabled: e.target.checked })}
                             style={{ width: 18, height: 18, flexShrink: 0 }}
                           />
@@ -400,7 +399,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
                           type="text"
                           value={x.name}
                           maxLength={60}
-                          aria-label={`Nom de l’événement ${i + 1}`}
+                          aria-label={t('rhythm.nameAria', { number: i + 1 })}
                           disabled={!x.enabled}
                           onChange={(e) => updateSeries(i, { name: e.target.value })}
                           style={fieldStyle}
@@ -408,7 +407,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
                         <input
                           type="color"
                           value={x.color}
-                          aria-label={`Couleur de « ${x.name.trim() || def.series[i].name} »`}
+                          aria-label={t('rhythm.colorAria', { name: x.name.trim() || t(def.series[i].nameKey) })}
                           disabled={!x.enabled}
                           onChange={(e) => updateSeries(i, { color: e.target.value })}
                           style={{
@@ -420,7 +419,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
                       {timed && (
                         <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
                           <label style={{ flex: '1 1 120px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            Début
+                            {t('period.start')}
                             <input
                               type="time"
                               value={x.start}
@@ -430,7 +429,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
                             />
                           </label>
                           <label style={{ flex: '1 1 120px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            Fin
+                            {t('period.end')}
                             <input
                               type="time"
                               value={x.end}
@@ -449,9 +448,8 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
 
             {count > 0 && (
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                Ce modèle ajoute {count} événement{count > 1 ? 's' : ''} répété{count > 1 ? 's' : ''} au
-                calendrier. Vous pourrez les modifier ou les supprimer un par un dans la liste des événements.
-                {def.series.some((_, i) => isTimed(def, i)) ? ' Au plus 3 événements à horaire précis en même temps par calendrier.' : ''}
+                {t('rhythm.summaryCount', { count })}
+                {def.series.some((_, i) => isTimed(def, i)) ? ` ${t('rhythm.limitNote')}` : ''}
               </p>
             )}
 
@@ -471,7 +469,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
                   padding: '0.6rem 1.1rem', fontSize: '0.88rem', fontWeight: 700,
                 }}
               >
-                ← Tous les modèles
+                {t('rhythm.allModels')}
               </button>
               <button
                 type="button"
@@ -482,7 +480,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
                   padding: '0.6rem 1.2rem', fontSize: '0.88rem', fontWeight: 700, opacity: busy ? 0.7 : 1,
                 }}
               >
-                {busy ? 'Ajout...' : count === 0 ? 'Ajouter' : `Ajouter ${count} événement${count > 1 ? 's' : ''}`}
+                {busy ? t('rhythm.adding') : count === 0 ? t('rhythm.add') : t('rhythm.addCount', { count })}
               </button>
             </div>
           </div>

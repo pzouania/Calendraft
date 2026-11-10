@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { useI18n } from '../hooks/useI18n'
 import YearCalendar from './YearCalendar'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
@@ -27,6 +28,7 @@ const goHome = () => {
 }
 
 export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
+  const { t } = useI18n()
   const [data, setData] = useState<SharedData | null>(null)
   const [status, setStatus] = useState<Status>('loading')
   // Zone de vacances scolaires du calendrier partagé (lue à part ; absente si le serveur ne la fournit pas).
@@ -105,7 +107,7 @@ export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
               whiteSpace: 'nowrap', flexShrink: 0,
             }}
           >
-            Lecture seule
+            {t('common.readOnly')}
           </span>
         )}
       </div>
@@ -118,14 +120,14 @@ export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
             borderRadius: 999, padding: '0.5rem 1.1rem', fontSize: '0.85rem', fontWeight: 700, flexShrink: 0,
           }}
         >
-          Ouvrir Calendraft
+          {t('common.openApp')}
         </button>
       </div>
     </header>
   )
 
   if (status === 'loading') {
-    return <p style={{ padding: '2rem', color: 'var(--text-secondary)' }}>Chargement du calendrier...</p>
+    return <p style={{ padding: '2rem', color: 'var(--text-secondary)' }}>{t('shared.loading')}</p>
   }
 
   if (status !== 'ready' || !data) {
@@ -140,12 +142,10 @@ export default function SharedCalendarPage({ token }: SharedCalendarPageProps) {
             }}
           >
             <h2 style={{ margin: '0 0 0.6rem', color: 'var(--text-primary)', fontSize: '1.2rem' }}>
-              {status === 'invalid' ? 'Ce lien n’est plus valide' : 'Impossible de charger le calendrier'}
+              {status === 'invalid' ? t('shared.linkInvalid') : t('shared.loadError')}
             </h2>
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              {status === 'invalid'
-                ? 'Le propriétaire a peut-être désactivé le partage. Demandez-lui un nouveau lien.'
-                : 'Vérifiez votre connexion et réessayez dans un instant.'}
+              {status === 'invalid' ? t('shared.invalidHelp') : t('common.checkConnection')}
             </p>
           </div>
         </main>
