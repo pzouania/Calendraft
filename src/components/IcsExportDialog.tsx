@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from '../hooks/useI18n'
 import { ICS_MAX_EVENTS, buildAllIcsEvents, buildIcsFile, dayString, exceptionsByPeriod, icsFileName, rollingWindow } from '../lib/icsExport'
 import { fetchImportedEvents, type ImportedFeed } from '../lib/icsFeed'
-import { createIcsLink, deleteIcsLink, fetchIcsLink, fetchIcsReady, icsUrl, webcalUrl } from '../lib/icsLink'
+import { createIcsLink, deleteIcsLink, fetchIcsLink, fetchIcsLinkHolidays, fetchIcsReady, icsUrl, updateIcsLinkHolidays, webcalUrl } from '../lib/icsLink'
 import { snapshotLabel } from '../lib/partialShare'
+import { holidaysBetween, type SchoolZone } from '../lib/schoolHolidays'
 import type { Period, PeriodException } from '../types'
 
 type Range = 'upcoming' | 'year'
@@ -28,6 +29,8 @@ export interface IcsExportDialogProps {
   yearTo: string
   // Le propriétaire d'un calendrier enregistré peut créer le lien de synchronisation.
   canManageLink: boolean
+  // Zone de vacances scolaires du calendrier : le fichier et le lien peuvent contenir les vacances (absente : rien à proposer).
+  schoolZone?: SchoolZone | null
   // Calendrier enregistré : le serveur peut avoir un emploi du temps en ligne à ajouter au fichier (faux pour une page partagée
   // par lien, dont les données sont fixes).
   loadImported: boolean
@@ -47,12 +50,14 @@ function download(text: string, fileName: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
 
-const plural = (n: number, one: string, many: string) => `${n.toLocaleString('fr-FR')} ${n > 1 ? many : one}`
-
 export default function IcsExportDialog({
-  calendarId, calendarName, calendarColor, periods, exceptions, yearLabel, yearFrom, yearTo, canManageLink, loadImported, onClose,
+  calendarId, calendarName, calendarColor, periods, exceptions, yearLabel, yearFrom, yearTo, canManageLink, schoolZone = null, loadImported, onClose,
 }: IcsExportDialogProps) {
-  const { formatDate } = useI18n()
+  const { t, lang, locale, formatDate } = useI18n()
+  // Nombre écrit selon la langue (5 000 / 5,000 / 5.000) ; « count » (nombre brut) sert au choix du singulier ou du pluriel.
+  const num = (n: number) => n.toLocaleString(locale)
+  const eventsText = (n: number) => t('ics.events', { count: n, num: num(n) })
+  const holidaysText = (n: number) => t('ics.holidayPeriods', { count: n, num: num(n) })
   const dialogRef = useRef<HTMLDivElement>(null)
   const linkFieldRef = useRef<HTMLInputElement>(null)
   const [range, setRange] = useState<Range>('upcoming')
@@ -65,6 +70,10 @@ export default function IcsExportDialog({
   const [copied, setCopied] = useState<'ok' | 'fail' | null>(null)
   const [imported, setImported] = useState<Imported>(loadImported ? { state: 'loading' } : { state: 'none' })
   const [importedTry, setImportedTry] = useState(0)
+  // Vacances scolaires dans le fichier (cochées d'office quand le calendrier a une zone) et dans le lien de synchronisation
+  // (réglage enregistré côté serveur ; « unsupported » : le serveur ne le propose pas encore, on ne montre rien).
+  const [fileHolidays, setFileHolidays] = useState(true)
+  const [linkHolidays, setLinkHolidays] = useState<boolean | 'loading' | 'unsupported'>('loading')
   // « À partir d'aujourd'hui » : fixé à l'ouverture, pour que le fichier et le nombre annoncé couvrent les mêmes jours.
   const todayWindow = useMemo(() => rollingWindow(dayString(new Date())), [])
 
@@ -104,6 +113,18 @@ export default function IcsExportDialog({
     }
   }, [calendarId, canManageLink])
 
+  useEffect(() => {
+    if (!canManageLink || link.state !== 'ready' || !schoolZone) return
+    let alive = true
+    setLinkHolidays('loading')
+    fetchIcsLinkHolidays(calendarId).then((result) => {
+      if (alive) setLinkHolidays(result.ok ? (result.value ?? true) : 'unsupported')
+    })
+    return () => {
+      alive = false
+    }
+  }, [calendarId, canManageLink, link.state, schoolZone])
+
   // Emploi du temps en ligne : lu une fois pour les deux périodes proposées (la plus large des deux), puis découpé ici.
   useEffect(() => {
     if (!loadImported) return
@@ -120,30 +141,41 @@ export default function IcsExportDialog({
   const span = useMemo(() => (range === 'upcoming' ? todayWindow : { from: yearFrom, to: yearTo }), [range, todayWindow, yearFrom, yearTo])
   const importedEvents = imported.state === 'ok' ? imported.events : undefined
   const counts = useMemo(() => {
-    const all = buildAllIcsEvents(periods, exceptionsByPeriod(exceptions), importedEvents, span.from, span.to)
+    const all = buildAllIcsEvents(periods, exceptionsByPeriod(exceptions), importedEvents, span.from, span.to, lang)
     return { total: all.length, imported: all.filter((e) => e.imported).length }
-  }, [periods, exceptions, importedEvents, span])
+  }, [periods, exceptions, importedEvents, span, lang])
   const eventCount = counts.total
+  const holidayTotal = useMemo(
+    () => (fileHolidays && schoolZone ? holidaysBetween(schoolZone, span.from, span.to).length : 0),
+    [fileHolidays, schoolZone, span],
+  )
+  const holidayText = holidaysText(holidayTotal)
   const loadingImported = imported.state === 'loading'
   // Un emploi du temps en ligne est relié au calendrier (lu, ou injoignable pour le moment) : le lien de synchronisation le contient.
   const hasTimetable = imported.state === 'ok' || imported.state === 'error'
 
   const doDownload = () => {
     if (loadingImported) return
-    const file = buildIcsFile({ name: calendarName, color: calendarColor }, periods, exceptions, span, { stamp: new Date(), feed: importedEvents })
-    if (file.eventCount === 0) {
-      setDownloadNotice({ tone: 'warn', text: 'Aucun événement sur cette période : il n’y a rien à exporter.' })
+    const file = buildIcsFile({ name: calendarName, color: calendarColor }, periods, exceptions, span, {
+      stamp: new Date(), feed: importedEvents, holidayZone: fileHolidays ? schoolZone : null, lang,
+    })
+    if (file.eventCount === 0 && file.holidayCount === 0) {
+      setDownloadNotice({ tone: 'warn', text: t('ics.notice.empty') })
       return
     }
     download(file.text, icsFileName(calendarName))
-    const total = plural(file.eventCount, 'événement', 'événements')
-    const withFeed = file.importedCount > 0 ? `, dont ${file.importedCount.toLocaleString('fr-FR')} de l’emploi du temps en ligne` : ''
+    const events = file.eventCount === 0 ? '' : eventsText(file.eventCount)
+    const importedPart = file.importedCount > 0 ? t('ics.part.withImported', { num: num(file.importedCount) }) : ''
+    const holidays =
+      file.holidayCount > 0
+        ? events === '' ? holidaysText(file.holidayCount) : t('ics.part.withHolidays', { holidays: holidaysText(file.holidayCount) })
+        : ''
     if (file.truncated) {
-      setDownloadNotice({ tone: 'warn', text: `Fichier téléchargé, mais le calendrier est trop long : seuls les ${total} les plus proches sont dedans.` })
+      setDownloadNotice({ tone: 'warn', text: t('ics.notice.truncated', { events, holidays }) })
     } else if (imported.state === 'error') {
-      setDownloadNotice({ tone: 'warn', text: `Fichier téléchargé : ${total}, sans l’emploi du temps en ligne (injoignable).` })
+      setDownloadNotice({ tone: 'warn', text: t('ics.notice.noFeed', { events, holidays }) })
     } else {
-      setDownloadNotice({ tone: 'ok', text: `Fichier téléchargé : ${total}${withFeed}.` })
+      setDownloadNotice({ tone: 'ok', text: t('ics.notice.ok', { events, imported: importedPart, holidays }) })
     }
   }
 
@@ -165,9 +197,25 @@ export default function IcsExportDialog({
     setBusy(false)
   }
 
+  const toggleLinkHolidays = async (next: boolean) => {
+    if (busy || typeof linkHolidays !== 'boolean') return
+    const previous = linkHolidays
+    setLinkHolidays(next)
+    setBusy(true)
+    setLinkError(null)
+    const result = await updateIcsLinkHolidays(calendarId, next)
+    setBusy(false)
+    if (result.ok) {
+      setLinkHolidays(result.value ?? next)
+    } else {
+      setLinkHolidays(previous)
+      setLinkError(result.message)
+    }
+  }
+
   const copyLink = async () => {
     if (link.state !== 'ready') return
-    const url = icsUrl(link.token)
+    const url = icsUrl(link.token, lang)
     try {
       await navigator.clipboard.writeText(url)
       setCopied('ok')
@@ -218,8 +266,8 @@ export default function IcsExportDialog({
   const hint: React.CSSProperties = { margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }
 
   const choices: { id: Range; title: string; hint: string }[] = [
-    { id: 'upcoming', title: 'À partir d’aujourd’hui', hint: 'Les 3 derniers mois et les 2 prochaines années.' },
-    { id: 'year', title: `L’année affichée (${yearLabel})`, hint: 'Seulement la période que vous regardez à l’écran.' },
+    { id: 'upcoming', title: t('ics.range.upcoming.title'), hint: t('ics.range.upcoming.hint') },
+    { id: 'year', title: t('ics.range.year.title', { year: yearLabel }), hint: t('ics.range.year.hint') },
   ]
 
   return (
@@ -253,13 +301,13 @@ export default function IcsExportDialog({
           }}
         >
           <h3 id="ics-export-title" style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-            Exporter vers un agenda
+            {t('ics.title')}
           </h3>
           <button
             type="button"
             onClick={onClose}
             disabled={busy}
-            aria-label="Fermer"
+            aria-label={t('common.close')}
             style={{
               width: 32, height: 32, borderRadius: 10, border: 'none', background: 'var(--surface-alt)',
               color: 'var(--text-body)', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
@@ -272,14 +320,11 @@ export default function IcsExportDialog({
         <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
           {/* ---- Fichier ---- */}
           <section style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }} aria-labelledby="ics-file-title">
-            <h4 id="ics-file-title" style={sectionTitle}>Télécharger un fichier</h4>
-            <p style={hint}>
-              Le fichier .ics s’ouvre dans Google Agenda, Apple Calendrier, Outlook et la plupart des agendas. C’est une
-              copie d’aujourd’hui : elle ne suit pas les changements faits ensuite.
-            </p>
+            <h4 id="ics-file-title" style={sectionTitle}>{t('ics.file.title')}</h4>
+            <p style={hint}>{t('ics.file.hint')}</p>
             <fieldset style={{ border: 'none', margin: 0, padding: 0, minWidth: 0 }}>
               <legend style={{ padding: 0, marginBottom: '0.4rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Période
+                {t('ics.range.legend')}
               </legend>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 {choices.map((c) => (
@@ -306,21 +351,43 @@ export default function IcsExportDialog({
                 ))}
               </div>
             </fieldset>
+            {schoolZone && (
+              <label
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.55rem 0.75rem', borderRadius: 10,
+                  background: 'var(--surface-faint)', cursor: 'pointer', fontSize: '0.88rem', color: 'var(--text-primary)',
+                }}
+              >
+                <input
+                  type="checkbox" data-testid="ics-file-holidays" checked={fileHolidays} style={{ marginTop: 3 }}
+                  onChange={(e) => {
+                    setFileHolidays(e.target.checked)
+                    setDownloadNotice(null)
+                  }}
+                />
+                <span>
+                  <strong>{t('ics.holidays.file.title', { zone: schoolZone })}</strong>
+                  <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    {t('ics.holidays.file.hint')}
+                  </span>
+                </span>
+              </label>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
               <button
-                type="button" data-testid="ics-download" onClick={doDownload} disabled={eventCount === 0 || loadingImported}
-                style={{ ...primary, opacity: eventCount === 0 || loadingImported ? 0.5 : 1 }}
+                type="button" data-testid="ics-download" onClick={doDownload} disabled={(eventCount === 0 && holidayTotal === 0) || loadingImported}
+                style={{ ...primary, opacity: (eventCount === 0 && holidayTotal === 0) || loadingImported ? 0.5 : 1 }}
               >
-                Télécharger le fichier (.ics)
+                {t('ics.download')}
               </button>
               <span data-testid="ics-count" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                 {loadingImported
-                  ? 'Chargement de l’emploi du temps en ligne…'
+                  ? t('ics.count.loadingFeed')
                   : eventCount === 0
-                    ? 'Aucun événement sur cette période.'
+                    ? holidayTotal > 0 ? holidayText : t('ics.count.none')
                     : eventCount > ICS_MAX_EVENTS
-                      ? `${plural(eventCount, 'événement', 'événements')} (le fichier en contient ${ICS_MAX_EVENTS.toLocaleString('fr-FR')} au maximum)`
-                      : `${plural(eventCount, 'événement', 'événements')}${counts.imported > 0 ? `, dont ${counts.imported.toLocaleString('fr-FR')} de l’emploi du temps en ligne` : ''}`}
+                      ? `${eventsText(eventCount)}${t('ics.part.max', { max: num(ICS_MAX_EVENTS) })}${holidayTotal > 0 ? t('ics.part.withHolidays', { holidays: holidayText }) : ''}`
+                      : `${eventsText(eventCount)}${counts.imported > 0 ? t('ics.part.withImported', { num: num(counts.imported) }) : ''}${holidayTotal > 0 ? t('ics.part.withHolidays', { holidays: holidayText }) : ''}`}
               </span>
             </div>
             {imported.state === 'error' && (
@@ -328,11 +395,9 @@ export default function IcsExportDialog({
                 role="status" data-testid="ics-feed-error"
                 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', padding: '0.5rem 0.75rem', borderRadius: 10, background: 'var(--warning-bg)', color: 'var(--warning-text)', fontSize: '0.82rem' }}
               >
-                <span style={{ flex: '1 1 14rem' }}>
-                  L’emploi du temps en ligne est injoignable pour le moment : le fichier ne contiendra que les événements de ce calendrier.
-                </span>
+                <span style={{ flex: '1 1 14rem' }}>{t('ics.feed.error')}</span>
                 <button type="button" data-testid="ics-feed-retry" onClick={() => setImportedTry((n) => n + 1)} style={{ ...secondary, padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                  Réessayer
+                  {t('common.retry')}
                 </button>
               </div>
             )}
@@ -341,15 +406,14 @@ export default function IcsExportDialog({
                 role="status" data-testid="ics-feed-stale"
                 style={{ margin: 0, padding: '0.5rem 0.75rem', borderRadius: 10, background: 'var(--warning-bg)', color: 'var(--warning-text)', fontSize: '0.82rem' }}
               >
-                L’emploi du temps en ligne est injoignable : les événements importés viennent de la dernière copie enregistrée
-                {snapshotLabel(imported.staleAt, formatDate) ? ` le ${snapshotLabel(imported.staleAt, formatDate)}` : ''}.
+                {snapshotLabel(imported.staleAt, formatDate)
+                  ? t('ics.feed.staleAt', { date: snapshotLabel(imported.staleAt, formatDate) })
+                  : t('ics.feed.stale')}
               </p>
             )}
             {imported.state === 'ok' && imported.recurring > 0 && (
               <p style={hint} data-testid="ics-feed-recurring">
-                {imported.recurring > 1
-                  ? `${imported.recurring.toLocaleString('fr-FR')} événements de l’emploi du temps en ligne se répètent : ils ne figurent qu’une fois dans le fichier, comme à l’écran.`
-                  : 'Un événement de l’emploi du temps en ligne se répète : il ne figure qu’une fois dans le fichier, comme à l’écran.'}
+                {t('ics.feed.recurring', { count: imported.recurring, num: num(imported.recurring) })}
               </p>
             )}
             {downloadNotice && (
@@ -373,16 +437,10 @@ export default function IcsExportDialog({
               style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', paddingTop: '1.2rem', borderTop: '1px solid var(--border-soft)' }}
               aria-labelledby="ics-sync-title"
             >
-              <h4 id="ics-sync-title" style={sectionTitle}>Synchroniser automatiquement</h4>
-              <p style={hint}>
-                Abonnez votre agenda à ce calendrier : ce que vous changez dans Calendraft apparaît ensuite tout seul dans
-                votre agenda.
-              </p>
+              <h4 id="ics-sync-title" style={sectionTitle}>{t('ics.sync.title')}</h4>
+              <p style={hint}>{t('ics.sync.hint')}</p>
               {hasTimetable && (
-                <p style={hint} data-testid="ics-sync-feed">
-                  L’emploi du temps en ligne est aussi dans le lien. Il se met à jour quand vous ouvrez Calendraft ou cette
-                  fenêtre (la dernière copie est gardée 30 jours).
-                </p>
+                <p style={hint} data-testid="ics-sync-feed">{t('ics.sync.feed')}</p>
               )}
 
               {ready === false && (
@@ -391,23 +449,23 @@ export default function IcsExportDialog({
                   data-testid="ics-not-ready"
                   style={{ margin: 0, padding: '0.5rem 0.75rem', borderRadius: 10, fontSize: '0.8rem', background: 'var(--warning-bg)', color: 'var(--warning-text)' }}
                 >
-                  La synchronisation n’est pas encore activée sur le serveur de Calendraft. Le fichier ci-dessus fonctionne déjà.
+                  {t('ics.sync.notReady')}
                 </p>
               )}
 
-              {link.state === 'loading' && <p style={hint}>Chargement…</p>}
+              {link.state === 'loading' && <p style={hint}>{t('ics.loading')}</p>}
 
               {link.state === 'error' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
                   <p role="alert" style={{ margin: 0, fontSize: '0.82rem', color: 'var(--danger)' }}>{link.message}</p>
-                  <button type="button" onClick={loadLink} style={secondary}>Réessayer</button>
+                  <button type="button" onClick={loadLink} style={secondary}>{t('common.retry')}</button>
                 </div>
               )}
 
               {link.state === 'none' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
                   <button type="button" data-testid="ics-create" onClick={() => runLink('create')} disabled={busy} style={{ ...primary, opacity: busy ? 0.6 : 1 }}>
-                    {busy ? 'Création…' : 'Créer un lien de synchronisation'}
+                    {busy ? t('ics.creating') : t('ics.create')}
                   </button>
                 </div>
               )}
@@ -415,12 +473,12 @@ export default function IcsExportDialog({
               {link.state === 'ready' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Lien de synchronisation
+                    {t('ics.link.label')}
                     <input
                       ref={linkFieldRef}
                       data-testid="ics-link"
                       readOnly
-                      value={icsUrl(link.token)}
+                      value={icsUrl(link.token, lang)}
                       onFocus={(e) => e.currentTarget.select()}
                       style={{
                         width: '100%', padding: '0.6rem 0.7rem', borderRadius: 10, border: '1px solid var(--border)',
@@ -430,43 +488,64 @@ export default function IcsExportDialog({
                     />
                   </label>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <button type="button" data-testid="ics-copy" onClick={copyLink} style={primary}>Copier le lien</button>
+                    <button type="button" data-testid="ics-copy" onClick={copyLink} style={primary}>{t('ics.copy')}</button>
                     <a
-                      href={webcalUrl(link.token)}
+                      href={webcalUrl(link.token, lang)}
                       data-testid="ics-subscribe"
                       style={{ ...secondary, textDecoration: 'none', display: 'inline-block' }}
                     >
-                      S’abonner (Apple, Outlook)
+                      {t('ics.subscribe')}
                     </a>
-                    {copied === 'ok' && <span role="status" style={{ fontSize: '0.8rem', color: 'var(--accent-text)' }}>Lien copié.</span>}
-                    {copied === 'fail' && <span role="status" style={{ fontSize: '0.8rem', color: 'var(--warning-text)' }}>Copie impossible : sélectionnez le lien et copiez-le.</span>}
+                    {copied === 'ok' && <span role="status" style={{ fontSize: '0.8rem', color: 'var(--accent-text)' }}>{t('ics.copied')}</span>}
+                    {copied === 'fail' && <span role="status" style={{ fontSize: '0.8rem', color: 'var(--warning-text)' }}>{t('ics.copyFail')}</span>}
                   </div>
 
+                  {schoolZone && linkHolidays !== 'unsupported' && (
+                    <label
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.55rem 0.75rem', borderRadius: 10,
+                        background: 'var(--surface-faint)', cursor: typeof linkHolidays === 'boolean' && !busy ? 'pointer' : 'default',
+                        fontSize: '0.85rem', color: 'var(--text-primary)',
+                      }}
+                    >
+                      <input
+                        type="checkbox" data-testid="ics-link-holidays" style={{ marginTop: 3 }}
+                        checked={linkHolidays === true || linkHolidays === 'loading'}
+                        disabled={busy || typeof linkHolidays !== 'boolean'}
+                        onChange={(e) => toggleLinkHolidays(e.target.checked)}
+                      />
+                      <span>
+                        <strong>{t('ics.holidays.link.title', { zone: schoolZone })}</strong>
+                        <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          {t('ics.holidays.link.hint')}
+                        </span>
+                      </span>
+                    </label>
+                  )}
+
                   <p style={hint}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Gardez ce lien pour vous :</strong> toute personne qui l’a peut voir ce calendrier
-                    {hasTimetable ? ', emploi du temps en ligne compris' : ''}. S’il a été partagé par erreur, remplacez-le : l’ancien cessera de fonctionner.
+                    <strong style={{ color: 'var(--text-primary)' }}>{t('ics.keep.lead')}</strong>{' '}
+                    {t(hasTimetable ? 'ics.keep.bodyTimetable' : 'ics.keep.body')}
                   </p>
 
                   {confirm === null && (
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <button type="button" data-testid="ics-regenerate" onClick={() => setConfirm('regenerate')} disabled={busy} style={secondary}>
-                        Remplacer le lien
+                        {t('ics.regenerate')}
                       </button>
                       <button type="button" data-testid="ics-delete" onClick={() => setConfirm('delete')} disabled={busy} style={danger}>
-                        Désactiver
+                        {t('common.disable')}
                       </button>
                     </div>
                   )}
                   {confirm !== null && (
                     <div
                       role="group"
-                      aria-label="Confirmation"
+                      aria-label={t('ics.confirm.aria')}
                       style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', padding: '0.7rem 0.8rem', borderRadius: 10, background: 'var(--surface-faint)' }}
                     >
                       <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                        {confirm === 'regenerate'
-                          ? 'Remplacer le lien ? Les agendas déjà abonnés ne recevront plus rien tant que vous ne leur donnez pas le nouveau lien.'
-                          : 'Désactiver le lien ? Les agendas abonnés ne recevront plus rien. Vous pourrez en créer un nouveau.'}
+                        {t(confirm === 'regenerate' ? 'ics.confirm.regenerate' : 'ics.confirm.delete')}
                       </p>
                       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <button
@@ -474,22 +553,21 @@ export default function IcsExportDialog({
                           onClick={() => runLink(confirm === 'regenerate' ? 'regenerate' : 'delete')}
                           style={confirm === 'delete' ? danger : primary}
                         >
-                          {confirm === 'regenerate' ? 'Oui, remplacer' : 'Oui, désactiver'}
+                          {t(confirm === 'regenerate' ? 'ics.confirm.yesReplace' : 'ics.confirm.yesDisable')}
                         </button>
-                        <button type="button" data-testid="ics-cancel" onClick={() => setConfirm(null)} disabled={busy} style={secondary}>Annuler</button>
+                        <button type="button" data-testid="ics-cancel" onClick={() => setConfirm(null)} disabled={busy} style={secondary}>{t('common.cancel')}</button>
                       </div>
                     </div>
                   )}
 
                   <details style={{ fontSize: '0.82rem', color: 'var(--text-body)' }}>
-                    <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--accent-link)' }}>Comment l’ajouter à mon agenda ?</summary>
+                    <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--accent-link)' }}>{t('ics.help.title')}</summary>
                     <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', lineHeight: 1.45 }}>
                       <li>
-                        <strong>Google Agenda</strong> (sur ordinateur) : « Autres agendas » (+) puis « À partir de l’URL », et collez le lien.
-                        Google ne met à jour ces agendas que de temps en temps (jusqu’à 24 heures).
+                        <strong>{t('ics.help.google.name')}</strong>{t('ics.help.google.text')}
                       </li>
-                      <li><strong>Apple Calendrier</strong> : touchez « S’abonner (Apple, Outlook) », ou Fichier puis « Nouvel abonnement à un calendrier » sur Mac.</li>
-                      <li><strong>Outlook</strong> : « Ajouter un calendrier » puis « S’abonner à partir du web », et collez le lien.</li>
+                      <li><strong>{t('ics.help.apple.name')}</strong>{t('ics.help.apple.text')}</li>
+                      <li><strong>Outlook</strong>{t('ics.help.outlook.text')}</li>
                     </ul>
                   </details>
                 </div>

@@ -1,4 +1,5 @@
 import { useI18n } from '../hooks/useI18n'
+import type { Lang } from '../i18n'
 import { getMonthMatrix, toDateOnly } from '../lib/dateUtils'
 import {
   axisFor, blockOf, chipLayout, chipText, hasTimes, hhmm, layoutBlocks, sortDay, weekDays,
@@ -87,7 +88,7 @@ function Header({ calendarName, calendarIcon, calendarColor, title }: Pick<Sheet
 }
 
 // Ligne de légende des vacances : le nom de la vacance s'il n'y en a qu'une sur la feuille, sinon « Vacances scolaires (zone X) ».
-function holidayLegend(keys: string[], holidays: Map<string, SchoolHoliday> | undefined, zone: SchoolZone | null | undefined): string | null {
+function holidayLegend(keys: string[], holidays: Map<string, SchoolHoliday> | undefined, zone: SchoolZone | null | undefined, lang: Lang): string | null {
   if (!holidays || !zone) return null
   const kinds = new Set<string>()
   let one: SchoolHoliday | undefined
@@ -99,7 +100,7 @@ function holidayLegend(keys: string[], holidays: Map<string, SchoolHoliday> | un
     }
   }
   if (!one) return null
-  return kinds.size === 1 ? holidayLabel(one.kind, zone) : holidayLegendLabel(zone)
+  return kinds.size === 1 ? holidayLabel(one.kind, zone, lang) : holidayLegendLabel(zone, lang)
 }
 
 // Légende : seulement les événements qui apparaissent sur la feuille (et les vacances scolaires, si la feuille en contient).
@@ -154,7 +155,7 @@ function Chip({ occ, size }: { occ: Occurrence; size: string }) {
 }
 
 export function MonthSheet({ year, month, ...base }: SheetBase & { year: number; month: number }) {
-  const { monthName, weekdayName } = useI18n()
+  const { t, lang, monthName, weekdayName } = useI18n()
   const weeks = getMonthMatrix(year, month)
   const { max, font } = chipLayout(weeks.length)
   const keys = weeks.flat().filter((d): d is Date => !!d).map(toDateOnly)
@@ -210,7 +211,7 @@ export function MonthSheet({ year, month, ...base }: SheetBase & { year: number;
                 ))}
                 {overflow && (
                   <div style={{ fontSize: font, lineHeight: 1.25, marginTop: '0.4mm', color: MUTED, fontWeight: 700 }}>
-                    + {occs.length - (max - 1)} autres
+                    {t('print.more', { count: occs.length - (max - 1) })}
                   </div>
                 )}
               </div>
@@ -218,7 +219,7 @@ export function MonthSheet({ year, month, ...base }: SheetBase & { year: number;
           }),
         )}
       </div>
-      <Legend items={base.legend} used={usedIds(base.byDate, keys)} holiday={holidayLegend(keys, base.holidays, base.holidayZone)} />
+      <Legend items={base.legend} used={usedIds(base.byDate, keys)} holiday={holidayLegend(keys, base.holidays, base.holidayZone, lang)} />
     </section>
   )
 }
@@ -317,7 +318,7 @@ function WeekBlock({ block, from, to, bodyMm, dayMm }: { block: PlacedBlock; fro
 }
 
 export function WeekSheet({ monday, ...base }: SheetBase & { monday: Date }) {
-  const { formatDate } = useI18n()
+  const { t, lang, formatDate } = useI18n()
   const days = weekDays(monday, base.byDate)
   const n = days.length
 
@@ -371,7 +372,7 @@ export function WeekSheet({ monday, ...base }: SheetBase & { monday: Date }) {
 
       {hasAllDay && (
         <div style={{ display: 'grid', gridTemplateColumns: cols, border: `0.3mm solid ${LINE}`, borderBottom: 'none', flexShrink: 0 }}>
-          <div style={{ fontSize: '6pt', color: MUTED, padding: '1mm 0.8mm', lineHeight: 1.2 }}>Toute la journée</div>
+          <div style={{ fontSize: '6pt', color: MUTED, padding: '1mm 0.8mm', lineHeight: 1.2 }}>{t('print.allDay')}</div>
           {allDay.map((list, i) => (
             <div key={days[i].key} data-allday={days[i].key} style={{ borderLeft: `0.3mm solid ${LINE}`, padding: '0.6mm 0.8mm 1mm', minWidth: 0 }}>
               {list.map((o, oi) => (
@@ -433,7 +434,7 @@ export function WeekSheet({ monday, ...base }: SheetBase & { monday: Date }) {
 
       <Legend
         items={base.legend} used={usedIds(base.byDate, days.map((d) => d.key))}
-        holiday={holidayLegend(days.map((d) => d.key), base.holidays, base.holidayZone)}
+        holiday={holidayLegend(days.map((d) => d.key), base.holidays, base.holidayZone, lang)}
       />
     </section>
   )

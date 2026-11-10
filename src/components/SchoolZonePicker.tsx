@@ -1,3 +1,4 @@
+import { useI18n } from '../hooks/useI18n'
 import { SCHOOL_ZONES, ZONE_ACADEMIES, type SchoolZone } from '../lib/schoolHolidays'
 
 interface SchoolZonePickerProps {
@@ -10,17 +11,18 @@ interface SchoolZonePickerProps {
   accent?: string
 }
 
-const OPTIONS: { value: SchoolZone | null; label: string; id: string }[] = [
-  { value: null, label: 'Aucune', id: 'none' },
-  ...SCHOOL_ZONES.map((z) => ({ value: z as SchoolZone | null, label: `Zone ${z}`, id: z })),
-]
-
 // Choix de la zone de vacances scolaires : Aucune, A, B ou C, avec la liste des académies pour s'y retrouver.
 export default function SchoolZonePicker({ value, onChange, disabled = false, name, accent }: SchoolZonePickerProps) {
+  const { t } = useI18n()
+  // Les libellés sont lus à l'affichage : ils suivent la langue choisie.
+  const options: { value: SchoolZone | null; label: string; id: string }[] = [
+    { value: null, label: t('holidays.zone.none'), id: 'none' },
+    ...SCHOOL_ZONES.map((z) => ({ value: z as SchoolZone | null, label: t('holidays.zone.option', { zone: z }), id: z })),
+  ]
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      <div role="radiogroup" aria-label="Zone de vacances scolaires" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {OPTIONS.map((o) => {
+      <div role="radiogroup" aria-label={t('holidays.zone.aria')} style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {options.map((o) => {
           const active = value === o.value
           return (
             <button
@@ -45,18 +47,19 @@ export default function SchoolZonePicker({ value, onChange, disabled = false, na
         })}
       </div>
       <details style={{ fontSize: '0.8rem', color: 'var(--text-body)' }}>
-        <summary id={`${name}-help`} style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--accent-link)' }}>Quelle est ma zone ?</summary>
+        <summary id={`${name}-help`} style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--accent-link)' }}>{t('holidays.zone.help')}</summary>
         <div style={{ margin: '0.5rem 0 0', display: 'flex', flexDirection: 'column', gap: '0.35rem', lineHeight: 1.45 }}>
           <p style={{ margin: 0 }}>
-            La zone dépend de l’académie de l’établissement (pas du domicile). En cas de doute, regardez le site de l’établissement.
+            {t('holidays.zone.rule')}
           </p>
           {SCHOOL_ZONES.map((z) => (
             <p key={z} style={{ margin: 0 }}>
-              <strong>Zone {z}</strong> : {ZONE_ACADEMIES[z]}.
+              <strong>{t('holidays.zone.option', { zone: z })}</strong>
+              {t('holidays.zone.academies', { list: ZONE_ACADEMIES[z] })}
             </p>
           ))}
           <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-            Corse et outre-mer : ces calendriers ne sont pas inclus, vérifiez les dates auprès de votre établissement.
+            {t('holidays.zone.other')}
           </p>
         </div>
       </details>

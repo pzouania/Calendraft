@@ -113,7 +113,7 @@ function TrashButton({ onClick, label }: { onClick: () => void; label: string })
 }
 
 export default function DayDetail({ date, occurrences, holiday = null, holidayZone = null, canEdit = true, shareCalendarId, onClose, onChanged }: DayDetailProps) {
-  const { t, formatDate } = useI18n()
+  const { t, lang, formatDate } = useI18n()
   const [sharing, setSharing] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
@@ -188,8 +188,8 @@ export default function DayDetail({ date, occurrences, holiday = null, holidayZo
               {canShare && (
                 <button
                   onClick={() => setSharing(true)}
-                  aria-label="Partager ce jour ou un événement"
-                  title="Partager ce jour ou un événement"
+                  aria-label={t('dayDetail.share')}
+                  title={t('dayDetail.share')}
                   style={{
                     width: 32, height: 32, borderRadius: 10, border: 'none', padding: 0, flexShrink: 0,
                     background: 'var(--surface-tint)', color: 'var(--accent-text)',
@@ -227,10 +227,10 @@ export default function DayDetail({ date, occurrences, holiday = null, holidayZo
                   borderLeft: '4px solid #f59e0b', borderRadius: 10, padding: '0.55rem 0.8rem',
                 }}
               >
-                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>{holidayLabel(holiday.kind, holidayZone)}</span>
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>{holidayLabel(holiday.kind, holidayZone, lang)}</span>
                 {resume && (
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-body)' }}>
-                    Reprise des cours le {formatDate(resume, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    {t('dayDetail.resume', { date: formatDate(resume, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) })}
                   </span>
                 )}
               </div>

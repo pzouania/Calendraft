@@ -100,7 +100,7 @@ export default function PdfExportDialog({
   calendarName, calendarIcon, calendarColor, months, rangeStart, rangeEnd, initialMonthIndex, legend, schoolZone = null, getOccurrences,
   onExportYear, onClose,
 }: PdfExportDialogProps) {
-  const { monthName, formatDate } = useI18n()
+  const { t, monthName, formatDate } = useI18n()
   const dialogRef = useRef<HTMLDivElement>(null)
   const weeks = useMemo(() => weekStartsBetween(rangeStart, rangeEnd), [rangeStart, rangeEnd])
 
@@ -181,9 +181,9 @@ export default function PdfExportDialog({
   }
 
   const choices: { id: ExportKind; title: string; hint: string }[] = [
-    { id: 'year', title: 'Année', hint: 'Les 12 mois sur une page.' },
-    { id: 'month', title: 'Mois', hint: 'Un mois en grand, avec les événements de chaque jour.' },
-    { id: 'week', title: 'Semaine', hint: 'Une semaine en emploi du temps, heure par heure.' },
+    { id: 'year', title: t('calendar.view.year'), hint: t('pdf.kind.year.hint') },
+    { id: 'month', title: t('calendar.view.month'), hint: t('pdf.kind.month.hint') },
+    { id: 'week', title: t('pdf.kind.week.title'), hint: t('pdf.kind.week.hint') },
   ]
 
   const fieldStyle: React.CSSProperties = {
@@ -223,12 +223,12 @@ export default function PdfExportDialog({
           }}
         >
           <h3 id="pdf-export-title" style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-            Exporter en PDF
+            {t('calendar.exportPdf')}
           </h3>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t('common.close')}
             style={{
               width: 32, height: 32, borderRadius: 10, border: 'none', background: 'var(--surface-alt)',
               color: 'var(--text-body)', fontSize: '1.2rem', lineHeight: 1, flexShrink: 0,
@@ -241,7 +241,7 @@ export default function PdfExportDialog({
         <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
           <fieldset style={{ border: 'none', margin: 0, padding: 0, minWidth: 0 }}>
             <legend style={{ padding: 0, marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Que voulez-vous exporter ?
+              {t('pdf.legend')}
             </legend>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {choices.map((c) => (
@@ -268,7 +268,7 @@ export default function PdfExportDialog({
 
           {kind === 'month' && (
             <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Mois
+              {t('calendar.view.month')}
               <select value={monthIndex} onChange={(e) => setMonthIndex(Number(e.target.value))} style={fieldStyle}>
                 {months.map((_, i) => (
                   <option key={i} value={i}>
@@ -282,11 +282,11 @@ export default function PdfExportDialog({
           {kind === 'week' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label htmlFor="pdf-export-week" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Semaine
+                {t('pdf.kind.week.title')}
               </label>
               <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                 <button
-                  type="button" aria-label="Semaine précédente" disabled={weekIndex === 0} style={{ ...stepStyle, opacity: weekIndex === 0 ? 0.4 : 1 }}
+                  type="button" aria-label={t('pdf.week.prev')} disabled={weekIndex === 0} style={{ ...stepStyle, opacity: weekIndex === 0 ? 0.4 : 1 }}
                   onClick={() => setWeekIndex((i) => Math.max(0, i - 1))}
                 >
                   ◀
@@ -299,7 +299,7 @@ export default function PdfExportDialog({
                   ))}
                 </select>
                 <button
-                  type="button" aria-label="Semaine suivante" disabled={weekIndex === weeks.length - 1}
+                  type="button" aria-label={t('pdf.week.next')} disabled={weekIndex === weeks.length - 1}
                   style={{ ...stepStyle, opacity: weekIndex === weeks.length - 1 ? 0.4 : 1 }}
                   onClick={() => setWeekIndex((i) => Math.min(weeks.length - 1, i + 1))}
                 >
@@ -310,7 +310,7 @@ export default function PdfExportDialog({
           )}
 
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            Dans la fenêtre d’impression qui s’ouvre, choisissez « Enregistrer au format PDF ».
+            {t('pdf.hint')}
           </p>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -322,7 +322,7 @@ export default function PdfExportDialog({
                 padding: '0.6rem 1.1rem', fontSize: '0.88rem', fontWeight: 700,
               }}
             >
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -332,7 +332,7 @@ export default function PdfExportDialog({
                 padding: '0.6rem 1.2rem', fontSize: '0.88rem', fontWeight: 700,
               }}
             >
-              Exporter
+              {t('pdf.export')}
             </button>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useI18n } from '../hooks/useI18n'
-import { HOLIDAY_COLOR, holidayName, lastHolidayDay, resumeDay, schoolHolidays, type SchoolZone } from '../lib/schoolHolidays'
-import { ZONE_UNAVAILABLE, saveSchoolZone } from '../lib/schoolZone'
+import { HOLIDAY_COLOR, holidayLegendLabel, holidayName, lastHolidayDay, resumeDay, schoolHolidays, type SchoolZone } from '../lib/schoolHolidays'
+import { saveSchoolZone } from '../lib/schoolZone'
 import SchoolZonePicker from './SchoolZonePicker'
 
 interface SchoolHolidaysCardProps {
@@ -19,7 +19,7 @@ const UPCOMING = 6
 
 // Carte « Vacances scolaires » de l'onglet Événements : zone du calendrier et prochaines vacances.
 export default function SchoolHolidaysCard({ calendarId, zone, canChange, unavailable, accent, onChanged }: SchoolHolidaysCardProps) {
-  const { formatDate } = useI18n()
+  const { t, lang, formatDate } = useI18n()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -66,19 +66,19 @@ export default function SchoolHolidaysCard({ calendarId, zone, canChange, unavai
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 4, backgroundColor: HOLIDAY_COLOR, flexShrink: 0 }} />
         <h3 id="holidays-card-title" style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>
-          Vacances scolaires{zone ? ` (zone ${zone})` : ''}
+          {zone ? holidayLegendLabel(zone, lang) : t('holidays.title')}
         </h3>
-        {saved && <span role="status" style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--success-strong)', fontWeight: 600 }}>Enregistré</span>}
+        {saved && <span role="status" style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--success-strong)', fontWeight: 600 }}>{t('holidays.saved')}</span>}
       </div>
 
       {canChange && (
         <>
           <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-            Choisissez la zone pour voir les vacances dans le calendrier, le PDF, la liste ci-dessous et l’export vers votre agenda.
+            {t('holidays.intro')}
           </p>
           {unavailable ? (
             <p role="status" data-testid="holidays-unavailable" style={{ margin: 0, padding: '0.5rem 0.75rem', borderRadius: 10, fontSize: '0.82rem', background: 'var(--warning-bg)', color: 'var(--warning-text)' }}>
-              {ZONE_UNAVAILABLE}
+              {t('holidays.unavailable')}
             </p>
           ) : (
             <SchoolZonePicker name={`zone-${calendarId}`} value={zone} onChange={change} disabled={busy} accent={accent} />
@@ -102,10 +102,11 @@ export default function SchoolHolidaysCard({ calendarId, zone, canChange, unavai
                   backgroundColor: 'var(--surface)', backgroundImage: 'linear-gradient(rgba(245, 158, 11, 0.14), rgba(245, 158, 11, 0.14))',
                 }}
               >
-                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>{holidayName(h.kind)}</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>{holidayName(h.kind, lang)}</div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-body)' }}>
-                  Du {day(h.from)} au {day(lastHolidayDay(h))}
-                  {resume ? ` · reprise le ${day(resume)}` : ' · reprise : date non publiée'}
+                  {resume
+                    ? t('holidays.rangeResume', { from: day(h.from), to: day(lastHolidayDay(h)), resume: day(resume) })
+                    : t('holidays.rangeNoResume', { from: day(h.from), to: day(lastHolidayDay(h)) })}
                 </div>
               </li>
             )
@@ -115,7 +116,7 @@ export default function SchoolHolidaysCard({ calendarId, zone, canChange, unavai
 
       {exhausted && lastKnown && (
         <p data-testid="holidays-none" style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-          Les dates connues s’arrêtent au {day(lastHolidayDay(lastKnown))} : il n’y a pas de vacances à venir à afficher.
+          {t('holidays.exhausted', { date: day(lastHolidayDay(lastKnown)) })}
         </p>
       )}
     </section>

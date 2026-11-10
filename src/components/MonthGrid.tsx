@@ -40,7 +40,7 @@ export default function MonthGrid({
   large = false,
   compact = false,
 }: MonthGridProps) {
-  const { monthName, weekdayName } = useI18n()
+  const { lang, monthName, weekdayName } = useI18n()
   const weeks = getMonthMatrix(year, month)
   const todayStr = toDateOnly(new Date())
   // Jours de la semaine, du lundi au dimanche : abrégés (« Lun ») en grand, une lettre sinon.
@@ -107,7 +107,7 @@ export default function MonthGrid({
                 className={`month-day-cell${isToday ? ' today-cell' : ''}`}
                 data-date={dateStr}
                 data-holiday={holiday ? holiday.kind : undefined}
-                title={holiday && holidayZone ? holidayLabel(holiday.kind, holidayZone) : undefined}
+                title={holiday && holidayZone ? holidayLabel(holiday.kind, holidayZone, lang) : undefined}
                 onClick={() => onDayClick(dateStr)}
                 style={{
                   minHeight: large ? 58 : compact ? 22 : 26,

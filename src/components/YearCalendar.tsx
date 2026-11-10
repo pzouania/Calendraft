@@ -111,7 +111,7 @@ export default function YearCalendar({
   schoolZone = null,
   staticData,
 }: YearCalendarProps) {
-  const { t, monthName, formatDate } = useI18n()
+  const { t, lang, monthName, formatDate } = useI18n()
   const [periods, setPeriods] = useState<Period[]>(staticData?.periods ?? [])
   const [exceptions, setExceptions] = useState<PeriodException[]>(staticData?.exceptions ?? [])
   const [year, setYear] = useState(() => currentStartYear(yearMode))
@@ -398,13 +398,13 @@ export default function YearCalendar({
                 type="button"
                 data-testid="ics-open"
                 onClick={() => setIcsOpen(true)}
-                aria-label="Exporter vers un agenda"
+                aria-label={t('ics.title')}
                 style={{
                   background: 'var(--surface)', color: 'var(--accent-link)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--tint-border)',
                   borderRadius: 10, padding: '0.45rem 0.8rem', fontSize: '0.82rem', fontWeight: 700,
                 }}
               >
-                Agenda
+                {t('ics.openShort')}
               </button>
               <button
                 type="button"
@@ -479,7 +479,7 @@ export default function YearCalendar({
                 borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
               }}
             >
-              Exporter vers un agenda
+              {t('ics.title')}
             </button>
             <button
               onClick={() => setExportOpen(true)}
@@ -515,8 +515,9 @@ export default function YearCalendar({
             background: 'var(--warning-bg)', color: 'var(--warning-text)', fontSize: '0.85rem',
           }}
         >
-          Emploi du temps en ligne injoignable : les événements importés viennent de la dernière copie enregistrée
-          {snapshotLabel(feedStaleAt, formatDate) ? ` le ${snapshotLabel(feedStaleAt, formatDate)}` : ''}.
+          {snapshotLabel(feedStaleAt, formatDate)
+            ? t('partialView.staleAt', { date: snapshotLabel(feedStaleAt, formatDate) })
+            : t('partialView.stale')}
         </p>
       )}
 
@@ -644,7 +645,7 @@ export default function YearCalendar({
               }}
             >
               <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, backgroundColor: HOLIDAY_COLOR }} />
-              {holidayLegendLabel(schoolZone)}
+              {holidayLegendLabel(schoolZone, lang)}
             </div>
           )}
         </div>
@@ -656,8 +657,7 @@ export default function YearCalendar({
           data-testid="holiday-gap"
           style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}
         >
-          Les dates des vacances scolaires sont connues de septembre {HOLIDAY_COVERAGE.from.slice(0, 4)} à août {HOLIDAY_COVERAGE.to.slice(0, 4)} :
-          cette année n’est pas entièrement couverte.
+          {t('holidays.gap', { from: HOLIDAY_COVERAGE.from.slice(0, 4), to: HOLIDAY_COVERAGE.to.slice(0, 4) })}
         </p>
       )}
 

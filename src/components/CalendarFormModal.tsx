@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import SchoolZonePicker from './SchoolZonePicker'
-import { ZONE_UNAVAILABLE, fetchSchoolZone, isMissingZoneColumn } from '../lib/schoolZone'
+import { fetchSchoolZone, isMissingZoneColumn, zoneUnavailableText } from '../lib/schoolZone'
 import type { SchoolZone } from '../lib/schoolHolidays'
 import Icon, { ICON_KEYS } from './icons'
 import { useI18n } from '../hooks/useI18n'
@@ -78,7 +78,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
 
       setSaving(false)
       if (error) {
-        setError({ raw: isMissingZoneColumn(error) ? ZONE_UNAVAILABLE : error.message })
+        setError({ raw: isMissingZoneColumn(error) ? zoneUnavailableText() : error.message })
         return
       }
       if (data) onSaved(data.id)
@@ -97,7 +97,7 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
 
       setSaving(false)
       if (error) {
-        setError({ raw: isMissingZoneColumn(error) ? ZONE_UNAVAILABLE : error.message })
+        setError({ raw: isMissingZoneColumn(error) ? zoneUnavailableText() : error.message })
         return
       }
       onSaved(calendar.id)
@@ -183,10 +183,10 @@ export default function CalendarFormModal({ mode, calendar, onClose, onSaved }: 
         </div>
 
         <div>
-          <span style={labelStyle}>Vacances scolaires</span>
+          <span style={labelStyle}>{t('holidays.title')}</span>
           {zoneState === 'unavailable' ? (
             <p data-testid="form-zone-unavailable" style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              {ZONE_UNAVAILABLE}
+              {t('holidays.unavailable')}
             </p>
           ) : (
             <SchoolZonePicker name="form-zone" value={zone} onChange={setZone} disabled={zoneState === 'loading'} accent={color} />
