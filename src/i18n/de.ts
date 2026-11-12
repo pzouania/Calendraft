@@ -791,4 +791,12 @@ export const de: Record<TranslationKey, Message> = {
   'privacyPage.s2.p6': 'Wenn Sie Erinnerungen per Benachrichtigung auf einem Gerät aktivieren, speichern wir die von Ihrem Browser bereitgestellte Abonnement-Kennung (Adresse des Benachrichtigungsdienstes des Browsers und Verschlüsselungsschlüssel), die Zeitzone des Geräts und die von Ihnen gewählten Erinnerungen. Jedes Gerät kann jederzeit unter „Mein Profil“ deaktiviert werden.',
   'privacyPage.s2.p7': 'Ihre Einstellungen: die gewählte Sprache (in Ihrem Konto gespeichert, damit sie auf Ihren Geräten gilt und Benachrichtigungen in dieser Sprache verfasst werden) und die für einen Kalender gewählte Schulferienzone.',
   'privacyPage.s5.p3': 'Benachrichtigungen werden über den Benachrichtigungsdienst Ihres Browsers (zum Beispiel Google, Apple oder Mozilla) zugestellt, der den verschlüsselten Inhalt der Erinnerung erhält.',
+
+  // Mode essai sans compte
+  'guest.try': 'Ohne Konto ausprobieren',
+  'guest.tryHint': 'Nichts wird gespeichert; der PDF-Export funktioniert weiterhin.',
+  'guest.banner': 'Testmodus: Ihr Kalender wird nicht gespeichert und verschwindet beim Schließen der Seite.',
+  'guest.signup': 'Konto erstellen',
+  'guest.leaveConfirm': 'Testmodus verlassen? Ihr Kalender geht verloren.',
+  'guest.calendarName': 'Testkalender',
 }

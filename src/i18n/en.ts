@@ -791,4 +791,12 @@ export const en: Record<TranslationKey, Message> = {
   'privacyPage.s2.p6': 'If you enable notification reminders on a device, we store the subscription identifier provided by your browser (address of the browser’s notification service and encryption keys), the device’s time zone and the reminders you have chosen. Each device can be turned off at any time from “My profile”.',
   'privacyPage.s2.p7': 'Your preferences: the language you chose (stored in your account so that it follows you across devices and so that notifications are written in that language) and the school holiday zone chosen for a calendar.',
   'privacyPage.s5.p3': 'Notifications are delivered through your browser’s notification service (for example Google, Apple or Mozilla), which receives the encrypted content of the reminder.',
+
+  // Mode essai sans compte
+  'guest.try': 'Try without an account',
+  'guest.tryHint': 'Nothing is saved; PDF export still works.',
+  'guest.banner': 'Trial mode: your calendar is not saved and disappears when you close the page.',
+  'guest.signup': 'Create an account',
+  'guest.leaveConfirm': 'Leave trial mode? Your calendar will be lost.',
+  'guest.calendarName': 'Trial calendar',
 }

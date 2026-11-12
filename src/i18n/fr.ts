@@ -798,6 +798,14 @@ export const fr = {
   'privacyPage.s2.p6': 'Si vous activez les rappels par notification sur un appareil, nous enregistrons l’identifiant d’abonnement fourni par votre navigateur (adresse du service de notification du navigateur et clés de chiffrement), le fuseau horaire de l’appareil et les rappels que vous avez choisis. Chaque appareil peut être désactivé à tout moment depuis « Mon profil ».',
   'privacyPage.s2.p7': 'Vos préférences : la langue choisie (enregistrée dans votre compte pour la retrouver sur vos appareils et rédiger les notifications dans cette langue) et la zone des vacances scolaires choisie pour un calendrier.',
   'privacyPage.s5.p3': 'Les notifications sont acheminées par le service de notification de votre navigateur (par exemple Google, Apple ou Mozilla), qui reçoit le contenu chiffré du rappel.',
+
+  // Mode essai sans compte
+  'guest.try': 'Essayer sans compte',
+  'guest.tryHint': 'Rien n’est enregistré ; l’export PDF reste possible.',
+  'guest.banner': 'Mode essai : votre calendrier n’est pas enregistré et disparaît à la fermeture de la page.',
+  'guest.signup': 'Créer un compte',
+  'guest.leaveConfirm': 'Quitter le mode essai ? Votre calendrier sera perdu.',
+  'guest.calendarName': 'Calendrier d’essai',
 } satisfies Record<string, Message>
 
 export type TranslationKey = keyof typeof fr
