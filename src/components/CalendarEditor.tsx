@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Params, TranslationKey } from '../i18n'
 import { useI18n } from '../hooks/useI18n'
 import { supabase } from '../lib/supabaseClient'
+import { isGuest } from '../lib/guestClient'
 import PeriodForm from './PeriodForm'
 import YearCalendar from './YearCalendar'
 import ShareModal from './ShareModal'
@@ -168,6 +169,8 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
   const [pushState, setPushState] = useState<PushState | null>(null)
   const isNarrow = useIsNarrow()
 
+  // Mode essai (sans compte) : ni partage, ni import, ni rappels.
+  const guest = isGuest()
   const isOwner = role === 'owner'
   const canEdit = role === 'owner' || role === 'editor'
 
@@ -345,7 +348,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           </div>
           {/* Partage et boutons d'apparence : sur un petit écran, ce groupe passe sur une 2e ligne plutôt que de réduire le nom du calendrier. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', marginLeft: 'auto', flexShrink: 0 }}>
-            {isOwner && (
+            {isOwner && !guest && (
               <button
                 onClick={() => setShowShare(true)}
                 aria-label={t('common.share')}
@@ -398,7 +401,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           </div>
           <div style={{ display: 'flex', gap: '0.6rem', flexShrink: 0 }}>
             <ThemeToggle />
-            {isOwner && (
+            {isOwner && !guest && (
               <button
                 onClick={() => setShowShare(true)}
                 style={{
@@ -439,7 +442,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               {isNarrow ? t('editor.tab.holidaysShort') : t('editor.tab.holidays')}
             </button>
           )}
-          {isOwner && (
+          {isOwner && !guest && (
             <button style={tabButtonStyle(tab === 'import')} onClick={() => setTab('import')}>
               {isNarrow ? t('editor.tab.importShort') : t('editor.tab.import')}
             </button>
@@ -586,7 +589,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
                         {t('editor.eventLine', { frequency: formatFrequency(p, t), date: formatDate(p.start_date, NUMERIC_DATE) })}
                         {p.start_time && t('event.timeRange', { start: p.start_time.slice(0, 5), end: p.end_time?.slice(0, 5) ?? '' })}
                       </div>
-                      {remindersOk && (
+                      {remindersOk && !guest && (
                         <ReminderSelect
                           name={p.name}
                           timed={Boolean(p.start_time)}
@@ -645,7 +648,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
           />
         )}
 
-        {tab === 'import' && isOwner && <FeedSettings calendarId={calendarId} />}
+        {tab === 'import' && isOwner && !guest && <FeedSettings calendarId={calendarId} />}
 
         {tab === 'calendar' &&
           (infoLoaded ? (
@@ -655,7 +658,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               calendarIcon={calendarIcon}
               calendarColor={calendarColor}
               canEdit={canEdit}
-              canShare={isOwner}
+              canShare={isOwner && !guest}
               yearMode={yearMode}
               schoolZone={schoolZone}
             />

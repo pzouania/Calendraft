@@ -61,7 +61,7 @@ function ProviderLogo({ provider }: { provider: Provider }) {
   )
 }
 
-export default function AuthPage() {
+export default function AuthPage({ onTryGuest }: { onTryGuest?: () => void } = {}) {
   const { t } = useI18n()
   const isWide = useIsWide()
   const [mode, setMode] = useState<Mode>('login')
@@ -331,6 +331,23 @@ export default function AuthPage() {
 
           {error && !termsMissing && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{noticeText(error, t)}</p>}
           {message && <p style={{ color: 'var(--success)', fontSize: '0.85rem', marginTop: '0.8rem' }}>{noticeText(message, t)}</p>}
+
+          {onTryGuest && (
+            <div style={{ marginTop: '1.4rem', textAlign: 'center' }}>
+              <button
+                type="button"
+                data-testid="try-guest"
+                onClick={onTryGuest}
+                style={{
+                  width: '100%', padding: '0.7rem', borderRadius: 10, border: '1px solid var(--border)',
+                  background: 'var(--surface)', color: 'var(--accent-link)', fontWeight: 700, fontSize: '0.9rem',
+                }}
+              >
+                {t('guest.try')}
+              </button>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{t('guest.tryHint')}</p>
+            </div>
+          )}
 
           <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2rem' }}>
             <p style={{ margin: '0 0 0.4rem' }}>{t('auth.footer.rights', { year: new Date().getFullYear() })}</p>

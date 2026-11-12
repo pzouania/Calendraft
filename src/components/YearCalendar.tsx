@@ -7,6 +7,7 @@ import MonthGrid from './MonthGrid'
 import DayDetail from './DayDetail'
 import PdfExportDialog from './PdfExportDialog'
 import IcsExportDialog from './IcsExportDialog'
+import { isGuest } from '../lib/guestClient'
 import { toDateOnly } from '../lib/dateUtils'
 import { snapshotLabel } from '../lib/partialShare'
 import { HOLIDAY_COLOR, holidayLegendLabel, holidaysByDay, outsideCoverage, HOLIDAY_COVERAGE, type SchoolZone } from '../lib/schoolHolidays'
@@ -394,18 +395,20 @@ export default function YearCalendar({
                   {t('calendar.today')}
                 </button>
               )}
+              {!isGuest() && (
               <button
-                type="button"
-                data-testid="ics-open"
-                onClick={() => setIcsOpen(true)}
-                aria-label={t('ics.title')}
-                style={{
-                  background: 'var(--surface)', color: 'var(--accent-link)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--tint-border)',
-                  borderRadius: 10, padding: '0.45rem 0.8rem', fontSize: '0.82rem', fontWeight: 700,
-                }}
-              >
-                {t('ics.openShort')}
-              </button>
+                  type="button"
+                  data-testid="ics-open"
+                  onClick={() => setIcsOpen(true)}
+                  aria-label={t('ics.title')}
+                  style={{
+                    background: 'var(--surface)', color: 'var(--accent-link)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--tint-border)',
+                    borderRadius: 10, padding: '0.45rem 0.8rem', fontSize: '0.82rem', fontWeight: 700,
+                  }}
+                >
+                  {t('ics.openShort')}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setExportOpen(true)}
@@ -471,16 +474,18 @@ export default function YearCalendar({
             ▶
           </button>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            {!isGuest() && (
             <button
-              data-testid="ics-open"
-              onClick={() => setIcsOpen(true)}
-              style={{
-                background: 'var(--surface)', color: 'var(--accent-link)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--tint-border)',
-                borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
-              }}
-            >
-              {t('ics.title')}
-            </button>
+                data-testid="ics-open"
+                onClick={() => setIcsOpen(true)}
+                style={{
+                  background: 'var(--surface)', color: 'var(--accent-link)', border: 'none', boxShadow: 'inset 0 0 0 1px var(--tint-border)',
+                  borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.85rem', fontWeight: 700,
+                }}
+              >
+                {t('ics.title')}
+              </button>
+            )}
             <button
               onClick={() => setExportOpen(true)}
               style={{
