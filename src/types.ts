@@ -15,7 +15,9 @@ export interface Calendar {
   updated_at: string
 }
 
-export type Frequency = 'once' | 'weekly' | 'custom_days' | 'alternating' | 'monthly'
+// 'days' : cycle en jours (rotations 4x8, 5x8...). L'événement revient tous les `interval_weeks` JOURS (et non semaines :
+// la colonne garde son nom pour ne rien changer à la base).
+export type Frequency = 'once' | 'weekly' | 'custom_days' | 'alternating' | 'monthly' | 'days'
 
 export interface Period {
   id: string
