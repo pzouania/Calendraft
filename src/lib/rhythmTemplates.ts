@@ -32,12 +32,15 @@ export interface SeriesDef {
 
 // Un morceau répété : commence le jour `weekday` (0 = lundi) de la semaine `week` du cycle, dure `days` jours (ou nuits),
 // et revient toutes les `every` semaines.
+// Modèle en jours (voir TemplateDef.daily) : `offset` est le jour du cycle où commence le morceau (0 = premier jour)
+// et `every` la longueur du cycle en jours ; `weekday` et `week` ne servent pas.
 export interface SlotDef {
   series: number
   weekday: number
   week: number
   every: number
   days: number
+  offset?: number
 }
 
 export interface TemplateText {
@@ -58,7 +61,11 @@ export interface TemplateDef {
   canDisable: boolean
   series: SeriesDef[]
   slots: SlotDef[]
+  // Rotation en jours (4x8, 5x8) : le cycle dure `cycle` jours et chaque équipe est décalée de `shift` jours.
+  // Le menu « phase » propose alors les cycle/shift points de départ possibles (une équipe chacun) au lieu des semaines.
+  daily?: { cycle: number; shift: number }
   // Texte décrivant ce qui se passe pendant la semaine `phase` du cycle (menu « La première semaine correspond à »).
+  // Modèle en jours : ce que fait l'équipe `phase` le jour choisi.
   weekLabel: (phase: number, names: string[], t: Translate) => string
 }
 
@@ -106,6 +113,40 @@ function alternance(school: number, company: number): TemplateDef {
       const length = inSchool ? school : company
       const index = inSchool ? phase : phase - school
       return `${names[inSchool ? 0 : 1]}${length > 1 ? t('rhythm.week.alternanceCount', { index: index + 1, total: length }) : ''}`
+    },
+  }
+}
+
+// Rotation continue en jours : 2 matins, 2 après-midis, 2 nuits puis du repos (4x8 : 2 jours ; 5x8 : 4 jours).
+// Les équipes sont décalées de 2 jours : le menu « phase » choisit ce que fait la personne le jour de départ.
+function rotation(teams: number, cycle: number): TemplateDef {
+  const shift = 2
+  const rest = cycle - 3 * shift
+  return {
+    id: `${teams}x8`,
+    group: 'work',
+    text: plain(
+      `rhythm.t.${teams}x8.title` as TranslationKey,
+      `rhythm.t.${teams}x8.summary` as TranslationKey,
+      `rhythm.t.${teams}x8.help` as TranslationKey,
+    ),
+    anchor: 'any',
+    canDisable: false,
+    series: [
+      { nameKey: 'rhythm.series.morning', color: YELLOW, start: '06:00', end: '14:00' },
+      { nameKey: 'rhythm.series.afternoon', color: ORANGE, start: '14:00', end: '22:00' },
+      { nameKey: 'rhythm.series.night', color: VIOLET, start: '22:00', end: '06:00' },
+    ],
+    slots: [
+      { series: 0, weekday: 0, week: 0, every: cycle, days: shift, offset: 0 },
+      { series: 1, weekday: 0, week: 0, every: cycle, days: shift, offset: shift },
+      { series: 2, weekday: 0, week: 0, every: cycle, days: shift, offset: 2 * shift },
+    ],
+    daily: { cycle, shift },
+    weekLabel: (phase, names, t) => {
+      if (phase < 3) return names[phase]
+      const part = phase - 3
+      return rest > shift ? `${t('rhythm.week.rest')}${t('rhythm.team.part', { index: part + 1, total: rest / shift })}` : t('rhythm.week.rest')
     },
   }
 }
@@ -201,6 +242,8 @@ export const TEMPLATES: TemplateDef[] = [
     ],
     weekLabel: (phase, names) => names[phase],
   },
+  rotation(4, 8),
+  rotation(5, 10),
   {
     id: '7-7',
     group: 'work',
@@ -242,7 +285,14 @@ function gcd(a: number, b: number): number {
 }
 
 // Nombre de semaines au bout desquelles le rythme recommence.
+// Nombre de choix du menu « phase » : les semaines du cycle, ou les points de départ d'une rotation en jours.
+export function phaseCount(def: TemplateDef): number {
+  return def.daily ? def.daily.cycle / def.daily.shift : cycleWeeks(def)
+}
+
 export function cycleWeeks(def: TemplateDef): number {
+  // Rotation en jours : le cycle se compte en semaines entières (8 jours : 2 semaines, 10 jours : 2 semaines).
+  if (def.daily) return Math.ceil(def.daily.cycle / 7)
   return def.slots.reduce((cycle, slot) => (cycle * slot.every) / gcd(cycle, slot.every), 1)
 }
 
@@ -300,7 +350,7 @@ export interface PeriodDraft {
   name: string
   color: string
   start_date: string
-  frequency: 'weekly'
+  frequency: 'weekly' | 'days'
   duration_days: number
   interval_weeks: number
   week_of_month: null
@@ -354,13 +404,16 @@ export function buildDrafts(def: TemplateDef, s: TemplateSettings): PeriodDraft[
   for (const slot of def.slots) {
     const x = s.series[slot.series]
     if (!x.enabled) continue
-    const week = mod(slot.week - s.phase, slot.every)
     const timed = isTimed(def, slot.series)
+    // Rotation en jours : le morceau commence `offset` jours après le départ du cycle, moins le décalage de l'équipe choisie.
+    const startOffset = def.daily
+      ? mod((slot.offset ?? 0) - s.phase * def.daily.shift, slot.every)
+      : mod(slot.week - s.phase, slot.every) * 7 + slot.weekday
     drafts.push({
       name: x.name.trim(),
       color: x.color,
-      start_date: toDateOnly(shift(first, week * 7 + slot.weekday)),
-      frequency: 'weekly',
+      start_date: toDateOnly(shift(first, startOffset)),
+      frequency: def.daily ? 'days' : 'weekly',
       duration_days: slot.days,
       interval_weeks: slot.every,
       week_of_month: null,

@@ -110,8 +110,9 @@ export function generateOccurrences(
     return occurrences;
   }
 
-  if (period.frequency === 'weekly' || period.frequency === 'alternating') {
-    const intervalDays = period.interval_weeks * 7;
+  if (period.frequency === 'weekly' || period.frequency === 'alternating' || period.frequency === 'days') {
+    // 'days' : interval_weeks est un nombre de jours (cycle des rotations 4x8, 5x8...).
+    const intervalDays = period.frequency === 'days' ? Math.max(1, period.interval_weeks) : period.interval_weeks * 7;
     let cursor = new Date(start);
     while (cursor > rangeStart) cursor = addDays(cursor, -intervalDays);
     while (cursor <= rangeEnd) {
