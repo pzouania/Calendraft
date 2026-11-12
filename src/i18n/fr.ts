@@ -806,6 +806,19 @@ export const fr = {
   'guest.signup': 'Créer un compte',
   'guest.leaveConfirm': 'Quitter le mode essai ? Votre calendrier sera perdu.',
   'guest.calendarName': 'Calendrier d’essai',
+  'freq.days': {one:'chaque jour', other:'tous les {count} jours'},
+  'period.repeat.days': 'Cycle en jours',
+  'period.hint.cycle': 'Cycle de {count} jours, créé par un modèle de rythme (4x8, 5x8...). Il se conserve tel quel ; choisissez une autre répétition pour le remplacer.',
+  'period.summary.cycle': 'Tous les {count} jours, à partir du {date}',
+  'rhythm.phase.daily': 'Par quoi commencez-vous le jour choisi ?',
+  'rhythm.phaseHint.daily': 'Les équipes sont décalées de 2 jours : choisissez ce que fait la vôtre à cette date. Le rythme se répète ensuite sans fin, avant comme après.',
+  'rhythm.team.part': ' ({index} sur {total})',
+  'rhythm.t.4x8.title': '4x8 : rotation continue sur 8 jours',
+  'rhythm.t.4x8.summary': '2 matins, 2 après-midis, 2 nuits, puis 2 jours de repos, en boucle (4 équipes).',
+  'rhythm.t.4x8.help': 'Les horaires de chaque poste sont modifiables. Les équipes sont décalées de 2 jours : indiquez ce que fait la vôtre le jour de départ.',
+  'rhythm.t.5x8.title': '5x8 : rotation continue sur 10 jours',
+  'rhythm.t.5x8.summary': '2 matins, 2 après-midis, 2 nuits, puis 4 jours de repos, en boucle (5 équipes).',
+  'rhythm.t.5x8.help': 'Les horaires de chaque poste sont modifiables. Les équipes sont décalées de 2 jours : indiquez ce que fait la vôtre le jour de départ.',
 } satisfies Record<string, Message>
 
 export type TranslationKey = keyof typeof fr
