@@ -9,6 +9,7 @@ import {
   anchorDate,
   buildDrafts,
   cycleWeeks,
+  phaseCount,
   defaultSettings,
   isTimed,
   lenientSettings,
@@ -240,7 +241,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
   }
 
   const anchor = def && settings ? anchorDate(def, settings.startDate) : null
-  const cycle = def ? cycleWeeks(def) : 1
+  const cycle = def ? phaseCount(def) : 1
   const names = settings ? settings.series.map((s) => s.name.trim() || '…') : []
 
   return (
@@ -349,7 +350,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
 
             <div>
               <label htmlFor="rhythm-phase" style={labelStyle}>
-                {t('rhythm.phase')}
+                {t(def.daily ? 'rhythm.phase.daily' : 'rhythm.phase')}
               </label>
               <select
                 id="rhythm-phase"
@@ -363,7 +364,7 @@ export default function RhythmTemplateDialog({ calendarId, onCreated, onClose }:
                   </option>
                 ))}
               </select>
-              <p style={hintStyle}>{t('rhythm.phaseHint')}</p>
+              <p style={hintStyle}>{t(def.daily ? 'rhythm.phaseHint.daily' : 'rhythm.phaseHint')}</p>
             </div>
 
             <CyclePreview def={def} settings={settings} />

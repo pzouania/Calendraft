@@ -45,6 +45,8 @@ function formatFrequency(p: Period, t: Translate): string {
       return t('freq.alternating', { count: p.interval_weeks })
     case 'custom_days':
       return t('freq.customDays')
+    case 'days':
+      return t('freq.days', { count: p.interval_weeks })
     case 'monthly':
       return t(MONTHLY_KEYS[p.week_of_month ?? 1] ?? MONTHLY_KEYS[1])
     default:

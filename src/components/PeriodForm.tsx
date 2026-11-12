@@ -37,7 +37,8 @@ interface PeriodFormProps {
   onChanged?: () => void
 }
 
-type Repeat = 'none' | 'weekly' | 'monthly'
+// 'days' : cycle en jours, créé par un modèle de rythme (4x8, 5x8...) ; il se conserve ou se remplace, mais ne se crée pas ici.
+type Repeat = 'none' | 'weekly' | 'monthly' | 'days'
 type TimeMode = 'allday' | 'timed'
 
 const COLORS = ['#2563eb', '#0891b2', '#16a34a', '#ca8a04', '#ea580c', '#dc2626', '#db2777', '#7c3aed', '#475569']
@@ -104,6 +105,7 @@ type Schedule = Pick<
 function repeatOf(p: Period): Repeat {
   if (p.frequency === 'once') return 'none'
   if (p.frequency === 'monthly') return 'monthly'
+  if (p.frequency === 'days') return 'days'
   return 'weekly'
 }
 
@@ -120,8 +122,8 @@ function hhmm(time: string | null): string {
 // les jours retirés un par un n'ont plus de sens : la base de données les remet à zéro (voir periods_edit.sql,
 // dont la fonction period_structure_key suit exactement la même règle).
 function structureKey(s: Schedule): string {
-  const kind = s.frequency === 'once' ? 'once' : s.frequency === 'monthly' ? 'monthly' : 'weekly'
-  const interval = kind === 'weekly' ? (s.frequency === 'custom_days' ? 1 : s.interval_weeks) : 0
+  const kind = s.frequency === 'once' ? 'once' : s.frequency === 'monthly' ? 'monthly' : s.frequency === 'days' ? 'days' : 'weekly'
+  const interval = kind === 'weekly' || kind === 'days' ? (s.frequency === 'custom_days' ? 1 : s.interval_weeks) : 0
   const week = kind === 'monthly' ? (s.week_of_month ?? 1) : 0
   const overnight = !!s.start_time && !!s.end_time && s.end_time <= s.start_time ? 1 : 0
   return [s.start_date, kind, interval, week, s.duration_days, overnight].join('|')
@@ -268,6 +270,8 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
     let when: string
     if (repeat === 'none') {
       when = t(durationDays > 1 ? 'period.summary.once.multi' : 'period.summary.once.single', { date: long })
+    } else if (repeat === 'days') {
+      when = t('period.summary.cycle', { count: intervalWeeks, date: long })
     } else if (repeat === 'weekly') {
       when = intervalWeeks === 1
         ? t('period.summary.weekly.one', { date: long })
@@ -293,13 +297,16 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
   const buildSchedule = (): Schedule => {
     const keepsRhythm =
       period !== undefined && repeat === 'weekly' && repeatOf(period) === 'weekly' && intervalOf(period) === intervalWeeks
+    // Cycle en jours : conservé tel quel tant que la répétition n'est pas changée.
+    const keepsCycle = period !== undefined && repeat === 'days' && period.frequency === 'days'
     const frequency: Frequency =
-      repeat === 'none' ? 'once' : repeat === 'monthly' ? 'monthly' : period !== undefined && keepsRhythm ? period.frequency : 'weekly'
+      repeat === 'days' ? (keepsCycle ? 'days' : 'weekly')
+      : repeat === 'none' ? 'once' : repeat === 'monthly' ? 'monthly' : period !== undefined && keepsRhythm ? period.frequency : 'weekly'
     return {
       start_date: startDate,
       frequency,
       duration_days: durationDays,
-      interval_weeks: repeat === 'weekly' ? (period !== undefined && keepsRhythm ? period.interval_weeks : intervalWeeks) : 1,
+      interval_weeks: repeat === 'days' ? (period?.interval_weeks ?? 1) : repeat === 'weekly' ? (period !== undefined && keepsRhythm ? period.interval_weeks : intervalWeeks) : 1,
       week_of_month: repeat === 'monthly' ? weekOfMonth : null,
       start_time: timed ? startTime : null,
       end_time: timed ? endTime : null,
@@ -581,6 +588,7 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
             { value: 'none', label: t('period.repeat.none') },
             { value: 'weekly', label: t('period.repeat.weekly') },
             { value: 'monthly', label: t('period.repeat.monthly') },
+            ...(period?.frequency === 'days' ? [{ value: 'days' as Repeat, label: t('period.repeat.days') }] : []),
           ]}
         />
 
@@ -602,6 +610,9 @@ export default function PeriodForm({ calendarId, period, onSaved, onCancel, onCh
         )}
         {repeat === 'weekly' && (
           <p style={hintStyle}>{t('period.hint.weekly')}</p>
+        )}
+        {repeat === 'days' && (
+          <p style={hintStyle}>{t('period.hint.cycle', { count: intervalWeeks })}</p>
         )}
 
         {repeat === 'monthly' && (
