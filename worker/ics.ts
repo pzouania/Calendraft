@@ -49,7 +49,7 @@ const MAX_IMPORTED_CHARS = 6_000_000
 const TIMEOUT_MS = 8000
 const MAX_PERIODS = 2000
 const MAX_EXCEPTIONS = 50000
-const FREQUENCIES: Frequency[] = ['once', 'weekly', 'custom_days', 'alternating', 'monthly']
+const FREQUENCIES: Frequency[] = ['once', 'weekly', 'custom_days', 'alternating', 'monthly', 'days']
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
 const TIME_RE = /^\d{2}:\d{2}/
 

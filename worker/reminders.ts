@@ -65,7 +65,7 @@ const CLEANUP_AFTER_MS = 3 * 24 * HOUR
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-const FREQUENCIES: readonly string[] = ['once', 'weekly', 'custom_days', 'alternating', 'monthly']
+const FREQUENCIES: readonly string[] = ['once', 'weekly', 'custom_days', 'alternating', 'monthly', 'days']
 
 // ---------------------------------------------------------------------------
 // Dates et fuseaux horaires (sans bibliothèque : Intl suffit)
@@ -208,6 +208,7 @@ function toPeriod(c: Candidate, allDay: boolean): Period {
 export function fastForward(period: Period, windowStart: string): Period {
   let stepDays = 0
   if (period.frequency === 'weekly' || period.frequency === 'alternating') stepDays = period.interval_weeks * 7
+  else if (period.frequency === 'days') stepDays = Math.max(1, period.interval_weeks)
   else if (period.frequency === 'custom_days' || period.frequency === 'monthly') stepDays = 7
   if (stepDays === 0) return period
 
