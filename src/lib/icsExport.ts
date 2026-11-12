@@ -1,5 +1,6 @@
 import { generateOccurrences } from './occurrenceEngine'
 import { holidayLabel, holidaysBetween, type HolidayLang, type SchoolZone } from './schoolHolidays'
+import { publicHolidayName, publicHolidaysBetween } from './publicHolidays'
 import type { Period, PeriodException } from '../types'
 
 // Export d'un calendrier au format iCalendar (.ics), lisible par Google Agenda, Apple Calendrier, Outlook, Thunderbird...
@@ -57,6 +58,8 @@ export interface IcsFile {
   importedCount: number
   // Vacances scolaires ajoutées au fichier (en plus de eventCount : ce ne sont pas des événements du calendrier).
   holidayCount: number
+  // Jours fériés ajoutés au fichier (à part des vacances scolaires et des événements).
+  publicHolidayCount: number
   // Vrai si le calendrier contient plus d'événements que la limite : les plus lointains ne sont pas dans le fichier.
   truncated: boolean
 }
@@ -72,6 +75,8 @@ export interface IcsFileOptions {
   importedBlock?: { text: string; count: number }
   // Zone des vacances scolaires à ajouter au fichier (null ou absent : pas de vacances).
   holidayZone?: SchoolZone | null
+  // Ajouter les jours fériés (France métropolitaine) au fichier.
+  publicHolidays?: boolean
   // Langue des textes écrits par l'application dans le fichier (noms des vacances, « sans titre »). Français par défaut.
   lang?: HolidayLang
 }
@@ -412,6 +417,22 @@ export function holidayIcsEvents(zone: SchoolZone, from: string, to: string, lan
   }))
 }
 
+// Un jour férié = un événement « toute la journée » d'un seul jour, non bloquant.
+export function publicHolidayIcsEvents(from: string, to: string, lang: HolidayLang = 'fr'): IcsEvent[] {
+  return publicHolidaysBetween(from, to).map((h) => {
+    const next = new Date(Date.UTC(Number(h.date.slice(0, 4)), Number(h.date.slice(5, 7)) - 1, Number(h.date.slice(8, 10)) + 1))
+    const endDate = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`
+    return {
+      uid: `public-holiday-${h.key}-${compactDay(h.date)}@calendraft.fr`,
+      summary: publicHolidayName(h.key, lang),
+      startDate: h.date,
+      startTime: null,
+      endDate,
+      endTime: null,
+    }
+  })
+}
+
 // ---------- Écriture du fichier ----------
 
 // Texte iCalendar : \ ; , et retours à la ligne sont échappés, les caractères de contrôle supprimés.
@@ -562,13 +583,16 @@ export function buildIcsFile(
   const block = options.importedBlock
   // Les vacances (une vingtaine au plus) s'ajoutent après la limite : elles ne la consomment pas et ne sont jamais coupées.
   const holidays = options.holidayZone ? holidayIcsEvents(options.holidayZone, range.from, range.to, lang) : []
+  const publicEvents = options.publicHolidays ? publicHolidayIcsEvents(range.from, range.to, lang) : []
+  const extra = publicEvents.length > 0 ? holidays.concat(publicEvents) : holidays
   return {
-    text: buildIcsText(calendar, holidays.length > 0 ? events.concat(holidays) : events, {
+    text: buildIcsText(calendar, extra.length > 0 ? events.concat(extra) : events, {
       stamp: options.stamp, subscription: options.subscription, extraEvents: block?.text, lang,
     }),
     eventCount: events.length + (block ? block.count : 0),
     importedCount: events.filter((e) => e.imported).length + (block ? block.count : 0),
     holidayCount: holidays.length,
+    publicHolidayCount: publicEvents.length,
     truncated,
   }
 }
