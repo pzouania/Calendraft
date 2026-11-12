@@ -14,6 +14,7 @@ import AppDownloadPage from './components/AppDownloadPage'
 import TermsGate from './components/TermsGate'
 import { useI18n } from './hooks/useI18n'
 import { startLangSync } from './lib/langSync'
+import { enterGuest, GUEST_CALENDAR_ID, leaveGuest } from './lib/guestClient'
 
 type View = { screen: 'dashboard' } | { screen: 'calendar'; id: string } | { screen: 'profile' } | { screen: 'partial'; id: string }
 
@@ -87,6 +88,8 @@ function clearSavedView() {
 function App() {
   const { session, loading } = useAuth()
   const { t } = useI18n()
+  // Mode essai : éditeur sans compte, calendrier gardé en mémoire seulement (voir lib/guestClient.ts).
+  const [guest, setGuest] = useState(false)
   // null = aucune navigation depuis le chargement de la page : on reprend alors la page mémorisée (voir plus bas).
   const [view, setView] = useState<View | null>(null)
   const [saved, setSaved] = useState<SavedView | null>(readSavedView)
@@ -139,7 +142,51 @@ function App() {
 
   if (isRecovery) return <ResetPasswordForm />
 
-  if (!session) return <AuthPage />
+  if (!session) {
+    if (guest) {
+      const leave = () => {
+        leaveGuest()
+        setGuest(false)
+      }
+      return (
+        <>
+          <div
+            role="status"
+            data-testid="guest-banner"
+            style={{
+              position: 'sticky', top: 0, zIndex: 60, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center',
+              gap: '0.5rem 1rem', padding: '0.5rem 1rem', background: 'var(--surface-alt)', borderBottom: '1px solid var(--tint-border)',
+              color: 'var(--text-body)', fontSize: '0.85rem',
+            }}
+          >
+            <span>{t('guest.banner')}</span>
+            <button
+              type="button"
+              data-testid="guest-signup"
+              onClick={leave}
+              style={{ background: 'var(--gradient-main)', color: 'var(--on-accent)', border: 'none', borderRadius: 999, padding: '0.4rem 1rem', fontWeight: 700, fontSize: '0.82rem' }}
+            >
+              {t('guest.signup')}
+            </button>
+          </div>
+          <CalendarEditor
+            calendarId={GUEST_CALENDAR_ID}
+            onBack={() => {
+              if (window.confirm(t('guest.leaveConfirm'))) leave()
+            }}
+          />
+        </>
+      )
+    }
+    return (
+      <AuthPage
+        onTryGuest={() => {
+          enterGuest(t('guest.calendarName'))
+          setGuest(true)
+        }}
+      />
+    )
+  }
 
   // Page affichée : celle choisie depuis le chargement, sinon la page mémorisée par ce même compte, sinon le tableau de bord.
   const restored = saved && saved.userId === session.user.id ? saved.view : null
