@@ -14,7 +14,7 @@ import AppDownloadPage from './components/AppDownloadPage'
 import TermsGate from './components/TermsGate'
 import { useI18n } from './hooks/useI18n'
 import { startLangSync } from './lib/langSync'
-import { enterGuest, GUEST_CALENDAR_ID, leaveGuest } from './lib/guestClient'
+import { enterGuest, GUEST_CALENDAR_ID, hasStoredGuest, leaveGuest, restoreGuest } from './lib/guestClient'
 
 type View = { screen: 'dashboard' } | { screen: 'calendar'; id: string } | { screen: 'profile' } | { screen: 'partial'; id: string }
 
@@ -89,7 +89,7 @@ function App() {
   const { session, loading } = useAuth()
   const { t } = useI18n()
   // Mode essai : éditeur sans compte, calendrier gardé en mémoire seulement (voir lib/guestClient.ts).
-  const [guest, setGuest] = useState(false)
+  const [guest, setGuest] = useState(() => hasStoredGuest() && restoreGuest())
   // null = aucune navigation depuis le chargement de la page : on reprend alors la page mémorisée (voir plus bas).
   const [view, setView] = useState<View | null>(null)
   const [saved, setSaved] = useState<SavedView | null>(readSavedView)
@@ -126,6 +126,14 @@ function App() {
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [userId])
+
+  // Une vraie connexion met fin à un essai resté en cours.
+  useEffect(() => {
+    if (session && guest) {
+      leaveGuest()
+      setGuest(false)
+    }
+  }, [session, guest])
 
   const path = window.location.pathname.replace(/\/$/, '')
   if (path === '/confidentialite') return <PrivacyPage />
