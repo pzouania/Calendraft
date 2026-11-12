@@ -795,7 +795,7 @@ export const en: Record<TranslationKey, Message> = {
   // Mode essai sans compte
   'guest.try': 'Try without an account',
   'guest.tryHint': 'Nothing is saved; PDF export still works.',
-  'guest.banner': 'Trial mode: your calendar is not saved and disappears when you close the page.',
+  'guest.banner': 'Trial mode: your calendar is not saved and disappears when you close the tab.',
   'guest.signup': 'Create an account',
   'guest.leaveConfirm': 'Leave trial mode? Your calendar will be lost.',
   'guest.calendarName': 'Trial calendar',

@@ -795,7 +795,7 @@ export const de: Record<TranslationKey, Message> = {
   // Mode essai sans compte
   'guest.try': 'Ohne Konto ausprobieren',
   'guest.tryHint': 'Nichts wird gespeichert; der PDF-Export funktioniert weiterhin.',
-  'guest.banner': 'Testmodus: Ihr Kalender wird nicht gespeichert und verschwindet beim Schließen der Seite.',
+  'guest.banner': 'Testmodus: Ihr Kalender wird nicht gespeichert und verschwindet beim Schließen des Tabs.',
   'guest.signup': 'Konto erstellen',
   'guest.leaveConfirm': 'Testmodus verlassen? Ihr Kalender geht verloren.',
   'guest.calendarName': 'Testkalender',

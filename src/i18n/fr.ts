@@ -802,7 +802,7 @@ export const fr = {
   // Mode essai sans compte
   'guest.try': 'Essayer sans compte',
   'guest.tryHint': 'Rien n’est enregistré ; l’export PDF reste possible.',
-  'guest.banner': 'Mode essai : votre calendrier n’est pas enregistré et disparaît à la fermeture de la page.',
+  'guest.banner': 'Mode essai : votre calendrier n’est pas enregistré et disparaît à la fermeture de l’onglet.',
   'guest.signup': 'Créer un compte',
   'guest.leaveConfirm': 'Quitter le mode essai ? Votre calendrier sera perdu.',
   'guest.calendarName': 'Calendrier d’essai',
