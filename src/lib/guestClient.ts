@@ -1,5 +1,6 @@
 // Mode essai (sans compte) : l'éditeur fonctionne avec un faux « serveur » gardé en mémoire.
-// Rien n'est envoyé à Supabase ni enregistré : fermer ou actualiser la page efface tout.
+// Rien n'est envoyé à Supabase. Les données restent dans l'onglet (sessionStorage) : une actualisation garde l'essai,
+// fermer l'onglet l'efface.
 // Pendant le mode essai, les fonctions du client Supabase (from, rpc, auth) sont remplacées ; elles sont rétablies à la sortie.
 import { supabase } from './supabaseClient'
 
@@ -12,10 +13,28 @@ type Result = { data: Row[] | null; error: { message: string; code?: string } | 
 let active = false
 let counter = 0
 let tables: Record<string, Row[]> = {}
+const STORE_KEY = 'calendraft.guest'
 let saved: { from: unknown; rpc: unknown; getUser: unknown; getSession: unknown } | null = null
 
 export function isGuest(): boolean {
   return active
+}
+
+function persist(): void {
+  try {
+    window.sessionStorage.setItem(STORE_KEY, JSON.stringify({ tables, counter }))
+  } catch {
+    // Stockage indisponible : l'essai reste en mémoire seulement.
+  }
+}
+
+// Vrai si un essai est en cours dans cet onglet (avant une actualisation de la page).
+export function hasStoredGuest(): boolean {
+  try {
+    return window.sessionStorage.getItem(STORE_KEY) !== null
+  } catch {
+    return false
+  }
 }
 
 function newId(): string {
@@ -39,11 +58,13 @@ function builder(table: string): any {
         ...row,
       }))
       rows.push(...made)
+      persist()
       return { data: returning ? made : null, error: null }
     }
     const hit = rows.filter((row) => filters.every((f) => f(row)))
     if (op === 'update') {
       hit.forEach((row) => Object.assign(row, payload))
+      persist()
       return { data: returning ? hit : null, error: null }
     }
     if (op === 'delete') {
@@ -52,6 +73,7 @@ function builder(table: string): any {
         const ids = hit.map((row) => row.id)
         tables.period_exceptions = (tables.period_exceptions ?? []).filter((e) => !ids.includes(e.period_id))
       }
+      persist()
       return { data: returning ? hit : null, error: null }
     }
     const list = [...hit]
@@ -107,11 +129,20 @@ function builder(table: string): any {
   return q
 }
 
+function install(): void {
+  const client = supabase as any
+  saved = { from: client.from, rpc: client.rpc, getUser: client.auth.getUser, getSession: client.auth.getSession }
+  client.from = (table: string) => builder(table)
+  client.rpc = async (name: string) =>
+    name === 'check_event_slot' ? { data: null, error: null } : { data: null, error: { message: 'guest', code: 'guest' } }
+  client.auth.getUser = async () => ({ data: { user: { id: GUEST_USER_ID, email: '' } }, error: null })
+  client.auth.getSession = async () => ({ data: { session: null }, error: null })
+  active = true
+}
+
 // Entrée dans le mode essai : un calendrier vide, créé en mémoire.
 export function enterGuest(calendarName: string): void {
   if (active) return
-  const client = supabase as any
-  saved = { from: client.from, rpc: client.rpc, getUser: client.auth.getUser, getSession: client.auth.getSession }
   const now = new Date().toISOString()
   tables = {
     calendars: [
@@ -120,12 +151,25 @@ export function enterGuest(calendarName: string): void {
     periods: [],
     period_exceptions: [],
   }
-  client.from = (table: string) => builder(table)
-  client.rpc = async (name: string) =>
-    name === 'check_event_slot' ? { data: null, error: null } : { data: null, error: { message: 'guest', code: 'guest' } }
-  client.auth.getUser = async () => ({ data: { user: { id: GUEST_USER_ID, email: '' } }, error: null })
-  client.auth.getSession = async () => ({ data: { session: null }, error: null })
-  active = true
+  install()
+  persist()
+}
+
+// Reprise de l'essai après une actualisation de la page. Renvoie false s'il n'y a rien à reprendre.
+export function restoreGuest(): boolean {
+  if (active) return true
+  try {
+    const raw = window.sessionStorage.getItem(STORE_KEY)
+    if (!raw) return false
+    const data = JSON.parse(raw) as { tables?: Record<string, Row[]>; counter?: number }
+    if (!data.tables || !Array.isArray(data.tables.calendars)) return false
+    tables = data.tables
+    counter = typeof data.counter === 'number' ? data.counter : 0
+    install()
+    return true
+  } catch {
+    return false
+  }
 }
 
 // Sortie du mode essai : le client Supabase est rétabli et les données d'essai sont effacées.
@@ -139,4 +183,9 @@ export function leaveGuest(): void {
   saved = null
   tables = {}
   active = false
+  try {
+    window.sessionStorage.removeItem(STORE_KEY)
+  } catch {
+    // Rien à faire.
+  }
 }
