@@ -789,7 +789,7 @@ export const fr = {
   'icsLink.unexpected': 'Réponse inattendue du serveur.',
 
   // Onglet vacances scolaires
-  'editor.tab.holidays': 'Vacances scolaires',
+  'editor.tab.holidays': 'Vacances et jours fériés',
   'editor.tab.holidaysShort': 'Vacances',
 
   // Pages légales : version française + politique de confidentialité complétée
@@ -819,6 +819,9 @@ export const fr = {
   'rhythm.t.5x8.title': '5x8 : rotation continue sur 10 jours',
   'rhythm.t.5x8.summary': '2 matins, 2 après-midis, 2 nuits, puis 4 jours de repos, en boucle (5 équipes).',
   'rhythm.t.5x8.help': 'Les horaires de chaque poste sont modifiables. Les équipes sont décalées de 2 jours : indiquez ce que fait la vôtre le jour de départ.',
+  'publicHolidays.toggle': 'Afficher les jours fériés',
+  'publicHolidays.intro': 'Affiche les jours fériés de la France métropolitaine dans ce calendrier, dans le PDF et dans le fichier .ics téléchargé.',
+  'publicHolidays.unavailable': 'Cette fonction n’est pas encore activée sur le serveur : le script public_holidays.sql doit être exécuté dans Supabase.',
 } satisfies Record<string, Message>
 
 export type TranslationKey = keyof typeof fr

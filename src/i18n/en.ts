@@ -782,7 +782,7 @@ export const en: Record<TranslationKey, Message> = {
   'icsLink.unexpected': 'Unexpected response from the server.',
 
   // Onglet vacances scolaires
-  'editor.tab.holidays': 'French school holidays',
+  'editor.tab.holidays': 'Holidays',
   'editor.tab.holidaysShort': 'Holidays',
 
   // Pages légales : version française + politique de confidentialité complétée
@@ -812,4 +812,7 @@ export const en: Record<TranslationKey, Message> = {
   'rhythm.t.5x8.title': '5x8: continuous 10-day rotation',
   'rhythm.t.5x8.summary': '2 mornings, 2 afternoons, 2 nights, then 4 rest days, in a loop (5 teams).',
   'rhythm.t.5x8.help': 'The hours of each shift can be changed. Teams are offset by 2 days: say what yours does on the start day.',
+  'publicHolidays.toggle': 'Show public holidays',
+  'publicHolidays.intro': 'Shows the public holidays of mainland France in this calendar, in the PDF and in the downloaded .ics file.',
+  'publicHolidays.unavailable': 'This feature is not yet enabled on the server: the public_holidays.sql script must be run in Supabase.',
 }

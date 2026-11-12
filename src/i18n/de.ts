@@ -782,7 +782,7 @@ export const de: Record<TranslationKey, Message> = {
   'icsLink.unexpected': 'Unerwartete Antwort des Servers.',
 
   // Onglet vacances scolaires
-  'editor.tab.holidays': 'Französische Schulferien',
+  'editor.tab.holidays': 'Ferien und Feiertage',
   'editor.tab.holidaysShort': 'Ferien',
 
   // Pages légales : version française + politique de confidentialité complétée
@@ -812,4 +812,7 @@ export const de: Record<TranslationKey, Message> = {
   'rhythm.t.5x8.title': '5x8: durchgehender 10-Tage-Wechsel',
   'rhythm.t.5x8.summary': '2 Frühschichten, 2 Spätschichten, 2 Nachtschichten, dann 4 freie Tage, im Kreislauf (5 Teams).',
   'rhythm.t.5x8.help': 'Die Zeiten jeder Schicht lassen sich ändern. Die Teams sind um 2 Tage versetzt: Geben Sie an, was Ihres am Starttag macht.',
+  'publicHolidays.toggle': 'Feiertage anzeigen',
+  'publicHolidays.intro': 'Zeigt die Feiertage des französischen Mutterlands in diesem Kalender, im PDF und in der heruntergeladenen .ics-Datei an.',
+  'publicHolidays.unavailable': 'Diese Funktion ist auf dem Server noch nicht aktiviert: Das Skript public_holidays.sql muss in Supabase ausgeführt werden.',
 }
