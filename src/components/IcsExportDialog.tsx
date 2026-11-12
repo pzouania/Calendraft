@@ -31,6 +31,8 @@ export interface IcsExportDialogProps {
   canManageLink: boolean
   // Zone de vacances scolaires du calendrier : le fichier et le lien peuvent contenir les vacances (absente : rien à proposer).
   schoolZone?: SchoolZone | null
+  // Jours fériés activés dans le calendrier : ils sont ajoutés au fichier téléchargé.
+  publicHolidays?: boolean
   // Calendrier enregistré : le serveur peut avoir un emploi du temps en ligne à ajouter au fichier (faux pour une page partagée
   // par lien, dont les données sont fixes).
   loadImported: boolean
@@ -51,7 +53,7 @@ function download(text: string, fileName: string) {
 }
 
 export default function IcsExportDialog({
-  calendarId, calendarName, calendarColor, periods, exceptions, yearLabel, yearFrom, yearTo, canManageLink, schoolZone = null, loadImported, onClose,
+  calendarId, calendarName, calendarColor, periods, exceptions, yearLabel, yearFrom, yearTo, canManageLink, schoolZone = null, publicHolidays = false, loadImported, onClose,
 }: IcsExportDialogProps) {
   const { t, lang, locale, formatDate } = useI18n()
   // Nombre écrit selon la langue (5 000 / 5,000 / 5.000) ; « count » (nombre brut) sert au choix du singulier ou du pluriel.
@@ -157,9 +159,9 @@ export default function IcsExportDialog({
   const doDownload = () => {
     if (loadingImported) return
     const file = buildIcsFile({ name: calendarName, color: calendarColor }, periods, exceptions, span, {
-      stamp: new Date(), feed: importedEvents, holidayZone: fileHolidays ? schoolZone : null, lang,
+      stamp: new Date(), feed: importedEvents, holidayZone: fileHolidays ? schoolZone : null, publicHolidays, lang,
     })
-    if (file.eventCount === 0 && file.holidayCount === 0) {
+    if (file.eventCount === 0 && file.holidayCount === 0 && file.publicHolidayCount === 0) {
       setDownloadNotice({ tone: 'warn', text: t('ics.notice.empty') })
       return
     }

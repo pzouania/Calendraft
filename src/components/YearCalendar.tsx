@@ -10,6 +10,7 @@ import IcsExportDialog from './IcsExportDialog'
 import { isGuest } from '../lib/guestClient'
 import { toDateOnly } from '../lib/dateUtils'
 import { snapshotLabel } from '../lib/partialShare'
+import { PUBLIC_HOLIDAY_COLOR, PUBLIC_HOLIDAY_LEGEND, publicHolidayOccurrences } from '../lib/publicHolidays'
 import { HOLIDAY_COLOR, holidayLegendLabel, holidaysByDay, outsideCoverage, HOLIDAY_COVERAGE, type SchoolZone } from '../lib/schoolHolidays'
 import Icon from './icons'
 import type { Period, Occurrence, PeriodException, YearMode } from '../types'
@@ -25,6 +26,8 @@ interface YearCalendarProps {
   yearMode?: YearMode
   // Zone de vacances scolaires du calendrier (A, B ou C) : les jours de vacances sont colorés. Absente : rien n'est affiché.
   schoolZone?: SchoolZone | null
+  // Jours fériés affichés (réglage du calendrier).
+  publicHolidays?: boolean
   staticData?: { periods: Period[]; exceptions: PeriodException[] }
 }
 
@@ -110,6 +113,7 @@ export default function YearCalendar({
   canShare = false,
   yearMode = 'calendar',
   schoolZone = null,
+  publicHolidays = false,
   staticData,
 }: YearCalendarProps) {
   const { t, lang, monthName, formatDate } = useI18n()
@@ -247,6 +251,7 @@ export default function YearCalendar({
     const all: Occurrence[] = generateAllOccurrences(periods, rangeStart, rangeEnd, exceptionsByPeriod)
 
     all.push(...feedOccurrences)
+    if (publicHolidays) all.push(...publicHolidayOccurrences(toDateOnly(rangeStart), toDateOnly(rangeEnd), lang))
 
     const map = new Map<string, Occurrence[]>()
     for (const o of all) {
@@ -255,7 +260,7 @@ export default function YearCalendar({
       map.set(o.date, list)
     }
     return map
-  }, [periods, year, isSchool, exceptionsByPeriod, feedOccurrences])
+  }, [periods, year, isSchool, exceptionsByPeriod, feedOccurrences, publicHolidays, lang])
 
   // Jours de vacances scolaires de l'année affichée (avec 7 jours de marge : une semaine imprimée peut déborder sur l'année voisine).
   const holidaysByDate = useMemo(() => {
@@ -281,6 +286,7 @@ export default function YearCalendar({
     return [
       ...generateAllOccurrences(periods, start, end, exceptionsByPeriod),
       ...feedOccurrences.filter((o) => o.date >= first && o.date <= last),
+      ...(publicHolidays ? publicHolidayOccurrences(first, last, lang) : []),
     ]
   }
 
@@ -332,7 +338,7 @@ export default function YearCalendar({
 
   if (loading) return <p style={{ color: 'var(--text-secondary)' }}>{t('calendar.loading')}</p>
 
-  const hasLegend = periods.length > 0 || !!feed || !!schoolZone
+  const hasLegend = periods.length > 0 || !!feed || !!schoolZone || publicHolidays
   const navButtonSize = isNarrow ? 40 : 32
   const toolbarTitle = monthView ? `${capitalize(monthName(currentMonth.month))} ${currentMonth.year}` : yearLabel
 
@@ -640,6 +646,19 @@ export default function YearCalendar({
               {feed.label}
             </div>
           )}
+          {publicHolidays && (
+            <div
+              className="legend-pill"
+              data-testid="public-holiday-legend"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'var(--text-primary)',
+                background: `${PUBLIC_HOLIDAY_COLOR}18`, borderRadius: 999, padding: '0.3rem 0.7rem 0.3rem 0.4rem',
+              }}
+            >
+              <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', backgroundColor: PUBLIC_HOLIDAY_COLOR }} />
+              {PUBLIC_HOLIDAY_LEGEND[lang]}
+            </div>
+          )}
           {schoolZone && (
             <div
               className="legend-pill"
@@ -679,6 +698,7 @@ export default function YearCalendar({
           legend={[
             ...periods.map((p) => ({ id: p.id, label: p.name, color: p.color })),
             ...(feed ? [{ id: 'feed', label: feed.label, color: feed.color }] : []),
+            ...(publicHolidays ? [{ id: 'public-holiday', label: PUBLIC_HOLIDAY_LEGEND[lang], color: PUBLIC_HOLIDAY_COLOR }] : []),
           ]}
           getOccurrences={getOccurrencesBetween}
           onExportYear={handleExportPDF}
@@ -698,6 +718,7 @@ export default function YearCalendar({
           yearTo={toDateOnly(exportRangeEnd)}
           canManageLink={canShare && !staticData && Boolean(calendarId)}
           schoolZone={schoolZone}
+          publicHolidays={publicHolidays}
           loadImported={!staticData && Boolean(calendarId)}
           onClose={() => setIcsOpen(false)}
         />

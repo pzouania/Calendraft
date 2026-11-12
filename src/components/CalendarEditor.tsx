@@ -9,12 +9,14 @@ import ShareModal from './ShareModal'
 import FeedSettings from './FeedSettings'
 import RhythmTemplateDialog from './RhythmTemplateDialog'
 import SchoolHolidaysCard from './SchoolHolidaysCard'
+import PublicHolidaysCard from './PublicHolidaysCard'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import { getPushState, type PushState } from '../lib/push'
 import { choicesFor, loadMyReminders, pushHint, requestReminderSync, saveReminder } from '../lib/reminders'
 import type { SchoolZone } from '../lib/schoolHolidays'
 import { fetchSchoolZone } from '../lib/schoolZone'
+import { fetchPublicHolidays } from '../lib/publicHolidaysFlag'
 import type { Period, YearMode } from '../types'
 
 interface CalendarEditorProps {
@@ -152,6 +154,9 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
   // Zone de vacances scolaires (lue à part : si la base n'a pas encore la colonne, le calendrier s'ouvre sans vacances).
   const [schoolZone, setSchoolZone] = useState<SchoolZone | null>(null)
   const [zoneUnavailable, setZoneUnavailable] = useState(false)
+  // Jours fériés affichés dans ce calendrier (lus à part, comme la zone).
+  const [publicHolidays, setPublicHolidays] = useState(false)
+  const [publicHolidaysUnavailable, setPublicHolidaysUnavailable] = useState(false)
   const [infoLoaded, setInfoLoaded] = useState(false)
   const [role, setRole] = useState<Role | null>(null)
   const [showShare, setShowShare] = useState(false)
@@ -204,6 +209,10 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
         setRole(share?.role === 'editor' ? 'editor' : 'viewer')
       }
     }
+
+    const flag = await fetchPublicHolidays(calendarId)
+    setPublicHolidays(flag.ok ? flag.enabled : false)
+    setPublicHolidaysUnavailable(!flag.ok && flag.unavailable)
 
     const zone = await fetchSchoolZone(calendarId)
     setSchoolZone(zone.ok ? zone.zone : null)
@@ -439,7 +448,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
             {isNarrow ? t('editor.tab.yearShort') : t('editor.tab.year')}
           </button>
           <button style={tabButtonStyle(tab === 'events')} onClick={() => setTab('events')}>{t('editor.tab.events')}</button>
-          {infoLoaded && (isOwner || schoolZone !== null) && (
+          {infoLoaded && (isOwner || schoolZone !== null || publicHolidays) && (
             <button style={tabButtonStyle(tab === 'holidays')} onClick={() => setTab('holidays')} data-testid="tab-holidays">
               {isNarrow ? t('editor.tab.holidaysShort') : t('editor.tab.holidays')}
             </button>
@@ -640,6 +649,15 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
         )}
 
         {tab === 'holidays' && infoLoaded && (
+          <PublicHolidaysCard
+            calendarId={calendarId}
+            enabled={publicHolidays}
+            canChange={isOwner}
+            unavailable={publicHolidaysUnavailable}
+            onChanged={setPublicHolidays}
+          />
+        )}
+        {tab === 'holidays' && infoLoaded && (
           <SchoolHolidaysCard
             calendarId={calendarId}
             zone={schoolZone}
@@ -663,6 +681,7 @@ export default function CalendarEditor({ calendarId, onBack }: CalendarEditorPro
               canShare={isOwner && !guest}
               yearMode={yearMode}
               schoolZone={schoolZone}
+              publicHolidays={publicHolidays}
             />
           ) : (
             <p style={{ color: 'var(--text-secondary)' }}>{t('calendar.loading')}</p>
